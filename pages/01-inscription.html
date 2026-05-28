@@ -1,0 +1,260 @@
+<!--
+==================================================================================
+  ACADÉMIE FLORALE — PAGE 01 : INSCRIPTION (opt-in vidéo offerte)
+  ----------------------------------------------------------------------------------
+  COMMENT INTÉGRER DANS SYSTEME.IO :
+  1. Créer une page VIERGE (sans en-tête/pied systeme.io).
+  2. Ajouter UN SEUL élément "Code / HTML personnalisé" en pleine largeur.
+  3. Coller TOUT ce bloc (à partir de <div class="af-optin"> jusqu'à la fin).
+  4. Remplacer les URLs marquées  ===REMPLACER===  par tes propres médias
+     (logo + photos uploadés dans la bibliothèque systeme.io ou un CDN).
+  5. FORMULAIRE : voir la note "FORMULAIRE SYSTEME.IO" plus bas pour brancher
+     la capture d'email dans ton outil systeme.io.
+
+  Tout le CSS est scopé sous .af-optin pour ne rien casser ailleurs.
+==================================================================================
+-->
+<div class="af-optin">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Jost:wght@300;400;500;600&display=swap');
+
+.af-optin{
+  /* ---- Système de design Académie Florale ---- */
+  --af-orange:#F64B0C;
+  --af-orange-dark:#D63E08;
+  --af-ink:#1A1512;
+  --af-cream:#FBF7F1;
+  --af-sand:#F1E8DC;
+  --af-line:#E4D8C8;
+  --af-white:#FFFFFF;
+  --af-muted:#6B6058;
+
+  --af-serif:'Fraunces',Georgia,serif;
+  --af-sans:'Jost',-apple-system,'Segoe UI',sans-serif;
+
+  all:initial;
+  display:block;
+  font-family:var(--af-sans);
+  color:var(--af-ink);
+  background:var(--af-cream);
+  line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+  text-align:left;
+}
+.af-optin *,.af-optin *::before,.af-optin *::after{box-sizing:border-box;margin:0;padding:0;}
+.af-optin img{display:block;max-width:100%;height:auto;}
+.af-optin a{color:inherit;text-decoration:none;}
+
+.af-optin .af-wrap{max-width:1180px;margin:0 auto;padding:0 24px;}
+.af-optin .af-eyebrow{
+  font-family:var(--af-sans);font-size:13px;font-weight:500;letter-spacing:.28em;
+  text-transform:uppercase;color:var(--af-orange);margin-bottom:22px;
+}
+.af-optin h1,.af-optin h2,.af-optin h3{font-family:var(--af-serif);font-weight:400;line-height:1.05;letter-spacing:-.01em;}
+
+/* ---------- NAV / LOGO ---------- */
+.af-optin .af-nav{display:flex;align-items:center;justify-content:center;padding:26px 24px;border-bottom:1px solid var(--af-line);}
+.af-optin .af-logo{height:38px;}
+.af-optin .af-logo-fallback{font-family:var(--af-serif);font-size:26px;color:var(--af-orange);letter-spacing:.02em;}
+
+/* ---------- HERO ---------- */
+.af-optin .af-hero{display:grid;grid-template-columns:1.05fr .95fr;min-height:88vh;}
+.af-optin .af-hero-text{padding:74px 60px;display:flex;flex-direction:column;justify-content:center;}
+.af-optin .af-hero h1{font-size:clamp(40px,5.2vw,68px);margin-bottom:24px;}
+.af-optin .af-hero h1 em{font-style:italic;color:var(--af-orange);}
+.af-optin .af-lead{font-size:19px;color:var(--af-muted);max-width:30em;margin-bottom:14px;}
+.af-optin .af-micro{font-size:15px;color:var(--af-muted);max-width:30em;margin-bottom:34px;font-style:italic;}
+.af-optin .af-hero-img{position:relative;background:var(--af-sand) center/cover no-repeat;
+  /* ===REMPLACER=== photo héro (portrait Sybile avec bouquet) */
+  background-image:url('https://VOTRE-LIEN/hero-sybile.jpg');
+}
+
+/* ---------- FORMULAIRE ---------- */
+.af-optin .af-form{display:flex;flex-direction:column;gap:12px;max-width:420px;}
+.af-optin .af-form input{
+  font-family:var(--af-sans);font-size:16px;padding:16px 18px;border:1px solid var(--af-line);
+  background:var(--af-white);color:var(--af-ink);border-radius:2px;width:100%;
+}
+.af-optin .af-form input:focus{outline:none;border-color:var(--af-orange);}
+.af-optin .af-btn{
+  display:inline-block;text-align:center;cursor:pointer;border:none;
+  font-family:var(--af-sans);font-size:15px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+  background:var(--af-orange);color:#fff;padding:18px 26px;border-radius:2px;
+  transition:background .2s ease,transform .2s ease;
+}
+.af-optin .af-btn:hover{background:var(--af-orange-dark);transform:translateY(-1px);}
+.af-optin .af-trust{font-size:13px;color:var(--af-muted);letter-spacing:.04em;margin-top:14px;}
+.af-optin .af-trust span{color:var(--af-orange);}
+
+/* ---------- BANDE PRESTIGE ---------- */
+.af-optin .af-prestige{background:var(--af-ink);color:#fff;padding:34px 24px;}
+.af-optin .af-prestige .af-wrap{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:14px 38px;}
+.af-optin .af-prestige .af-pre-label{font-size:12px;letter-spacing:.26em;text-transform:uppercase;color:var(--af-orange);width:100%;text-align:center;margin-bottom:6px;}
+.af-optin .af-prestige span{font-family:var(--af-serif);font-size:20px;color:#F4ECE2;opacity:.92;}
+
+/* ---------- BÉNÉFICES ---------- */
+.af-optin .af-benefits{padding:96px 24px;}
+.af-optin .af-benefits h2{font-size:clamp(30px,3.6vw,46px);max-width:14em;margin-bottom:60px;}
+.af-optin .af-grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:44px;}
+.af-optin .af-benefit .af-num{font-family:var(--af-serif);font-size:30px;color:var(--af-orange);border-bottom:1px solid var(--af-orange);display:inline-block;padding-bottom:10px;margin-bottom:20px;}
+.af-optin .af-benefit h3{font-size:23px;margin-bottom:12px;line-height:1.2;}
+.af-optin .af-benefit p{font-size:16px;color:var(--af-muted);}
+
+/* ---------- FONDATRICE ---------- */
+.af-optin .af-founder{background:var(--af-sand);}
+.af-optin .af-founder .af-fgrid{display:grid;grid-template-columns:.9fr 1.1fr;align-items:stretch;}
+.af-optin .af-founder-img{min-height:520px;background:var(--af-line) center/cover no-repeat;
+  /* ===REMPLACER=== photo Sybile en atelier */
+  background-image:url('https://VOTRE-LIEN/sybile-atelier.jpg');
+}
+.af-optin .af-founder-text{padding:80px 64px;display:flex;flex-direction:column;justify-content:center;}
+.af-optin .af-founder-text h2{font-size:clamp(28px,3.4vw,42px);margin-bottom:24px;}
+.af-optin .af-founder-text p{font-size:17px;color:#4A423B;margin-bottom:16px;max-width:34em;}
+.af-optin .af-signature{font-family:var(--af-serif);font-style:italic;font-size:26px;color:var(--af-orange);margin-top:8px;}
+
+/* ---------- GALERIE ---------- */
+.af-optin .af-gallery{display:grid;grid-template-columns:repeat(4,1fr);gap:0;}
+.af-optin .af-gallery div{aspect-ratio:3/4;background:var(--af-sand) center/cover no-repeat;}
+/* ===REMPLACER=== 4 photos de compositions */
+.af-optin .af-gallery div:nth-child(1){background-image:url('https://VOTRE-LIEN/compo-1.jpg');}
+.af-optin .af-gallery div:nth-child(2){background-image:url('https://VOTRE-LIEN/compo-2.jpg');}
+.af-optin .af-gallery div:nth-child(3){background-image:url('https://VOTRE-LIEN/compo-3.jpg');}
+.af-optin .af-gallery div:nth-child(4){background-image:url('https://VOTRE-LIEN/compo-4.jpg');}
+
+/* ---------- CTA FINAL ---------- */
+.af-optin .af-cta{text-align:center;padding:100px 24px;}
+.af-optin .af-cta h2{font-size:clamp(32px,4.4vw,56px);max-width:16em;margin:0 auto 18px;}
+.af-optin .af-cta h2 em{font-style:italic;color:var(--af-orange);}
+.af-optin .af-cta p{font-size:18px;color:var(--af-muted);margin-bottom:34px;}
+.af-optin .af-cta .af-btn{font-size:16px;padding:20px 44px;}
+
+/* ---------- FOOTER ---------- */
+.af-optin .af-footer{border-top:1px solid var(--af-line);padding:34px 24px;text-align:center;color:var(--af-muted);font-size:13px;}
+.af-optin .af-footer a{color:var(--af-muted);margin:0 10px;text-decoration:underline;}
+.af-optin .af-footer .af-disc{margin-top:14px;opacity:.7;font-size:12px;max-width:46em;margin-left:auto;margin-right:auto;}
+
+/* ---------- RESPONSIVE ---------- */
+@media(max-width:860px){
+  .af-optin .af-hero{grid-template-columns:1fr;}
+  .af-optin .af-hero-text{padding:54px 28px;}
+  .af-optin .af-hero-img{min-height:60vh;}
+  .af-optin .af-grid3{grid-template-columns:1fr;gap:38px;}
+  .af-optin .af-founder .af-fgrid{grid-template-columns:1fr;}
+  .af-optin .af-founder-img{min-height:380px;}
+  .af-optin .af-founder-text{padding:54px 28px;}
+  .af-optin .af-gallery{grid-template-columns:repeat(2,1fr);}
+  .af-optin .af-benefits{padding:64px 24px;}
+}
+</style>
+
+<!-- NAV -->
+<nav class="af-nav">
+  <!-- ===REMPLACER=== src par l'URL de ton logo orange (PNG/SVG). Sinon le texte s'affiche. -->
+  <a href="#"><img class="af-logo" src="https://VOTRE-LIEN/logo-academie-florale.svg" alt="Académie Florale"
+     onerror="this.style.display='none';this.insertAdjacentHTML('afterend','&lt;span class=&quot;af-logo-fallback&quot;&gt;Académie Florale&lt;/span&gt;')"></a>
+</nav>
+
+<!-- HERO -->
+<section class="af-hero">
+  <div class="af-hero-text">
+    <div class="af-eyebrow">Devenir fleuriste indépendante · 2026</div>
+    <h1>Tu aimes les fleurs.<br>Et si tu en <em>vivais</em> ?</h1>
+    <p class="af-lead">Découvre comment devenir fleuriste indépendante depuis chez toi, en moins de 90 jours — même en partant de zéro, et même si tu n'as jamais réalisé un bouquet de ta vie.</p>
+    <p class="af-micro">Que tu partes de zéro sans CAP, ou que tu aies déjà ton diplôme sans savoir comment trouver des clients.</p>
+
+    <!-- ============================================================
+         FORMULAIRE SYSTEME.IO :
+         Pour CAPTURER les emails, 2 options :
+         (A) Remplace ce <form> par le formulaire NATIF systeme.io
+             (glisse-le ici) — il héritera des styles ci-dessous.
+         (B) Mets action="" vers ton URL de capture systeme.io.
+         Le bouton redirige ensuite vers /video.
+         ============================================================ -->
+    <form class="af-form" action="https://go.academie-florale.fr/video" method="get">
+      <input type="text" name="prenom" placeholder="Ton prénom" required>
+      <input type="email" name="email" placeholder="Ton adresse email" required>
+      <button type="submit" class="af-btn">Recevoir la vidéo offerte</button>
+    </form>
+    <p class="af-trust"><span>●</span> Vidéo 100% offerte &nbsp;·&nbsp; Accès immédiat &nbsp;·&nbsp; Sans engagement</p>
+  </div>
+  <div class="af-hero-img" role="img" aria-label="Sybile Loppé, fondatrice de l'Académie Florale"></div>
+</section>
+
+<!-- BANDE PRESTIGE -->
+<section class="af-prestige">
+  <div class="af-wrap">
+    <div class="af-pre-label">Ils lui ont fait confiance</div>
+    <span>Opéra de Montpellier</span>
+    <span>Rolex</span>
+    <span>Domaine de Verchant</span>
+    <span>Richer de Belleval</span>
+    <span>Plage Palace</span>
+  </div>
+</section>
+
+<!-- BÉNÉFICES -->
+<section class="af-benefits">
+  <div class="af-wrap">
+    <h2>Dans cette vidéo offerte, je te montre&nbsp;:</h2>
+    <div class="af-grid3">
+      <div class="af-benefit">
+        <div class="af-num">01</div>
+        <h3>Créer des compositions qui te ressemblent</h3>
+        <p>Pas de talent inné requis. Juste les bonnes techniques de base et les règles d'or — le reste, c'est ta sensibilité qui le crée.</p>
+      </div>
+      <div class="af-benefit">
+        <div class="af-num">02</div>
+        <h3>Trouver tes premiers clients</h3>
+        <p>Comment vendre tes créations et te rendre visible, même sans boutique et même en partant de chez toi.</p>
+      </div>
+      <div class="af-benefit">
+        <div class="af-num">03</div>
+        <h3>Chiffrer un mariage sans baisser la tête</h3>
+        <p>Construire un devis solide et défendre tes prix. Mes deux derniers devis&nbsp;: 1&nbsp;372&nbsp;€ et 4&nbsp;545&nbsp;€.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FONDATRICE -->
+<section class="af-founder">
+  <div class="af-fgrid">
+    <div class="af-founder-img" role="img" aria-label="Sybile Loppé en atelier"></div>
+    <div class="af-founder-text">
+      <div class="af-eyebrow">La fondatrice</div>
+      <h2>Je m'appelle Sybile Loppé.</h2>
+      <p>J'ai passé 8 ans en boutique, à collaborer avec des marques prestigieuses autour de Montpellier (Opéra de Montpellier, Rolex, Domaine de Verchant, Richer de Belleval), avant de me lancer à mon compte.</p>
+      <p>Aujourd'hui, j'accompagne des femmes à se reconvertir dans ce métier passionnant, à développer leurs compétences florales, et surtout à vivre pleinement de leur activité — même si elles partent de zéro.</p>
+      <div class="af-signature">Sybile</div>
+    </div>
+  </div>
+</section>
+
+<!-- GALERIE -->
+<section class="af-gallery">
+  <div role="img" aria-label="Composition florale"></div>
+  <div role="img" aria-label="Bouquet"></div>
+  <div role="img" aria-label="Centre de table mariage"></div>
+  <div role="img" aria-label="Installation florale"></div>
+</section>
+
+<!-- CTA FINAL -->
+<section class="af-cta">
+  <div class="af-wrap">
+    <div class="af-eyebrow">C'est le moment</div>
+    <h2>Le meilleur moment pour te lancer, <em>c'est maintenant.</em></h2>
+    <p>Reçois la vidéo offerte et découvre la méthode, étape par étape.</p>
+    <a href="#" class="af-btn" onclick="document.querySelector('.af-optin .af-form input').focus();return false;">Accéder à la vidéo offerte</a>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="af-footer">
+  <div>
+    <a href="https://go.academie-florale.fr/cgv">CGV</a>
+    <a href="https://go.academie-florale.fr/mentions-legales">Mentions légales</a>
+  </div>
+  <div class="af-disc">Ce site n'est pas affilié à Facebook ni approuvé par Facebook de quelque manière que ce soit. FACEBOOK est une marque déposée de Meta Platforms, Inc.</div>
+</footer>
+
+</div>
