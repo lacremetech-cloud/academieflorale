@@ -65,8 +65,8 @@
 .af-optin .af-lead{font-size:19px;color:var(--af-muted);max-width:30em;margin-bottom:14px;}
 .af-optin .af-micro{font-size:15px;color:var(--af-muted);max-width:30em;margin-bottom:34px;font-style:italic;}
 .af-optin .af-hero-img{position:relative;background:var(--af-sand) center/cover no-repeat;
-  /* ===REMPLACER=== photo héro (portrait Sybile avec bouquet) */
-  background-image:url('https://VOTRE-LIEN/hero-sybile.jpg');
+  /* Vercel: chemin relatif. systeme.io: remplacer par URL absolue https://<domaine-vercel>/assets/img/hero-sybile.jpg */
+  background-image:url('/assets/img/hero-sybile.jpg');
 }
 
 /* ---------- FORMULAIRE ---------- */
@@ -121,8 +121,7 @@
 .af-optin .af-founder{background:var(--af-sand);}
 .af-optin .af-founder .af-fgrid{display:grid;grid-template-columns:.9fr 1.1fr;align-items:stretch;}
 .af-optin .af-founder-img{min-height:520px;background:var(--af-line) center/cover no-repeat;
-  /* ===REMPLACER=== photo Sybile en atelier */
-  background-image:url('https://VOTRE-LIEN/sybile-atelier.jpg');
+  background-image:url('/assets/img/sybile-atelier.jpg');
 }
 .af-optin .af-founder-text{padding:80px 64px;display:flex;flex-direction:column;justify-content:center;}
 .af-optin .af-founder-text h2{font-size:clamp(28px,3.4vw,42px);margin-bottom:24px;}
@@ -132,11 +131,10 @@
 /* ---------- GALERIE ---------- */
 .af-optin .af-gallery{display:grid;grid-template-columns:repeat(4,1fr);gap:0;}
 .af-optin .af-gallery div{aspect-ratio:3/4;background:var(--af-sand) center/cover no-repeat;}
-/* ===REMPLACER=== 4 photos de compositions */
-.af-optin .af-gallery div:nth-child(1){background-image:url('https://VOTRE-LIEN/compo-1.jpg');}
-.af-optin .af-gallery div:nth-child(2){background-image:url('https://VOTRE-LIEN/compo-2.jpg');}
-.af-optin .af-gallery div:nth-child(3){background-image:url('https://VOTRE-LIEN/compo-3.jpg');}
-.af-optin .af-gallery div:nth-child(4){background-image:url('https://VOTRE-LIEN/compo-4.jpg');}
+.af-optin .af-gallery div:nth-child(1){background-image:url('/assets/img/compo-1.jpg');}
+.af-optin .af-gallery div:nth-child(2){background-image:url('/assets/img/compo-2.jpg');}
+.af-optin .af-gallery div:nth-child(3){background-image:url('/assets/img/compo-3.jpg');}
+.af-optin .af-gallery div:nth-child(4){background-image:url('/assets/img/compo-4.jpg');}
 
 /* ---------- CTA FINAL ---------- */
 .af-optin .af-cta{text-align:center;padding:100px 24px;}
@@ -166,8 +164,8 @@
 
 <!-- NAV -->
 <nav class="af-nav">
-  <!-- ===REMPLACER=== src par l'URL de ton logo orange (PNG/SVG). Sinon le texte s'affiche. -->
-  <a href="#"><img class="af-logo" src="https://VOTRE-LIEN/logo-academie-florale.svg" alt="Académie Florale"
+  <!-- Vercel: chemin relatif. systeme.io: URL absolue. Sinon le texte s'affiche en fallback. -->
+  <a href="#"><img class="af-logo" src="/assets/img/logo-orange.svg" alt="Académie Florale"
      onerror="this.style.display='none';this.insertAdjacentHTML('afterend','&lt;span class=&quot;af-logo-fallback&quot;&gt;Académie Florale&lt;/span&gt;')"></a>
 </nav>
 
