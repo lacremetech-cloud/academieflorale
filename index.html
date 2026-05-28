@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Académie Florale — Refonte du funnel (préversion)</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&family=Jost:wght@300;400;500;600&display=swap');
+  :root{--orange:#F64B0C;--ink:#1A1512;--cream:#FBF7F1;--sand:#F1E8DC;--line:#E4D8C8;--muted:#6B6058;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Jost',sans-serif;background:var(--cream);color:var(--ink);line-height:1.55;}
+  .wrap{max-width:960px;margin:0 auto;padding:64px 24px;}
+  .eyebrow{font-size:13px;font-weight:500;letter-spacing:.28em;text-transform:uppercase;color:var(--orange);margin-bottom:18px;}
+  h1{font-family:'Fraunces',serif;font-weight:400;font-size:clamp(34px,5vw,56px);line-height:1.05;margin-bottom:16px;}
+  h1 em{font-style:italic;color:var(--orange);}
+  .sub{font-size:18px;color:var(--muted);max-width:34em;margin-bottom:48px;}
+  .list{display:grid;gap:2px;border:1px solid var(--line);border-radius:3px;overflow:hidden;background:var(--line);}
+  .row{display:flex;align-items:center;gap:18px;background:#fff;padding:20px 24px;text-decoration:none;color:inherit;transition:background .15s;}
+  .row:hover{background:var(--sand);}
+  .row .n{font-family:'Fraunces',serif;font-size:20px;color:var(--orange);width:38px;}
+  .row .t{flex:1;}
+  .row .t b{display:block;font-size:18px;font-weight:500;}
+  .row .t span{font-size:14px;color:var(--muted);}
+  .badge{font-size:11px;letter-spacing:.1em;text-transform:uppercase;padding:5px 11px;border-radius:99px;font-weight:600;}
+  .b-done{background:var(--orange);color:#fff;}
+  .b-soon{background:var(--sand);color:var(--muted);}
+  .note{margin-top:36px;font-size:13px;color:var(--muted);border-top:1px solid var(--line);padding-top:24px;}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="eyebrow">Académie Florale · Préversion</div>
+    <h1>Refonte du <em>funnel</em></h1>
+    <p class="sub">Aperçu des pages refondues. Chaque page est aussi livrée en bloc autonome intégrable dans systeme.io (dossier <code>/pages</code>).</p>
+
+    <div class="list">
+      <a class="row" href="/pages/01-inscription.html">
+        <span class="n">01</span>
+        <span class="t"><b>Inscription</b><span>Opt-in vidéo offerte</span></span>
+        <span class="badge b-done">Prêt</span>
+      </a>
+      <div class="row"><span class="n">02</span><span class="t"><b>Vidéo / VSL</b><span>Présentation + réservation d'appel</span></span><span class="badge b-soon">À venir</span></div>
+      <div class="row"><span class="n">03</span><span class="t"><b>Call</b><span>Réservation de l'appel</span></span><span class="badge b-soon">À venir</span></div>
+      <div class="row"><span class="n">04</span><span class="t"><b>Confirmation</b><span>Rendez-vous confirmé</span></span><span class="badge b-soon">À venir</span></div>
+      <div class="row"><span class="n">05</span><span class="t"><b>Préparation entretien</b><span>Avant l'appel découverte</span></span><span class="badge b-soon">À venir</span></div>
+      <div class="row"><span class="n">06</span><span class="t"><b>Témoignages</b><span>1 · 2 · 3</span></span><span class="badge b-soon">À venir</span></div>
+      <div class="row"><span class="n">07</span><span class="t"><b>Explication</b><span>Pourquoi l'Académie est différente</span></span><span class="badge b-soon">À venir</span></div>
+      <div class="row"><span class="n">08</span><span class="t"><b>Coaching / Pro</b><span>Extraits & cible déjà-pros</span></span><span class="badge b-soon">À venir</span></div>
+    </div>
+
+    <p class="note">Préversion privée — non indexée. Les zones grises correspondent aux photos à remplacer (URLs <code>===REMPLACER===</code>).</p>
+  </div>
+</body>
+</html>
