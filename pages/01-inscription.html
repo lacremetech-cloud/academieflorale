@@ -54,8 +54,12 @@
 
 /* ---------- NAV / LOGO ---------- */
 .af-optin .af-nav{display:flex;align-items:center;justify-content:center;padding:26px 24px;border-bottom:1px solid var(--af-line);}
-.af-optin .af-logo{height:38px;}
-.af-optin .af-logo-fallback{font-family:var(--af-serif);font-size:26px;color:var(--af-orange);letter-spacing:.02em;}
+/* Logo lockup typographique (recréation, à remplacer par le SVG exact via assets/img/logo-orange.svg) */
+.af-optin .af-logo-lockup{display:inline-flex;flex-direction:column;align-items:center;text-decoration:none;
+  color:var(--af-orange);line-height:.82;font-family:var(--af-serif);font-weight:500;
+  font-variation-settings:'opsz' 144;}
+.af-optin .af-logo-lockup span:first-child{font-size:26px;letter-spacing:.005em;}
+.af-optin .af-logo-lockup span:last-child{font-size:26px;letter-spacing:.06em;padding-left:.06em;}
 
 /* ---------- HERO ---------- */
 .af-optin .af-hero{display:grid;grid-template-columns:1.05fr .95fr;min-height:88vh;}
@@ -164,9 +168,10 @@
 
 <!-- NAV -->
 <nav class="af-nav">
-  <!-- Vercel: chemin relatif. systeme.io: URL absolue. Sinon le texte s'affiche en fallback. -->
-  <a href="#"><img class="af-logo" src="/assets/img/logo-orange.svg" alt="Académie Florale"
-     onerror="this.style.display='none';this.insertAdjacentHTML('afterend','&lt;span class=&quot;af-logo-fallback&quot;&gt;Académie Florale&lt;/span&gt;')"></a>
+  <a href="#" class="af-logo-lockup" aria-label="Académie Florale">
+    <span>Académie</span>
+    <span>Florale</span>
+  </a>
 </nav>
 
 <!-- HERO -->
