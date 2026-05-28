@@ -86,6 +86,23 @@
 .af-optin .af-trust{font-size:13px;color:var(--af-muted);letter-spacing:.04em;margin-top:14px;}
 .af-optin .af-trust span{color:var(--af-orange);}
 
+/* Conteneur du formulaire natif systeme.io */
+.af-optin .af-form-embed{max-width:440px;}
+.af-optin .af-form-embed input[type="text"],
+.af-optin .af-form-embed input[type="email"]{
+  font-family:var(--af-sans);font-size:16px;padding:16px 18px;border:1px solid var(--af-line);
+  background:var(--af-white);color:var(--af-ink);border-radius:2px;width:100%;
+}
+.af-optin .af-form-embed input:focus{outline:none;border-color:var(--af-orange);}
+.af-optin .af-form-embed button,
+.af-optin .af-form-embed input[type="submit"]{
+  font-family:var(--af-sans);font-size:15px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+  background:var(--af-orange);color:#fff;border:none;padding:18px 26px;border-radius:2px;cursor:pointer;
+  transition:background .2s ease;width:100%;
+}
+.af-optin .af-form-embed button:hover,
+.af-optin .af-form-embed input[type="submit"]:hover{background:var(--af-orange-dark);}
+
 /* ---------- BANDE PRESTIGE ---------- */
 .af-optin .af-prestige{background:var(--af-ink);color:#fff;padding:34px 24px;}
 .af-optin .af-prestige .af-wrap{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:14px 38px;}
@@ -163,18 +180,15 @@
     <p class="af-micro">Que tu partes de zéro sans CAP, ou que tu aies déjà ton diplôme sans savoir comment trouver des clients.</p>
 
     <!-- ============================================================
-         FORMULAIRE SYSTEME.IO :
-         Pour CAPTURER les emails, 2 options :
-         (A) Remplace ce <form> par le formulaire NATIF systeme.io
-             (glisse-le ici) — il héritera des styles ci-dessous.
-         (B) Mets action="" vers ton URL de capture systeme.io.
-         Le bouton redirige ensuite vers /video.
+         FORMULAIRE NATIF SYSTEME.IO
+         Le script ci-dessous injecte le formulaire de capture SIO
+         (la redirection après envoi se règle DANS systeme.io, vers /video).
+         Le style/largeur du formulaire se configure dans le form builder
+         systeme.io ; le wrapper .af-form-embed le contraint en largeur.
          ============================================================ -->
-    <form class="af-form" action="https://go.academie-florale.fr/video" method="get">
-      <input type="text" name="prenom" placeholder="Ton prénom" required>
-      <input type="email" name="email" placeholder="Ton adresse email" required>
-      <button type="submit" class="af-btn">Recevoir la vidéo offerte</button>
-    </form>
+    <div class="af-form-embed">
+      <script id="form-script-tag-24192340" src="https://lecambredaze.systeme.io/public/remote/page/412887527ae62b3197170ce8a1d6a5772e605018.js"></script>
+    </div>
     <p class="af-trust"><span>●</span> Vidéo 100% offerte &nbsp;·&nbsp; Accès immédiat &nbsp;·&nbsp; Sans engagement</p>
   </div>
   <div class="af-hero-img" role="img" aria-label="Sybile Loppé, fondatrice de l'Académie Florale"></div>
