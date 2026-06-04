@@ -294,11 +294,13 @@ footer{position:relative;z-index:2;background:rgba(255,255,255,.7);border-top:1p
 body.has-topbar{padding-top:38px;}
 .webin-hero{position:relative;z-index:2;padding:22px 0 36px;min-height:calc(100svh - 88px);display:flex;align-items:center;}
 .webin-hero .wrap{width:100%;}
-.webin-hero-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:clamp(28px,5vw,64px);align-items:center;}
+.webin-hero-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:clamp(28px,5vw,56px);align-items:center;}
 .webin-copy{text-align:left;}
-.webin-copy .af-badge{margin-bottom:18px;}
-.webin-copy h1{margin-bottom:14px;}
-.webin-copy h1 .hl{display:inline-block;background:linear-gradient(180deg,transparent 55%, rgba(255,59,48,.22) 55%);color:#E32D17;font-style:normal;padding:0 4px;}
+.webin-copy .af-badge{margin-bottom:14px;}
+.webin-copy h1{margin-bottom:14px;font-size:clamp(1.9rem,3.4vw,2.7rem);line-height:1.08;}
+.webin-copy h1 br{display:none;}
+.webin-copy h1 .hl{display:inline;background:linear-gradient(180deg,transparent 55%, rgba(255,59,48,.22) 55%);color:#E32D17;font-style:normal;padding:0 4px;white-space:nowrap;}
+.webin-copy h1 em{display:inline;font-style:italic;color:var(--orange);}
 .webin-copy p.lead{margin:0 0 14px;max-width:42ch;}
 .webin-pills{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 18px;}
 .webin-pills .pill{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;background:rgba(246,75,12,.07);border:1px solid var(--line);border-radius:100px;font-size:13px;color:var(--ink);}
@@ -341,7 +343,7 @@ body.has-topbar{padding-top:38px;}
   .webin-hero-grid{grid-template-columns:1fr;gap:0;}
   .webin-photo{display:none;}
   .webin-copy{text-align:center;}
-  .webin-copy h1{margin-bottom:10px;}
+  .webin-copy h1{margin-bottom:10px;font-size:clamp(1.55rem,6.6vw,2rem);line-height:1.1;}
   .webin-hero .webin-pills,.webin-copy p.lead{display:none;}
   .webin-thumb{display:block;width:min(190px,50vw);aspect-ratio:3/3.4;margin:10px auto 14px;border-radius:110px 110px 12px 12px;overflow:hidden;box-shadow:0 18px 40px -22px rgba(70,40,15,.5);}
   .webin-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
@@ -800,7 +802,7 @@ PAGES["webinaire-inscription.html"] = page(
 <section class="webin-hero"><div class="wrap"><div class="webin-hero-grid">
   <div class="webin-copy">
     <span class="af-badge"><span class="dot"></span> CONFERENCE LIVE &middot; MARDI <span data-webin-date></span> &middot; 20H30</span>
-    <h1>Gagner <span class="hl">3 000 &agrave; 5 000 &euro; / mois</span><br>en fleuriste ind&eacute;pendante &mdash; <em>sans CAP, sans boutique</em>&#8239;?</h1>
+    <h1>Gagner <span class="hl">3 000 &agrave; 5 000&#8239;&euro;/mois</span> en fleuriste ind&eacute;pendante &mdash; <em>sans CAP, sans boutique</em>&#8239;?</h1>
     <p class="lead">Comment des femmes en font leur revenu principal, m&ecirc;me en partant de z&eacute;ro.</p>
     <div class="webin-pills">
       <span class="pill">Sans diplome obligatoire</span>
