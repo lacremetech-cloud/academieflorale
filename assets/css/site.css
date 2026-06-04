@@ -280,16 +280,25 @@ footer{position:relative;z-index:2;background:rgba(255,255,255,.7);border-top:1p
 .webin-topbar .liveDot{width:9px;height:9px;border-radius:50%;background:#FF3B30;box-shadow:0 0 0 4px rgba(255,59,48,.25);animation:liveBlink 1.4s ease-in-out infinite;}
 @keyframes liveBlink{0%,100%{opacity:1;}50%{opacity:.45;}}
 body.has-topbar{padding-top:38px;}
-.webin-hero{position:relative;z-index:2;padding:30px 0 50px;text-align:center;}
-.webin-hero .af-badge{margin-bottom:18px;}
-.webin-hero h1{margin-bottom:16px;}
-.webin-hero h1 .hl{display:inline-block;background:linear-gradient(180deg,transparent 55%, rgba(255,59,48,.22) 55%);color:#E32D17;font-style:normal;padding:0 4px;}
-.webin-hero p.lead{margin:0 auto 18px;max-width:54ch;}
-.webin-pills{display:flex;justify-content:center;flex-wrap:wrap;gap:10px;margin:18px 0 22px;}
+.webin-hero{position:relative;z-index:2;padding:22px 0 36px;min-height:calc(100svh - 88px);display:flex;align-items:center;}
+.webin-hero .wrap{width:100%;}
+.webin-hero-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:clamp(28px,5vw,64px);align-items:center;}
+.webin-copy{text-align:left;}
+.webin-copy .af-badge{margin-bottom:18px;}
+.webin-copy h1{margin-bottom:14px;}
+.webin-copy h1 .hl{display:inline-block;background:linear-gradient(180deg,transparent 55%, rgba(255,59,48,.22) 55%);color:#E32D17;font-style:normal;padding:0 4px;}
+.webin-copy p.lead{margin:0 0 14px;max-width:42ch;}
+.webin-pills{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 18px;}
 .webin-pills .pill{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;background:rgba(246,75,12,.07);border:1px solid var(--line);border-radius:100px;font-size:13px;color:var(--ink);}
 .webin-pills .pill::before{content:"\2726";color:var(--orange);}
-.webin-cta-meta{font-size:13px;color:var(--muted);margin-top:12px;}
-.webin-countdown{display:flex;justify-content:center;gap:10px;margin-top:24px;}
+.webin-cta-meta{font-size:13px;color:var(--muted);margin-top:10px;}
+.webin-photo{position:relative;}
+.webin-photo .frame{position:relative;border-radius:220px 220px 18px 18px;overflow:hidden;aspect-ratio:3/3.7;box-shadow:0 44px 90px -42px rgba(70,40,15,.5);}
+.webin-photo .frame img{width:100%;height:100%;object-fit:cover;}
+.webin-photo .live-pill{position:absolute;right:-14px;bottom:36px;background:var(--card);border-radius:100px;padding:11px 18px;box-shadow:0 18px 40px -16px rgba(70,40,15,.45);display:flex;align-items:center;gap:10px;font-size:13px;font-weight:500;}
+.webin-photo .live-pill .dot{width:9px;height:9px;border-radius:50%;background:#FF3B30;box-shadow:0 0 0 4px rgba(255,59,48,.22);animation:liveBlink 1.4s ease-in-out infinite;}
+.webin-thumb{display:none;}
+.webin-countdown{display:flex;justify-content:flex-start;gap:10px;margin-top:18px;}
 .webin-countdown>div{background:var(--ink);color:#fff;border-radius:14px;padding:14px 18px;min-width:78px;text-align:center;}
 .webin-countdown b{display:block;font-family:var(--serif);font-size:1.9rem;line-height:1;}
 .webin-countdown span{display:block;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.65);margin-top:4px;}
@@ -314,6 +323,20 @@ body.has-topbar{padding-top:38px;}
 .bonus-list li b{color:var(--orange);}
 .bonus-foot{font-family:var(--hand);font-size:1.4rem;color:var(--orange);margin-top:14px;}
 .webin-final h2{color:#fff;}
+
+@media(max-width:900px){
+  .webin-hero{min-height:calc(100svh - 80px);padding:10px 0 22px;}
+  .webin-hero-grid{grid-template-columns:1fr;gap:0;}
+  .webin-photo{display:none;}
+  .webin-copy{text-align:center;}
+  .webin-copy h1{margin-bottom:10px;}
+  .webin-hero .webin-pills,.webin-copy p.lead{display:none;}
+  .webin-thumb{display:block;width:min(190px,50vw);aspect-ratio:3/3.4;margin:10px auto 14px;border-radius:110px 110px 12px 12px;overflow:hidden;box-shadow:0 18px 40px -22px rgba(70,40,15,.5);}
+  .webin-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+  .webin-countdown{justify-content:center;margin-top:14px;}
+  .webin-cta-meta{text-align:center;}
+}
+
 @media(max-width:560px){
   .webin-countdown>div{padding:10px 12px;min-width:60px;}
   .webin-countdown b{font-size:1.4rem;}
