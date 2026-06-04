@@ -286,6 +286,55 @@ footer{position:relative;z-index:2;background:rgba(255,255,255,.7);border-top:1p
   .panel .big-ic{width:58px;height:58px;font-size:1.5rem;margin-bottom:12px;}
   section.block{padding:46px 0;}
 }
+
+/* ============ WEBINAIRE ============ */
+.webin-topbar{position:fixed;top:0;left:0;right:0;z-index:100;background:#3D2B1A;color:#fff;text-align:center;padding:9px 16px;font-size:13px;font-weight:600;letter-spacing:.08em;display:flex;align-items:center;justify-content:center;gap:10px;}
+.webin-topbar .liveDot{width:9px;height:9px;border-radius:50%;background:#FF3B30;box-shadow:0 0 0 4px rgba(255,59,48,.25);animation:liveBlink 1.4s ease-in-out infinite;}
+@keyframes liveBlink{0%,100%{opacity:1;}50%{opacity:.45;}}
+body.has-topbar{padding-top:38px;}
+.webin-hero{position:relative;z-index:2;padding:30px 0 50px;text-align:center;}
+.webin-hero .af-badge{margin-bottom:18px;}
+.webin-hero h1{margin-bottom:16px;}
+.webin-hero h1 .hl{display:inline-block;background:linear-gradient(180deg,transparent 55%, rgba(255,59,48,.22) 55%);color:#E32D17;font-style:normal;padding:0 4px;}
+.webin-hero p.lead{margin:0 auto 18px;max-width:54ch;}
+.webin-pills{display:flex;justify-content:center;flex-wrap:wrap;gap:10px;margin:18px 0 22px;}
+.webin-pills .pill{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;background:rgba(246,75,12,.07);border:1px solid var(--line);border-radius:100px;font-size:13px;color:var(--ink);}
+.webin-pills .pill::before{content:"\2726";color:var(--orange);}
+.webin-cta-meta{font-size:13px;color:var(--muted);margin-top:12px;}
+.webin-countdown{display:flex;justify-content:center;gap:10px;margin-top:24px;}
+.webin-countdown>div{background:var(--ink);color:#fff;border-radius:14px;padding:14px 18px;min-width:78px;text-align:center;}
+.webin-countdown b{display:block;font-family:var(--serif);font-size:1.9rem;line-height:1;}
+.webin-countdown span{display:block;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.65);margin-top:4px;}
+.webin-proof{position:relative;z-index:2;background:rgba(255,255,255,.55);border-top:1px solid var(--line);border-bottom:1px solid var(--line);}
+.webin-proof .wrap{display:flex;justify-content:space-around;flex-wrap:wrap;gap:14px;padding:20px 22px;text-align:center;}
+.webin-proof .proof-item b{display:block;font-family:var(--serif);font-size:1.6rem;color:var(--orange);line-height:1;}
+.webin-proof .proof-item span{display:block;font-size:12.5px;color:var(--muted);margin-top:4px;letter-spacing:.04em;}
+.webin-rupture{font-family:var(--serif);font-style:italic;font-size:clamp(1.5rem,3.6vw,2.2rem);text-align:center;line-height:1.3;color:var(--ink);max-width:32ch;margin:0 auto;}
+.webin-now{list-style:none;display:grid;gap:10px;max-width:700px;margin:0 auto;text-align:left;}
+.webin-now li{position:relative;padding:14px 16px 14px 40px;background:rgba(255,255,255,.85);border:1px solid var(--line);border-radius:12px;font-size:15.5px;}
+.webin-now li::before{content:"\2726";position:absolute;left:14px;top:14px;color:var(--orange);font-size:14px;}
+.lessons{display:grid;gap:14px;max-width:880px;margin:0 auto;}
+.lesson{display:flex;gap:18px;background:rgba(255,255,255,.85);border:1px solid var(--line);border-radius:16px;padding:22px 24px;text-align:left;}
+.lesson .ln{font-family:var(--serif);font-size:1.8rem;color:var(--orange);line-height:1;min-width:44px;}
+.lesson h3{font-size:1.15rem;margin-bottom:6px;}
+.lesson p{color:var(--muted);font-size:15px;}
+.bonus-card{background:linear-gradient(180deg,#FFF4EA,#FBEFE2);border:1px solid var(--line);border-radius:22px;padding:clamp(28px,5vw,42px);text-align:center;box-shadow:0 30px 60px -34px rgba(70,40,15,.35);}
+.bonus-card .bonus-head{margin-bottom:18px;}
+.bonus-card .bonus-head h2{margin-top:10px;}
+.bonus-list{list-style:none;display:grid;gap:12px;max-width:600px;margin:18px auto 14px;text-align:left;}
+.bonus-list li{padding:14px 18px;background:#fff;border:1px solid var(--line);border-radius:12px;font-size:15px;}
+.bonus-list li b{color:var(--orange);}
+.bonus-foot{font-family:var(--hand);font-size:1.4rem;color:var(--orange);margin-top:14px;}
+.webin-final h2{color:#fff;}
+@media(max-width:560px){
+  .webin-countdown>div{padding:10px 12px;min-width:60px;}
+  .webin-countdown b{font-size:1.4rem;}
+  .lessons .lesson{flex-direction:column;gap:6px;}
+  .lessons .lesson .ln{font-size:1.5rem;}
+  .webin-topbar{font-size:11.5px;padding:8px 12px;}
+  body.has-topbar{padding-top:34px;}
+  .webin-hero{padding:18px 0 30px;}
+}
 """
 
 # =================================================== JS
@@ -298,6 +347,32 @@ function afOpenModal(){var m=document.getElementById('afModal');if(m){m.classLis
 function afCloseModal(){var m=document.getElementById('afModal');if(m){m.classList.remove('open');document.body.style.overflow='';}}
 function afOverlay(e){if(e.target.classList.contains('af-modal-overlay'))afCloseModal();}
 document.addEventListener('keydown',function(e){if(e.key==='Escape')afCloseModal();});
+
+(function(){
+  var d = document.getElementById('countdown'); if(!d) return;
+  document.body.classList.add('has-topbar');
+  function next(){
+    var n=new Date(); var t=new Date(n);
+    var day=n.getDay(); var add=(2-day+7)%7;
+    if(add===0 && (n.getHours()>20 || (n.getHours()===20 && n.getMinutes()>=30))) add=7;
+    t.setDate(t.getDate()+add); t.setHours(20,30,0,0); return t;
+  }
+  function pad(x){return (x<10?'0':'')+x;}
+  var target=next();
+  function tick(){
+    var ms=target-new Date(); if(ms<0){target=next(); ms=target-new Date();}
+    var s=Math.floor(ms/1000);
+    document.getElementById('cd-d').textContent=pad(Math.floor(s/86400));
+    document.getElementById('cd-h').textContent=pad(Math.floor(s/3600)%24);
+    document.getElementById('cd-m').textContent=pad(Math.floor(s/60)%60);
+    document.getElementById('cd-s').textContent=pad(s%60);
+    var date=target.toLocaleDateString('fr-FR',{day:'numeric',month:'long'});
+    document.querySelectorAll('[data-webin-date]').forEach(function(e){e.textContent=date;});
+  }
+  setInterval(tick,1000); tick();
+})();
+function afOpenWebin(){var m=document.getElementById('afModalWebin');if(m){m.classList.add('open');document.body.style.overflow='hidden';}}
+function afCloseWebin(){var m=document.getElementById('afModalWebin');if(m){m.classList.remove('open');document.body.style.overflow='';}}
 """
 
 # =================================================== SHELL
@@ -673,8 +748,138 @@ PAGES["07f1496a.html"] = page(
 </div></section>
 """)
 
+
+# WEBINAIRE
+WEBIN_MODAL = """
+<div class="af-modal-overlay" id="afModalWebin" onclick="if(event.target.classList.contains('af-modal-overlay'))afCloseWebin()">
+  <div class="af-modal">
+    <button class="af-modal-close" onclick="afCloseWebin()" aria-label="Fermer">&times;</button>
+    <div class="af-modal-head">
+      <span class="af-badge"><span class="dot"></span> Inscription gratuite</span>
+      <h3>Reserve ta place pour le live</h3>
+      <p>Mardi <span data-webin-date></span> a 20h30. Tu recois le lien de connexion par e-mail.</p>
+    </div>
+    <div class="sio-form">
+      <!-- A REMPLACER par le formulaire systeme.io de l\'inscription au webinaire -->
+      <script id="form-script-tag-24192340" src="https://lecambredaze.systeme.io/public/remote/page/412887527ae62b3197170ce8a1d6a5772e605018.js"></script>
+    </div>
+    <p class="af-modal-foot">&#128274; Places limitees. Lien de connexion envoye par e-mail.</p>
+  </div>
+</div>
+"""
+
+PAGES["webinaire-inscription.html"] = page(
+ "Academie Florale &mdash; Conference live mardi 20h30",
+ "Comment des femmes sans CAP Fleuriste gagnent 3 000 a 5 000 EUR/mois en etant fleuriste independante. Conference live offerte mardi 20h30.",
+ """
+<div class="webin-topbar"><span class="liveDot"></span>CONFERENCE LIVE &mdash; MARDI SOIR A 20H30</div>
+
+<section class="webin-hero"><div class="wrap narrow">
+  <span class="af-badge"><span class="dot"></span> CONFERENCE LIVE &middot; MARDI <span data-webin-date></span> &middot; 20H30</span>
+  <h1>Comment des femmes <em>sans CAP Fleuriste</em><br>gagnent <span class="hl">3 000 a 5 000 EUR / mois</span><br>en etant fleuriste independante&#8239;?</h1>
+  <p class="lead">Sans diplome obligatoire &mdash; Sans boutique &mdash; Meme avec un emploi actuel &mdash; Meme en partant de zero.</p>
+  <div class="webin-pills">
+    <span class="pill">Sans diplome obligatoire</span>
+    <span class="pill">Meme en reconversion</span>
+    <span class="pill">Meme avec un emploi actuel</span>
+  </div>
+  <button class="btn" onclick="afOpenWebin()"><span>Oui, je reserve ma place gratuite</span><span class="arrow">&rarr;</span></button>
+  <p class="webin-cta-meta">Places limitees &middot; 100&#8239;% gratuit &middot; Mardi <span data-webin-date></span> a 20h30 &middot; Lien de connexion envoye par e-mail</p>
+  <div class="webin-countdown" id="countdown">
+    <div><b id="cd-d">00</b><span>Jours</span></div>
+    <div><b id="cd-h">00</b><span>Heures</span></div>
+    <div><b id="cd-m">00</b><span>Minutes</span></div>
+    <div><b id="cd-s">00</b><span>Secondes</span></div>
+  </div>
+</div></section>
+
+<section class="webin-proof"><div class="wrap">
+  <div class="proof-item"><b>9 ans</b><span>d\'experience terrain</span></div>
+  <div class="proof-item"><b>100&#8239;%</b><span>de reussite au CAP</span></div>
+  <div class="proof-item"><b>4 / 5</b><span>Trustpilot</span></div>
+  <div class="proof-item"><b>+15&#8239;000</b><span>abonnees Instagram</span></div>
+</div></section>
+
+<section class="block tight" style="padding-top:60px"><div class="wrap narrow">
+  <p class="webin-rupture reveal">Je ne vais pas te faire croire<br>que j\'ai tout su des le debut&hellip;</p>
+</div></section>
+
+<section class="block tight"><div class="wrap"><div class="founder">
+  <div class="founder-photo reveal"><img src="/assets/img/sybile-atelier.jpg" alt="Sybile Loppe"></div>
+  <div class="founder-copy reveal">
+    <span class="af-badge"><span class="dot"></span> L\'histoire</span>
+    <h2>Il y a moins de 2 ans, j\'etais <em>fleuriste salariee</em>.</h2>
+    <p>Des gardes en boutique du matin au soir. Des projets magnifiques &mdash; mais toujours pour les autres.</p>
+    <p>Ce sentiment permanent de donner tout ce que j\'avais&hellip; sans vraiment choisir ce que je faisais.</p>
+    <p class="quote">Le declic&nbsp;? Le jour ou j\'ai compris que pour vivre de ma passion, il ne suffit pas de savoir faire un beau bouquet.</p>
+  </div>
+</div></div></section>
+
+<section class="block tight"><div class="wrap narrow">
+  <h2 style="text-align:center;margin-bottom:24px">Maintenant&hellip;</h2>
+  <ul class="webin-now reveal">
+    <li>Je ne suis plus salariee pour quelqu\'un d\'autre &mdash; je choisis mes projets, mes clients, mon rythme.</li>
+    <li>Je travaille depuis chez moi, avec peu de frais fixes et beaucoup de liberte.</li>
+    <li>Mes deux derniers devis&nbsp;: <b>1&#8239;372&#8239;EUR</b> et <b>4&#8239;545&#8239;EUR</b>. Pour des missions que j\'ai choisies.</li>
+    <li>Et surtout, j\'ai deja aide des dizaines de femmes a faire la meme chose.</li>
+  </ul>
+</div></section>
+
+<section class="block"><div class="wrap">
+  <div class="sec-head reveal">
+    <span class="af-badge"><span class="dot"></span> Ce que tu vas apprendre</span>
+    <h2>Ce mardi <span data-webin-date></span> a 20h30,<br>je te montre le systeme <em>etape par etape</em>.</h2>
+  </div>
+  <div class="lessons">
+    <div class="lesson reveal"><span class="ln">01</span><div><h3>Ce qu\'est vraiment ce metier</h3><p>Fleuriste independante, ce n\'est pas complique &mdash; ni reserve aux diplomees d\'ecole. Je t\'explique exactement ce que tu ferais au quotidien, et pourquoi des debutantes bien accompagnees reussissent la ou des profils installes stagnent.</p></div></div>
+    <div class="lesson reveal"><span class="ln">02</span><div><h3>Pourquoi des fleuristes independantes facturent 1&#8239;000 a 5&#8239;000&#8239;EUR par evenement</h3><p>Le marche floral est en pleine croissance. 247&#8239;000 mariages par an. Des budgets floraux de 1&#8239;000 a 5&#8239;000&#8239;EUR. Et peu de profils sachant a la fois creer ET vendre.</p></div></div>
+    <div class="lesson reveal"><span class="ln">03</span><div><h3>Comment trouver tes premiers clients sans experience ni reseau</h3><p>L\'approche exacte que j\'ai utilisee pour decrocher mes premieres missions &mdash; et qui a permis a mes eleves de faire pareil. Sans te vendre en permanence, sans presence massive sur les reseaux, sans forcer.</p></div></div>
+    <div class="lesson reveal"><span class="ln">04</span><div><h3>Le plan concret pour demarrer ta reconversion &mdash; meme si tu travailles encore</h3><p>Semaine par semaine. Realiste, meme avec des enfants et peu de temps. Tu repartiras avec un plan d\'action directement applicable, meme si tu pars de zero.</p></div></div>
+  </div>
+  <div style="text-align:center;margin-top:30px">
+    <button class="btn" onclick="afOpenWebin()"><span>Oui, je reserve ma place gratuite</span><span class="arrow">&rarr;</span></button>
+    <p class="webin-cta-meta">Places limitees &middot; 100&#8239;% gratuit &middot; Mardi <span data-webin-date></span> a 20h30</p>
+  </div>
+</div></section>
+
+<section class="block tight"><div class="wrap">
+  <div class="sec-head reveal"><span class="af-badge"><span class="dot"></span> Trustpilot verifie</span><h2>Ce qu\'elles en disent</h2></div>
+  <div class="testi-grid reveal">
+    <div class="testi-card"><div class="st">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+      <p>&laquo;&nbsp;Une formation en ligne qui permet de se former a son rythme. L\'accompagnement avant la formation est sincere, clair et sans forcing &mdash; et ca change tout. Sybile est facilement joignable. Je ne m\'attendais pas a ca et je suis vraiment contente.&nbsp;&raquo;</p>
+      <div class="who"><span class="av">L</span><span><b>Loana A.</b><span>Trustpilot &middot; Reconversion fleuriste</span></span></div></div>
+    <div class="testi-card"><div class="st">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+      <p>&laquo;&nbsp;Formation au top&#8239;! Ouverte a tous. Sybile a cree un contenu de formation tres riche en apprentissage. Pour une reconversion, vous avez tous les elements dont on a besoin.&nbsp;&raquo;</p>
+      <div class="who"><span class="av">S</span><span><b>Saly K.</b><span>Trustpilot &middot; Formation complete</span></span></div></div>
+    <div class="testi-card"><div class="st">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+      <p>&laquo;&nbsp;Formation en ligne avec des videos qui permettent d\'avancer a mon rythme. Formatrice toujours disponible si besoin.&nbsp;&raquo;</p>
+      <div class="who"><span class="av">A</span><span><b>Amelie B.</b><span>Trustpilot &middot; Disponibilite &amp; accompagnement</span></span></div></div>
+  </div>
+</div></section>
+
+<section class="block tight"><div class="wrap narrow">
+  <div class="bonus-card reveal">
+    <div class="bonus-head"><span class="af-badge"><span class="dot"></span> &#127873; Bonus live</span><h2>Uniquement pour les presentes en direct</h2></div>
+    <ul class="bonus-list">
+      <li><b>3 templates de devis floraux prets a l\'emploi</b> &mdash; les modeles exacts qu\'utilise Sybile pour ses evenements (mariages, baptemes, entreprises).</li>
+      <li><b>Le plan de reconversion 90 jours</b> &mdash; semaine par semaine, PDF telechargeable, directement actionnable.</li>
+      <li><b>L\'acces au groupe WhatsApp prive</b> &mdash; pour recevoir le lien de connexion + les ressources offertes en direct.</li>
+    </ul>
+    <p class="bonus-foot">Offerts uniquement aux presentes en direct.</p>
+  </div>
+</div></section>
+
+<section class="block tight webin-final"><div class="wrap"><div class="cta-box reveal">
+  <span class="eyebrow" style="color:#FFB68C">Le rendez-vous</span>
+  <h2 style="margin-top:14px">Ce mardi <span data-webin-date></span> a 20h30,<br>je te montre le systeme <em>etape par etape</em>.</h2>
+  <p>Une heure de live, 100&#8239;% concret. Tu reserves ta place en une etape.</p>
+  <button class="btn" onclick="afOpenWebin()"><span>Oui, je reserve ma place gratuite</span><span class="arrow">&rarr;</span></button>
+  <p style="margin-top:14px;color:rgba(255,255,255,.7);font-size:13px">Places limitees &middot; Mardi a 20h30 &middot; Inscription 100&#8239;% gratuite</p>
+</div></div></section>
+""" + WEBIN_MODAL)
+
 # =================================================== INDEX
-INDEX_ROWS = [
+VSL_ROWS = [
  ("01-inscription.html","01","Inscription","Opt-in video offerte"),
  ("02-video.html","02","Video / VSL","Presentation + reservation"),
  ("03-call.html","03","Call","Reservation de l'appel"),
@@ -688,10 +893,17 @@ INDEX_ROWS = [
  ("09-pro.html","11","Pour les pros","Diplomees &amp; installees"),
  ("07f1496a.html","12","Avis","Trustpilot"),
 ]
-rows_html = ""
-for fn,n,t,sub in INDEX_ROWS:
-    rows_html += ('<a class="row" href="/pages/'+fn+'"><span class="n">'+n+'</span>'
-      '<span class="t"><b>'+t+'</b><span>'+sub+'</span></span><span class="badge2">Voir &rarr;</span></a>')
+WEBIN_ROWS = [
+ ("webinaire-inscription.html","01","Webinaire &mdash; Inscription","Conference live mardi 20h30"),
+]
+def render_rows(rows):
+    out=""
+    for fn,n,t,sub in rows:
+        out += ('<a class="row" href="/pages/'+fn+'"><span class="n">'+n+'</span>'
+                '<span class="t"><b>'+t+'</b><span>'+sub+'</span></span><span class="badge2">Voir &rarr;</span></a>')
+    return out
+rows_vsl = render_rows(VSL_ROWS)
+rows_webin = render_rows(WEBIN_ROWS)
 
 INDEX = page(
  "Academie Florale &mdash; Funnel (preversion)",
@@ -703,7 +915,14 @@ INDEX = page(
   <p class="lead">Toutes les pages du funnel refondu, responsive et dans la nouvelle identite.</p>
 </div></section>
 <section class="block tight" style="padding-top:30px"><div class="wrap narrow">
-  <div class="index-list reveal">"""+rows_html+"""</div>
+  <div class="funnel-group reveal">
+    <div class="group-title"><span class="af-badge"><span class="dot"></span> Funnel VSL</span><span class="group-sub">Tunnel video offerte &rarr; appel decouverte</span></div>
+    <div class="index-list">"""+rows_vsl+"""</div>
+  </div>
+  <div class="funnel-group reveal" style="margin-top:42px">
+    <div class="group-title"><span class="af-badge"><span class="dot"></span> Funnel Webinaire</span><span class="group-sub">Conference live mardi 20h30</span></div>
+    <div class="index-list">"""+rows_webin+"""</div>
+  </div>
 </div></section>
 <style>
 .index-list{display:grid;gap:10px;}
@@ -713,6 +932,8 @@ INDEX = page(
 .index-list .t{flex:1;}.index-list .t b{display:block;font-size:1.05rem;}
 .index-list .t span{font-size:13.5px;color:var(--muted);}
 .index-list .badge2{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--orange);font-weight:600;}
+.group-title{display:flex;flex-direction:column;align-items:flex-start;gap:10px;margin-bottom:18px;}
+.group-title .group-sub{font-family:var(--serif);font-size:1.45rem;color:var(--ink);letter-spacing:-.01em;line-height:1.2;}
 </style>
 """)
 

@@ -274,3 +274,52 @@ footer{position:relative;z-index:2;background:rgba(255,255,255,.7);border-top:1p
   .panel .big-ic{width:58px;height:58px;font-size:1.5rem;margin-bottom:12px;}
   section.block{padding:46px 0;}
 }
+
+/* ============ WEBINAIRE ============ */
+.webin-topbar{position:fixed;top:0;left:0;right:0;z-index:100;background:#3D2B1A;color:#fff;text-align:center;padding:9px 16px;font-size:13px;font-weight:600;letter-spacing:.08em;display:flex;align-items:center;justify-content:center;gap:10px;}
+.webin-topbar .liveDot{width:9px;height:9px;border-radius:50%;background:#FF3B30;box-shadow:0 0 0 4px rgba(255,59,48,.25);animation:liveBlink 1.4s ease-in-out infinite;}
+@keyframes liveBlink{0%,100%{opacity:1;}50%{opacity:.45;}}
+body.has-topbar{padding-top:38px;}
+.webin-hero{position:relative;z-index:2;padding:30px 0 50px;text-align:center;}
+.webin-hero .af-badge{margin-bottom:18px;}
+.webin-hero h1{margin-bottom:16px;}
+.webin-hero h1 .hl{display:inline-block;background:linear-gradient(180deg,transparent 55%, rgba(255,59,48,.22) 55%);color:#E32D17;font-style:normal;padding:0 4px;}
+.webin-hero p.lead{margin:0 auto 18px;max-width:54ch;}
+.webin-pills{display:flex;justify-content:center;flex-wrap:wrap;gap:10px;margin:18px 0 22px;}
+.webin-pills .pill{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;background:rgba(246,75,12,.07);border:1px solid var(--line);border-radius:100px;font-size:13px;color:var(--ink);}
+.webin-pills .pill::before{content:"\2726";color:var(--orange);}
+.webin-cta-meta{font-size:13px;color:var(--muted);margin-top:12px;}
+.webin-countdown{display:flex;justify-content:center;gap:10px;margin-top:24px;}
+.webin-countdown>div{background:var(--ink);color:#fff;border-radius:14px;padding:14px 18px;min-width:78px;text-align:center;}
+.webin-countdown b{display:block;font-family:var(--serif);font-size:1.9rem;line-height:1;}
+.webin-countdown span{display:block;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.65);margin-top:4px;}
+.webin-proof{position:relative;z-index:2;background:rgba(255,255,255,.55);border-top:1px solid var(--line);border-bottom:1px solid var(--line);}
+.webin-proof .wrap{display:flex;justify-content:space-around;flex-wrap:wrap;gap:14px;padding:20px 22px;text-align:center;}
+.webin-proof .proof-item b{display:block;font-family:var(--serif);font-size:1.6rem;color:var(--orange);line-height:1;}
+.webin-proof .proof-item span{display:block;font-size:12.5px;color:var(--muted);margin-top:4px;letter-spacing:.04em;}
+.webin-rupture{font-family:var(--serif);font-style:italic;font-size:clamp(1.5rem,3.6vw,2.2rem);text-align:center;line-height:1.3;color:var(--ink);max-width:32ch;margin:0 auto;}
+.webin-now{list-style:none;display:grid;gap:10px;max-width:700px;margin:0 auto;text-align:left;}
+.webin-now li{position:relative;padding:14px 16px 14px 40px;background:rgba(255,255,255,.85);border:1px solid var(--line);border-radius:12px;font-size:15.5px;}
+.webin-now li::before{content:"\2726";position:absolute;left:14px;top:14px;color:var(--orange);font-size:14px;}
+.lessons{display:grid;gap:14px;max-width:880px;margin:0 auto;}
+.lesson{display:flex;gap:18px;background:rgba(255,255,255,.85);border:1px solid var(--line);border-radius:16px;padding:22px 24px;text-align:left;}
+.lesson .ln{font-family:var(--serif);font-size:1.8rem;color:var(--orange);line-height:1;min-width:44px;}
+.lesson h3{font-size:1.15rem;margin-bottom:6px;}
+.lesson p{color:var(--muted);font-size:15px;}
+.bonus-card{background:linear-gradient(180deg,#FFF4EA,#FBEFE2);border:1px solid var(--line);border-radius:22px;padding:clamp(28px,5vw,42px);text-align:center;box-shadow:0 30px 60px -34px rgba(70,40,15,.35);}
+.bonus-card .bonus-head{margin-bottom:18px;}
+.bonus-card .bonus-head h2{margin-top:10px;}
+.bonus-list{list-style:none;display:grid;gap:12px;max-width:600px;margin:18px auto 14px;text-align:left;}
+.bonus-list li{padding:14px 18px;background:#fff;border:1px solid var(--line);border-radius:12px;font-size:15px;}
+.bonus-list li b{color:var(--orange);}
+.bonus-foot{font-family:var(--hand);font-size:1.4rem;color:var(--orange);margin-top:14px;}
+.webin-final h2{color:#fff;}
+@media(max-width:560px){
+  .webin-countdown>div{padding:10px 12px;min-width:60px;}
+  .webin-countdown b{font-size:1.4rem;}
+  .lessons .lesson{flex-direction:column;gap:6px;}
+  .lessons .lesson .ln{font-size:1.5rem;}
+  .webin-topbar{font-size:11.5px;padding:8px 12px;}
+  body.has-topbar{padding-top:34px;}
+  .webin-hero{padding:18px 0 30px;}
+}
