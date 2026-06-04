@@ -275,14 +275,18 @@ footer{position:relative;z-index:2;background:rgba(255,255,255,.7);backdrop-filt
 
 /* ---------- RESPONSIVE ---------- */
 @media(max-width:900px){
-  .hero{min-height:auto;padding-top:8px;}
-  .hero-grid{grid-template-columns:1fr;gap:36px;}
-  .hero-photo{order:-1;max-width:400px;margin:0 auto;width:100%;}
-  .hero-copy{text-align:center;}
+  /* HERO opt-in : NO SCROLL — photo masquee, headline + CTA dans le 1er ecran */
+  .hero{min-height:calc(100svh - 88px);display:flex;align-items:center;padding:6px 0 22px;}
+  .hero-grid{grid-template-columns:1fr;gap:0;}
+  .hero-photo{display:none;}
+  .hero-copy{text-align:center;width:100%;}
   .hero-copy .lead{margin-left:auto;margin-right:auto;}
-  .cta-wrap{align-items:center;}
+  .cta-wrap{align-items:center;width:100%;}
+  /* PAGES INTERNES : phero centre verticalement, CTA visible sans scroll */
+  .phero{min-height:calc(100svh - 88px);display:flex;flex-direction:column;justify-content:center;padding:18px 0;}
+  .phero .panel{width:100%;}
   .founder{grid-template-columns:1fr;}
-  .founder-photo{order:-1;max-width:440px;margin:0 auto;width:100%;}
+  .founder-photo{order:-1;max-width:420px;margin:0 auto;width:100%;}
   .founder-copy{text-align:center;}
   .founder-copy .quote{text-align:left;}
   .grid3{grid-template-columns:1fr;max-width:480px;margin:0 auto;}
@@ -291,10 +295,22 @@ footer{position:relative;z-index:2;background:rgba(255,255,255,.7);backdrop-filt
 }
 @media(max-width:560px){
   body{font-size:16px;}
-  .hero-photo .frame{border-radius:160px 160px 16px 16px;}
   .gallery{grid-template-columns:repeat(2,1fr);}
-  .hero-photo .pill{left:50%;transform:translateX(-50%);bottom:-18px;}
-  .stars-line{justify-content:center;}
+  .stars-line{justify-content:center;font-size:12.5px;margin-top:14px;}
+  .hero-copy h1{font-size:clamp(1.85rem,8.4vw,2.35rem);line-height:1.08;margin-bottom:14px;}
+  .hero-copy .lead{font-size:.97rem;line-height:1.5;margin-bottom:6px;max-width:36ch;}
+  .phero h1{font-size:clamp(1.9rem,8.4vw,2.4rem);line-height:1.08;margin-bottom:14px;}
+  .phero p.lead{font-size:.97rem;line-height:1.5;}
+  .af-badge{padding:6px 14px;font-size:10.5px;margin-bottom:14px;}
+  .af-hw{font-size:19px;margin-top:10px;}
+  .btn{padding:15px 26px;font-size:14.5px;}
+  .nav-inner{padding:14px 0;}
+  .nav-logo img{height:36px;}
+  .video-embed{aspect-ratio:9/16;}
+  .video-embed .play{width:64px;height:64px;}
+  .panel{padding:26px 22px;}
+  .panel .big-ic{width:60px;height:60px;font-size:1.6rem;margin-bottom:14px;}
+  section.block{padding:46px 0;}
 }
 """
 
@@ -487,6 +503,7 @@ PAGES["02-video.html"] = page(
   <span class="af-badge"><span class="dot"></span> Video de presentation</span>
   <h1>Le modele <em>Fleuriste Independante Rentable</em></h1>
   <p class="lead">Comment vivre de l'art floral&nbsp;: composer, trouver des clients, chiffrer tes projets &mdash; et te payer vraiment. Regarde, puis reserve ton appel offert.</p>
+  <div style="margin-top:22px;text-align:center"><a class="btn" href="/pages/03-call.html"><span>Reserver mon appel offert</span><span class="arrow">&rarr;</span></a></div>
 </div></section>
 <section class="block tight" style="padding-top:30px"><div class="wrap">
   <div class="video-embed reveal">
@@ -517,9 +534,10 @@ PAGES["03-call.html"] = page(
   <span class="af-badge"><span class="dot"></span> Appel decouverte &middot; Offert</span>
   <h1>Reserve ton <em>appel offert</em></h1>
   <p class="lead">20 minutes pour faire le point sur ta situation, repondre a tes questions, et tracer ensemble ton plan d'action sur 90 jours. Sans engagement.</p>
+  <div style="margin-top:22px;text-align:center"><a class="btn" href="#cal"><span>Choisir mon creneau</span><span class="arrow">&rarr;</span></a></div>
 </div></section>
 <section class="block tight" style="padding-top:30px"><div class="wrap">
-  <div class="embed-slot reveal"><div class="inner">
+  <div class="embed-slot reveal" id="cal"><div class="inner">
     <div class="ic">&#128197;</div>
     <h3 style="margin-top:8px">Choisis ton creneau</h3>
     <p>Emplacement du calendrier de reservation. Colle ici l'embed de ton outil (Calendly, systeme.io&hellip;) &mdash; remplace ce bloc par&nbsp;: <code>&lt;iframe src="..."&gt;</code></p>
@@ -546,6 +564,7 @@ PAGES["04-confirmation.html"] = page(
     <h1 style="margin:14px 0">Felicitations, c'est reserve&#8239;!</h1>
     <p>On t'a envoye un e-mail avec la date et l'heure de ton appel. Pense a le <b>confirmer</b> en repondant simplement a cet e-mail.</p>
   </div>
+  <div style="margin-top:22px;text-align:center"><a class="btn" href="/pages/05-preparation-entretien.html"><span>Preparer mon entretien</span><span class="arrow">&rarr;</span></a></div>
 </div></section>
 <section class="block tight"><div class="wrap">
   <div class="sec-head reveal"><span class="af-badge"><span class="dot"></span> Avant l'appel</span><h2>2 choses a prevoir</h2></div>
@@ -565,6 +584,7 @@ PAGES["05-preparation-entretien.html"] = page(
   <span class="af-badge"><span class="dot"></span> Avant ton appel</span>
   <h1>Prepare ton <em>entretien</em></h1>
   <p class="lead">Quelques minutes pour decouvrir la plateforme, l'accompagnement, et arriver avec les bonnes questions.</p>
+  <div style="margin-top:22px;text-align:center"><a class="btn" href="/pages/03-call.html"><span>Voir les creneaux</span><span class="arrow">&rarr;</span></a></div>
 </div></section>
 <section class="block tight" style="padding-top:30px"><div class="wrap">
   <div class="video-embed reveal">
@@ -594,6 +614,7 @@ def testimonial_page(name, initial, role, quote, poster):
 <section class="phero"><div class="wrap narrow">
   <span class="af-badge"><span class="dot"></span> Temoignage</span>
   <h1>L'histoire d'<em>"""+name+"""</em></h1>
+  <div style="margin-top:22px;text-align:center"><a class="btn" href="/pages/03-call.html"><span>Decouvrir la strategie</span><span class="arrow">&rarr;</span></a></div>
 </div></section>
 <section class="block tight" style="padding-top:26px"><div class="wrap">
   <div class="video-embed reveal">
@@ -626,6 +647,7 @@ PAGES["07-explication.html"] = page(
   <span class="af-badge"><span class="dot"></span> La difference</span>
   <h1>Pourquoi l'Academie Florale <em>n'est pas une formation comme les autres</em></h1>
   <p class="lead">Ailleurs, on t'apprend a reproduire un modele. Ici, on te donne les regles d'or &mdash; puis on t'accompagne jusqu'a ce que ca marche.</p>
+  <div style="margin-top:22px;text-align:center"><a class="btn" href="/pages/03-call.html"><span>Decouvrir la strategie</span><span class="arrow">&rarr;</span></a></div>
 </div></section>
 <section class="block tight" style="padding-top:30px"><div class="wrap">
   <div class="diff reveal">
@@ -650,6 +672,7 @@ PAGES["08-coaching.html"] = page(
   <span class="af-badge"><span class="dot"></span> Extrait de coaching</span>
   <h1>Dans les coulisses d'un <em>coaching</em></h1>
   <p class="lead">Chaque semaine, on bosse ensemble&nbsp;: composition en direct, feedback geste par geste, et cas pratiques business. Voici un apercu.</p>
+  <div style="margin-top:22px;text-align:center"><a class="btn" href="/pages/03-call.html"><span>Decouvrir la strategie</span><span class="arrow">&rarr;</span></a></div>
 </div></section>
 <section class="block tight" style="padding-top:30px"><div class="wrap">
   <div class="video-embed reveal">
@@ -677,6 +700,7 @@ PAGES["09-pro.html"] = page(
   <span class="af-badge"><span class="dot"></span> Deja diplomee ou installee</span>
   <h1>Tu sais composer. <em>Personne ne t'a appris a vendre.</em></h1>
   <p class="lead">Le CAP/BP t'a appris la technique. Ici, on travaille l'autre moitie&nbsp;: chiffrer un mariage, defendre un devis, demarcher des lieux haut de gamme.</p>
+  <div style="margin-top:22px;text-align:center"><a class="btn" href="/pages/03-call.html"><span>Decouvrir la strategie</span><span class="arrow">&rarr;</span></a></div>
 </div></section>
 <section class="block tight" style="padding-top:30px"><div class="wrap">
   <div class="video-embed reveal">
