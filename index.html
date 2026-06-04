@@ -2,54 +2,52 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="robots" content="noindex,nofollow">
-<title>Académie Florale — Refonte du funnel (préversion)</title>
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&family=Jost:wght@300;400;500;600&display=swap');
-  :root{--orange:#F64B0C;--ink:#1A1512;--cream:#FBF7F1;--sand:#F1E8DC;--line:#E4D8C8;--muted:#6B6058;}
-  *{box-sizing:border-box;margin:0;padding:0;}
-  body{font-family:'Jost',sans-serif;background:var(--cream);color:var(--ink);line-height:1.55;}
-  .wrap{max-width:960px;margin:0 auto;padding:64px 24px;}
-  .eyebrow{font-size:13px;font-weight:500;letter-spacing:.28em;text-transform:uppercase;color:var(--orange);margin-bottom:18px;}
-  h1{font-family:'Fraunces',serif;font-weight:400;font-size:clamp(34px,5vw,56px);line-height:1.05;margin-bottom:16px;}
-  h1 em{font-style:italic;color:var(--orange);}
-  .sub{font-size:18px;color:var(--muted);max-width:34em;margin-bottom:48px;}
-  .list{display:grid;gap:2px;border:1px solid var(--line);border-radius:3px;overflow:hidden;background:var(--line);}
-  .row{display:flex;align-items:center;gap:18px;background:#fff;padding:20px 24px;text-decoration:none;color:inherit;transition:background .15s;}
-  .row:hover{background:var(--sand);}
-  .row .n{font-family:'Fraunces',serif;font-size:20px;color:var(--orange);width:38px;}
-  .row .t{flex:1;}
-  .row .t b{display:block;font-size:18px;font-weight:500;}
-  .row .t span{font-size:14px;color:var(--muted);}
-  .badge{font-size:11px;letter-spacing:.1em;text-transform:uppercase;padding:5px 11px;border-radius:99px;font-weight:600;}
-  .b-done{background:var(--orange);color:#fff;}
-  .b-soon{background:var(--sand);color:var(--muted);}
-  .note{margin-top:36px;font-size:13px;color:var(--muted);border-top:1px solid var(--line);padding-top:24px;}
-</style>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Academie Florale &mdash; Funnel (preversion)</title>
+<meta name="description" content="Preversion du funnel refondu.">
+<link rel="icon" type="image/png" href="/assets/img/logo-orange.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=Jost:wght@300;400;500;600&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/site.css">
 </head>
 <body>
-  <div class="wrap">
-    <div class="eyebrow">Académie Florale · Préversion</div>
-    <h1>Refonte du <em>funnel</em></h1>
-    <p class="sub">Aperçu des pages refondues. Chaque page est aussi livrée en bloc autonome intégrable dans systeme.io (dossier <code>/pages</code>).</p>
+<div class="af-bg" aria-hidden="true"></div>
+<div class="af-bg-fx" aria-hidden="true"></div>
+<div class="af-spot" aria-hidden="true"></div>
+<div class="af-orb af-orb1" aria-hidden="true"></div>
+<div class="af-orb af-orb2" aria-hidden="true"></div>
+<div class="af-orb af-orb3" aria-hidden="true"></div>
+<div class="af-grain" aria-hidden="true"></div>
+<header class="nav"><div class="wrap"><div class="nav-inner">
+  <a class="nav-logo" href="/pages/01-inscription.html" aria-label="Academie Florale"><img src="/assets/img/logo-orange.png" alt="Academie Florale"></a>
+  <span class="nav-tag">Deviens fleuriste independante</span>
+</div></div></header>
 
-    <div class="list">
-      <a class="row" href="/pages/01-inscription.html">
-        <span class="n">01</span>
-        <span class="t"><b>Inscription</b><span>Opt-in vidéo offerte</span></span>
-        <span class="badge b-done">Prêt</span>
-      </a>
-      <div class="row"><span class="n">02</span><span class="t"><b>Vidéo / VSL</b><span>Présentation + réservation d'appel</span></span><span class="badge b-soon">À venir</span></div>
-      <div class="row"><span class="n">03</span><span class="t"><b>Call</b><span>Réservation de l'appel</span></span><span class="badge b-soon">À venir</span></div>
-      <div class="row"><span class="n">04</span><span class="t"><b>Confirmation</b><span>Rendez-vous confirmé</span></span><span class="badge b-soon">À venir</span></div>
-      <div class="row"><span class="n">05</span><span class="t"><b>Préparation entretien</b><span>Avant l'appel découverte</span></span><span class="badge b-soon">À venir</span></div>
-      <div class="row"><span class="n">06</span><span class="t"><b>Témoignages</b><span>1 · 2 · 3</span></span><span class="badge b-soon">À venir</span></div>
-      <div class="row"><span class="n">07</span><span class="t"><b>Explication</b><span>Pourquoi l'Académie est différente</span></span><span class="badge b-soon">À venir</span></div>
-      <div class="row"><span class="n">08</span><span class="t"><b>Coaching / Pro</b><span>Extraits & cible déjà-pros</span></span><span class="badge b-soon">À venir</span></div>
-    </div>
+<section class="phero"><div class="wrap narrow">
+  <span class="af-badge"><span class="dot"></span> Preversion privee</span>
+  <h1>Refonte du <em>funnel</em></h1>
+  <p class="lead">Toutes les pages du funnel refondu, responsive et dans la nouvelle identite.</p>
+</div></section>
+<section class="block tight" style="padding-top:30px"><div class="wrap narrow">
+  <div class="index-list reveal"><a class="row" href="/pages/01-inscription.html"><span class="n">01</span><span class="t"><b>Inscription</b><span>Opt-in video offerte</span></span><span class="badge2">Voir &rarr;</span></a><a class="row" href="/pages/02-video.html"><span class="n">02</span><span class="t"><b>Video / VSL</b><span>Presentation + reservation</span></span><span class="badge2">Voir &rarr;</span></a><a class="row" href="/pages/03-call.html"><span class="n">03</span><span class="t"><b>Call</b><span>Reservation de l'appel</span></span><span class="badge2">Voir &rarr;</span></a><a class="row" href="/pages/04-confirmation.html"><span class="n">04</span><span class="t"><b>Confirmation</b><span>Rendez-vous confirme</span></span><span class="badge2">Voir &rarr;</span></a><a class="row" href="/pages/05-preparation-entretien.html"><span class="n">05</span><span class="t"><b>Preparation entretien</b><span>Avant l'appel</span></span><span class="badge2">Voir &rarr;</span></a><a class="row" href="/pages/06-temoignage.html"><span class="n">06</span><span class="t"><b>Temoignage &mdash; Alexane</b><span>Retour d'experience</span></span><span class="badge2">Voir &rarr;</span></a><a class="row" href="/pages/06-temoignage-2.html"><span class="n">07</span><span class="t"><b>Temoignage &mdash; Elisabeth</b><span>Retour d'experience</span></span><span class="badge2">Voir &rarr;</span></a><a class="row" href="/pages/06-temoignage-3.html"><span class="n">08</span><span class="t"><b>Temoignage &mdash; Magalie</b><span>Retour d'experience</span></span><span class="badge2">Voir &rarr;</span></a><a class="row" href="/pages/07-explication.html"><span class="n">09</span><span class="t"><b>Explication</b><span>Pourquoi c'est different</span></span><span class="badge2">Voir &rarr;</span></a><a class="row" href="/pages/08-coaching.html"><span class="n">10</span><span class="t"><b>Coaching</b><span>Extrait de coaching</span></span><span class="badge2">Voir &rarr;</span></a><a class="row" href="/pages/09-pro.html"><span class="n">11</span><span class="t"><b>Pour les pros</b><span>Diplomees &amp; installees</span></span><span class="badge2">Voir &rarr;</span></a><a class="row" href="/pages/07f1496a.html"><span class="n">12</span><span class="t"><b>Avis</b><span>Trustpilot</span></span><span class="badge2">Voir &rarr;</span></a></div>
+</div></section>
+<style>
+.index-list{display:grid;gap:10px;}
+.index-list .row{display:flex;align-items:center;gap:18px;background:rgba(255,255,255,.85);border:1px solid var(--line);border-radius:14px;padding:18px 22px;transition:transform .15s,box-shadow .15s;}
+.index-list .row:hover{transform:translateY(-2px);box-shadow:0 18px 40px -26px rgba(70,40,15,.4);}
+.index-list .n{font-family:var(--serif);font-size:1.3rem;color:var(--orange);width:34px;}
+.index-list .t{flex:1;}.index-list .t b{display:block;font-size:1.05rem;}
+.index-list .t span{font-size:13.5px;color:var(--muted);}
+.index-list .badge2{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--orange);font-weight:600;}
+</style>
 
-    <p class="note">Préversion privée — non indexée. Les zones grises correspondent aux photos à remplacer (URLs <code>===REMPLACER===</code>).</p>
+<footer><div class="wrap">
+  <div class="foot-inner">
+    <a class="foot-logo" href="/pages/01-inscription.html" aria-label="Academie Florale"><img src="/assets/img/logo-orange.png" alt="Academie Florale"></a>
+    <nav class="foot-links"><a href="#">CGV</a><a href="#">Mentions legales</a><a href="#">Confidentialite</a></nav>
   </div>
-</body>
-</html>
+  <p class="foot-legal">Ce site n'est pas affilie a Facebook ni a Meta Platforms, Inc. &laquo;&nbsp;FACEBOOK&nbsp;&raquo; est une marque deposee de Meta Platforms, Inc. &copy; Academie Florale.</p>
+</div></footer>
+<script src="/assets/js/site.js"></script>
+</body></html>
