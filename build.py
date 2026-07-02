@@ -247,6 +247,87 @@ footer{position:relative;z-index:2;background:rgba(255,255,255,.85);border-top:1
 .reveal.in{opacity:1;transform:none;}
 @media (prefers-reduced-motion: reduce){.reveal{opacity:1;transform:none;}}
 
+
+/* ============ SITE CORPORATE ============ */
+.site-subnav{position:sticky;top:0;z-index:6;background:rgba(255,253,248,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--line);}
+.site-subnav .inner{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:14px 0;max-width:var(--maxw);margin:0 auto;padding-left:22px;padding-right:22px;}
+.site-subnav nav{display:flex;gap:26px;}
+.site-subnav nav a{font-size:14px;color:var(--muted);font-weight:500;transition:color .2s;}
+.site-subnav nav a:hover{color:var(--orange);}
+.site-subnav .cta-mini{background:linear-gradient(135deg,var(--orange-br),var(--orange));color:#fff;font-weight:600;font-size:13.5px;padding:10px 20px;border-radius:100px;box-shadow:0 8px 20px -8px var(--glow);}
+.site-subnav .cta-mini:hover{transform:translateY(-1px);color:#fff;}
+@media(max-width:900px){.site-subnav nav{display:none;}}
+
+.site-hero{position:relative;z-index:2;padding:40px 0 60px;}
+.site-hero-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:clamp(28px,5vw,72px);align-items:center;}
+.site-hero .lead{max-width:38ch;}
+.site-hero-photo{position:relative;}
+.site-hero-photo .frame{position:relative;border-radius:220px 220px 18px 18px;overflow:hidden;aspect-ratio:3/3.7;box-shadow:0 44px 90px -42px rgba(70,40,15,.45);}
+.site-hero-photo .frame img{width:100%;height:100%;object-fit:cover;}
+@media(max-width:900px){.site-hero-grid{grid-template-columns:1fr;gap:32px;}.site-hero-photo{max-width:340px;margin:0 auto;}.site-hero{text-align:center;}.site-hero .lead{margin:0 auto 20px;}}
+
+.audience-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;}
+.audience-card{background:rgba(255,255,255,.9);border:1px solid var(--line);border-radius:20px;padding:32px 26px;transition:transform .2s,box-shadow .2s;}
+.audience-card:hover{transform:translateY(-4px);box-shadow:0 30px 60px -34px rgba(70,40,15,.35);}
+.audience-card .ic{width:56px;height:56px;border-radius:16px;background:rgba(246,75,12,.1);color:var(--orange);font-family:var(--serif);font-size:1.5rem;display:flex;align-items:center;justify-content:center;margin-bottom:18px;}
+.audience-card h3{margin-bottom:10px;}
+.audience-card p{color:var(--muted);font-size:15.5px;}
+@media(max-width:900px){.audience-grid{grid-template-columns:1fr;max-width:480px;margin:0 auto;}}
+
+.pillars-3{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;}
+.pillar{background:rgba(255,255,255,.88);border:1px solid var(--line);border-radius:20px;padding:34px 28px;position:relative;overflow:hidden;transition:transform .2s;}
+.pillar:hover{transform:translateY(-4px);}
+.pillar .pnum{font-family:var(--serif);font-size:3.4rem;color:rgba(246,75,12,.14);line-height:1;position:absolute;top:14px;right:22px;}
+.pillar h3{margin-bottom:12px;position:relative;}
+.pillar p{color:var(--muted);font-size:15px;position:relative;}
+@media(max-width:900px){.pillars-3{grid-template-columns:1fr;max-width:480px;margin:0 auto;}}
+
+.modules-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;max-width:960px;margin:0 auto;}
+.module{background:rgba(255,255,255,.88);border:1px solid var(--line);border-radius:18px;padding:26px 26px;display:flex;gap:18px;align-items:flex-start;transition:transform .2s,box-shadow .2s;}
+.module:hover{transform:translateY(-3px);box-shadow:0 24px 50px -30px rgba(70,40,15,.35);}
+.module .mnum{font-family:var(--serif);font-size:1.7rem;color:var(--orange);line-height:1;min-width:44px;}
+.module h3{font-size:1.15rem;margin-bottom:6px;}
+.module p{color:var(--muted);font-size:14.5px;}
+@media(max-width:640px){.modules-grid{grid-template-columns:1fr;}}
+
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:920px;margin:0 auto;}
+.compare>div{background:rgba(255,255,255,.9);border:1px solid var(--line);border-radius:20px;padding:30px 28px;}
+.compare .col-old{background:#FBF5EC;color:var(--muted);}
+.compare .col-new{border-left:3px solid var(--orange);}
+.compare h3{font-size:1.2rem;margin-bottom:16px;font-family:var(--serif);color:var(--ink);}
+.compare .col-old h3{color:var(--muted);font-style:italic;}
+.compare ul{list-style:none;display:grid;gap:12px;}
+.compare li{position:relative;padding-left:30px;font-size:15px;line-height:1.5;}
+.compare .col-old li::before{content:"\2715";position:absolute;left:0;top:0;color:#B69C82;font-weight:700;}
+.compare .col-new li::before{content:"\2713";position:absolute;left:0;top:0;color:var(--orange);font-weight:700;}
+@media(max-width:640px){.compare{grid-template-columns:1fr;}}
+
+.value-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;max-width:1080px;margin:0 auto;}
+.value-item{background:rgba(255,255,255,.88);border:1px solid var(--line);border-radius:18px;padding:26px 24px;}
+.value-item .vic{width:44px;height:44px;border-radius:12px;background:rgba(246,75,12,.1);color:var(--orange);font-size:1.2rem;font-family:var(--serif);display:flex;align-items:center;justify-content:center;margin-bottom:14px;}
+.value-item h3{font-size:1.05rem;margin-bottom:8px;font-family:var(--sans);font-weight:600;letter-spacing:-.01em;}
+.value-item p{color:var(--muted);font-size:14.5px;}
+
+.roadmap{max-width:820px;margin:0 auto;position:relative;padding-left:34px;}
+.roadmap::before{content:"";position:absolute;left:16px;top:16px;bottom:16px;width:2px;background:linear-gradient(180deg,var(--orange),rgba(246,75,12,.15));border-radius:2px;}
+.rstep{position:relative;background:rgba(255,255,255,.88);border:1px solid var(--line);border-radius:18px;padding:24px 26px;margin-bottom:16px;}
+.rstep::before{content:counter(r,decimal-leading-zero);counter-increment:r;position:absolute;left:-42px;top:20px;width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--orange-br),var(--orange));color:#fff;font-family:var(--serif);font-size:1.1rem;font-weight:500;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 20px -6px var(--glow-soft);}
+.roadmap{counter-reset:r;}
+.rstep h3{margin-bottom:6px;}
+.rstep p{color:var(--muted);font-size:15px;}
+@media(max-width:640px){.roadmap{padding-left:28px;}.rstep::before{left:-38px;width:38px;height:38px;font-size:.95rem;}}
+
+.faq{max-width:820px;margin:0 auto;display:grid;gap:12px;}
+.faq details{background:rgba(255,255,255,.9);border:1px solid var(--line);border-radius:14px;overflow:hidden;transition:box-shadow .2s;}
+.faq details[open]{box-shadow:0 24px 50px -32px rgba(70,40,15,.35);}
+.faq summary{list-style:none;cursor:pointer;padding:20px 24px;font-weight:500;font-size:16px;display:flex;align-items:center;justify-content:space-between;gap:20px;}
+.faq summary::-webkit-details-marker{display:none;}
+.faq summary::after{content:"+";font-family:var(--serif);font-size:1.6rem;color:var(--orange);line-height:1;transition:transform .25s;}
+.faq details[open] summary::after{transform:rotate(45deg);}
+.faq details p{padding:0 24px 22px;color:var(--muted);font-size:15px;line-height:1.6;}
+
+.site-final{position:relative;z-index:2;padding:60px 0 80px;}
+
 /* ============ RESPONSIVE ============ */
 @media(max-width:900px){
   /* HERO opt-in : NO SCROLL */
@@ -910,6 +991,182 @@ PAGES["webinaire-inscription.html"] = page(
 </div></div></section>
 """ + WEBIN_MODAL)
 
+
+
+# SITE CORPORATE
+PAGES["site.html"] = page(
+ "Academie Florale &mdash; Devenez fleuriste independante en 90 jours",
+ "Formation, mentorat, communaute : la methode complete pour vivre de la fleuristerie, meme en partant de zero. Par Sybile Loppe.",
+ """
+<div class="site-subnav"><div class="inner">
+  <span style="font-family:var(--serif);font-size:1.15rem;color:var(--ink);">Acad&eacute;mie Florale</span>
+  <nav>
+    <a href="#programme">Programme</a>
+    <a href="#modules">Modules</a>
+    <a href="#accompagnement">Accompagnement</a>
+    <a href="#formatrice">Formatrice</a>
+    <a href="#faq">FAQ</a>
+  </nav>
+  <a class="cta-mini" href="/pages/03-call.html">Prendre RDV</a>
+</div></div>
+
+<section class="site-hero"><div class="wrap"><div class="site-hero-grid">
+  <div>
+    <span class="af-badge"><span class="dot"></span> Formation &middot; Mentorat &middot; Communaute</span>
+    <h1 style="margin:16px 0 18px">Devenez fleuriste ind&eacute;pendante en <em>90 jours</em>.<br>B&acirc;tissez le business qui vous ressemble.</h1>
+    <p class="lead">Une m&eacute;thode qui r&eacute;unit le savoir-faire artisanal d\'une ma&icirc;tresse d\'apprentissage et la strat&eacute;gie marketing d\'une entrepreneuse. Concret, r&eacute;aliste, humain.</p>
+    <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:22px;align-items:center">
+      <a class="btn" href="/pages/03-call.html"><span>Devenir fleuriste ind&eacute;pendante</span><span class="arrow">&rarr;</span></a>
+      <a class="btn ghost" href="#programme">D&eacute;couvrir le programme</a>
+    </div>
+  </div>
+  <div class="site-hero-photo"><div class="frame"><img src="/assets/img/hero-sybile.jpg" alt="Sybile Loppe" fetchpriority="high"></div></div>
+</div></div></section>
+
+<section class="block tight" id="programme"><div class="wrap">
+  <div class="sec-head reveal">
+    <span class="af-badge"><span class="dot"></span> A qui s\'adresse le programme</span>
+    <h2>Fait pour vous, quel que soit votre point de d&eacute;part</h2>
+    <p>Que vous partiez de z&eacute;ro, que vous connaissiez d&eacute;j&agrave; les bases ou que vous pr&eacute;pariez le CAP en candidat libre.</p>
+  </div>
+  <div class="audience-grid">
+    <div class="audience-card reveal"><div class="ic">01</div><h3>En reconversion</h3><p>Vous voulez changer de vie et vivre d\'un m&eacute;tier qui a du sens, m&ecirc;me sans exp&eacute;rience pr&eacute;alable. On construit tout, pas &agrave; pas.</p></div>
+    <div class="audience-card reveal"><div class="ic">02</div><h3>Fleuriste avec les bases</h3><p>Vous savez composer mais vous manquez du business&nbsp;: chiffrer, vous rendre visible, d&eacute;fendre vos devis, structurer votre activit&eacute;.</p></div>
+    <div class="audience-card reveal"><div class="ic">03</div><h3>Candidate CAP libre</h3><p>Vous pr&eacute;parez l\'examen en candidate libre&nbsp;: technique, entra&icirc;nement, blancs corrig&eacute;s &mdash; et l\'apr&egrave;s.</p></div>
+  </div>
+</div></section>
+
+<section class="block tight"><div class="wrap">
+  <div class="sec-head reveal">
+    <span class="af-badge"><span class="dot"></span> Les 3 piliers</span>
+    <h2>Notre programme</h2>
+    <p>Une formation, un mentorat, une communaut&eacute;. Trois piliers qui se renforcent.</p>
+  </div>
+  <div class="pillars-3">
+    <div class="pillar reveal"><div class="pnum">01</div><h3>Formation &eacute;volutive</h3><p>De l\'art floral &agrave; la vente&nbsp;: botanique, techniques, art, marketing. 100&#8239;% en ligne, acc&egrave;s &agrave; vie, contenus enrichis au fil du temps.</p></div>
+    <div class="pillar reveal"><div class="pnum">02</div><h3>Mentorat personnalis&eacute;</h3><p>Coachings individuels, Q&amp;A r&eacute;guliers, analyses de vos vrais devis et de vos publications. Vous n\'&ecirc;tes jamais seule.</p></div>
+    <div class="pillar reveal"><div class="pnum">03</div><h3>Communaut&eacute;</h3><p>Un cercle d\'&eacute;l&egrave;ves partout en France qui s\'entraident, se recommandent des clients et se soutiennent 24h/24.</p></div>
+  </div>
+  <div style="text-align:center;margin-top:34px"><a class="btn" href="/pages/03-call.html"><span>Prendre RDV</span><span class="arrow">&rarr;</span></a></div>
+</div></section>
+
+<section class="block tight" id="modules"><div class="wrap">
+  <div class="sec-head reveal">
+    <span class="af-badge"><span class="dot"></span> Les 6 modules</span>
+    <h2>Le programme complet</h2>
+    <p>De la r&eacute;alit&eacute; du m&eacute;tier &agrave; la prospection professionnelle. Rien n\'est laiss&eacute; au hasard.</p>
+  </div>
+  <div class="modules-grid">
+    <div class="module reveal"><span class="mnum">01</span><div><h3>Fondamentaux du m&eacute;tier</h3><p>La r&eacute;alit&eacute; du terrain, les d&eacute;bouch&eacute;s, les piliers indispensables pour vivre de la fleuristerie.</p></div></div>
+    <div class="module reveal"><span class="mnum">02</span><div><h3>Botanique</h3><p>Anatomie des v&eacute;g&eacute;taux, substrats, arrosage, ennemis et parasites &mdash; l\'essentiel sans se perdre.</p></div></div>
+    <div class="module reveal"><span class="mnum">03</span><div><h3>Techniques florales</h3><p>Outils, taille, bouquets ronds, compositions piqu&eacute;es, emballages professionnels.</p></div></div>
+    <div class="module reveal"><span class="mnum">04</span><div><h3>Art floral</h3><p>R&egrave;gles de composition, styles, mariages, deuil, cr&eacute;ations signature qui vous ressemblent.</p></div></div>
+    <div class="module reveal"><span class="mnum">05</span><div><h3>Vente &amp; relation client</h3><p>Accueil, besoins, tarification, TVA, construction et d&eacute;fense des devis.</p></div></div>
+    <div class="module reveal"><span class="mnum">06</span><div><h3>Marketing &amp; visibilit&eacute;</h3><p>Positionnement, Instagram, contenu qui convertit, partenariats et prospection B2B.</p></div></div>
+  </div>
+  <div style="text-align:center;margin-top:34px"><a class="btn" href="/pages/03-call.html"><span>Devenir fleuriste ind&eacute;pendante</span><span class="arrow">&rarr;</span></a></div>
+</div></section>
+
+<section class="block tight"><div class="wrap">
+  <div class="sec-head reveal">
+    <span class="af-badge"><span class="dot"></span> Avant &middot; Apr&egrave;s</span>
+    <h2>Une activit&eacute; qui vous ressemble</h2>
+  </div>
+  <div class="compare reveal">
+    <div class="col-old"><h3>Sans m&eacute;thode</h3><ul>
+      <li>Entreprendre seule, sans cadre</li>
+      <li>Fixer vos tarifs au feeling</li>
+      <li>Peiner &agrave; trouver des clients r&eacute;guliers</li>
+      <li>Accumuler les erreurs co&ucirc;teuses</li>
+      <li>S\'&eacute;puiser sans se payer</li>
+    </ul></div>
+    <div class="col-new"><h3>Avec l\'Acad&eacute;mie Florale</h3><ul>
+      <li>Des bases claires, un plan structur&eacute;</li>
+      <li>Une vraie m&eacute;thode de tarification</li>
+      <li>Une approche visibilit&eacute; qui marche</li>
+      <li>Un positionnement align&eacute; avec vous</li>
+      <li>Une communaut&eacute; qui vous porte</li>
+    </ul></div>
+  </div>
+</div></section>
+
+<section class="block tight" id="accompagnement"><div class="wrap">
+  <div class="sec-head reveal">
+    <span class="af-badge"><span class="dot"></span> L\'accompagnement</span>
+    <h2>Cinq piliers pour r&eacute;ussir</h2>
+  </div>
+  <div class="value-grid">
+    <div class="value-item reveal"><div class="vic">&#9733;</div><h3>Succ&egrave;s collectif</h3><p>Une communaut&eacute; bienveillante qui c&eacute;l&egrave;bre vos victoires et vous porte quand &ccedil;a coince.</p></div>
+    <div class="value-item reveal"><div class="vic">&euro;</div><h3>Rentabilit&eacute; ma&icirc;tris&eacute;e</h3><p>Calcul des prix et marges, devis professionnels, vraie vision de ce que vous gagnez.</p></div>
+    <div class="value-item reveal"><div class="vic">&#9873;</div><h3>Visibilit&eacute; digitale</h3><p>Instagram, TikTok, cliente id&eacute;ale, contenu qui vous ressemble et qui convertit.</p></div>
+    <div class="value-item reveal"><div class="vic">&#9998;</div><h3>Business cl&eacute; en main</h3><p>Concept, positionnement, obligations l&eacute;gales, statut &mdash; tout est balis&eacute;.</p></div>
+    <div class="value-item reveal"><div class="vic">&#10029;</div><h3>Expertise totale</h3><p>De la botanique aux techniques avanc&eacute;es, avec le regard d\'une ma&icirc;tre d\'apprentissage.</p></div>
+  </div>
+</div></section>
+
+<section class="block tight"><div class="wrap">
+  <div class="sec-head reveal">
+    <span class="af-badge"><span class="dot"></span> Elles l\'ont fait</span>
+    <h2>Ils ont os&eacute; se lancer</h2>
+    <p>Des femmes comme vous, qui sont pass&eacute;es de l\'id&eacute;e au premier devis sign&eacute;.</p>
+  </div>
+  <div class="gallery reveal">
+    <figure><img src="/assets/img/compo-1.jpg" alt="" loading="lazy"></figure>
+    <figure><img src="/assets/img/compo-2.jpg" alt="" loading="lazy"></figure>
+    <figure><img src="/assets/img/compo-3.jpg" alt="" loading="lazy"></figure>
+    <figure><img src="/assets/img/compo-4.jpg" alt="" loading="lazy"></figure>
+  </div>
+  <div style="text-align:center;margin-top:30px"><a class="btn" href="/pages/03-call.html"><span>Rejoindre la communaut&eacute;</span><span class="arrow">&rarr;</span></a></div>
+</div></section>
+
+<section class="block tight" id="formatrice"><div class="wrap"><div class="founder">
+  <div class="founder-photo reveal"><img src="/assets/img/sybile-atelier.jpg" alt="Sybile Loppe"></div>
+  <div class="founder-copy reveal">
+    <span class="af-badge"><span class="dot"></span> La formatrice</span>
+    <h2>Sybile Lopp&eacute;</h2>
+    <p>CAP et Brevet Professionnel de fleuriste. Plus de 8 ans en boutique, avant de me lancer &agrave; mon compte. J\'ai form&eacute; des apprenties en tant que ma&icirc;tresse d\'apprentissage, et j\'ai collabor&eacute; avec l\'Op&eacute;ra de Montpellier, Rolex, le Domaine de Verchant.</p>
+    <p class="quote">&laquo;&nbsp;Je crois &agrave; une approche concr&egrave;te et r&eacute;aliste&nbsp;: pas de talent inn&eacute;, pas de recette magique &mdash; des r&egrave;gles d\'or, une m&eacute;thode, et de l\'accompagnement.&nbsp;&raquo;</p>
+    <p class="sign">Sybile</p>
+    <div style="margin-top:20px"><a class="btn" href="/pages/03-call.html"><span>Rejoindre la communaut&eacute;</span><span class="arrow">&rarr;</span></a></div>
+  </div>
+</div></div></section>
+
+<section class="block tight"><div class="wrap">
+  <div class="sec-head reveal">
+    <span class="af-badge"><span class="dot"></span> La feuille de route</span>
+    <h2>Devenez votre propre patronne &eacute;panouie</h2>
+  </div>
+  <div class="roadmap">
+    <div class="rstep reveal"><h3>Ma&icirc;trise technique</h3><p>Les techniques et r&egrave;gles d\'or pour composer avec confiance, quelle que soit la commande.</p></div>
+    <div class="rstep reveal"><h3>Gestion durable</h3><p>Comprendre vos co&ucirc;ts, calculer vos marges, poser un cadre qui vous permet de vivre de votre activit&eacute;.</p></div>
+    <div class="rstep reveal"><h3>Strat&eacute;gie commerciale</h3><p>Visibilit&eacute; digitale, prospection B2B, positionnement clair &mdash; attirer les bons clients, r&eacute;guli&egrave;rement.</p></div>
+    <div class="rstep reveal"><h3>Certification et CAP</h3><p>Un certificat de l\'Acad&eacute;mie Florale, et le pilotage du CAP en candidat libre si vous le souhaitez.</p></div>
+  </div>
+</div></section>
+
+<section class="block tight" id="faq"><div class="wrap">
+  <div class="sec-head reveal">
+    <span class="af-badge"><span class="dot"></span> Questions fr&eacute;quentes</span>
+    <h2>Ce que vous nous demandez</h2>
+  </div>
+  <div class="faq reveal">
+    <details><summary>Est-ce vraiment r&eacute;alisable en 90 jours&#8239;?</summary><p>Oui, si vous avancez avec la m&eacute;thode et l\'accompagnement. 90 jours pour poser des fondations solides et signer vos premiers devis, puis on continue ensemble sur 2 ans en illimit&eacute;.</p></details>
+    <details><summary>Comment se passe la gestion au quotidien&#8239;?</summary><p>Vous progressez &agrave; votre rythme depuis chez vous. Coachings collectifs chaque semaine, accompagnement individuel &agrave; la demande, et une communaut&eacute; joignable 24h/24.</p></details>
+    <details><summary>Combien de coachings sont pr&eacute;vus&#8239;?</summary><p>Deux coachings collectifs par semaine (technique &amp; business), des journ&eacute;es en pr&eacute;sentiel tous les 3-4 mois, et l\'accompagnement individuel illimit&eacute; pendant 2 ans.</p></details>
+    <details><summary>Faut-il &ecirc;tre pr&eacute;sente sur les r&eacute;seaux&#8239;?</summary><p>On vous apprend &agrave; utiliser Instagram et TikTok efficacement &mdash; sans burn-out. Ce n\'est pas une question d\'algorithme, c\'est une question de r&eacute;gularit&eacute; et de contenu align&eacute;.</p></details>
+    <details><summary>Comment est pr&eacute;par&eacute; le CAP&#8239;?</summary><p>Si vous le souhaitez, on vous accompagne&nbsp;: inscription, planning, checklist, examens blancs en conditions r&eacute;elles avec corrections not&eacute;es.</p></details>
+    <details><summary>Quel budget pr&eacute;voir pour d&eacute;marrer&#8239;?</summary><p>C\'est ce qu\'on d&eacute;taille pendant l\'appel d&eacute;couverte&nbsp;: co&ucirc;t de la formation, solutions de financement, et co&ucirc;ts de lancement r&eacute;alistes pour votre activit&eacute;.</p></details>
+  </div>
+</div></section>
+
+<section class="block tight site-final"><div class="wrap"><div class="cta-box reveal">
+  <span class="eyebrow" style="color:#FFB68C">Passez &agrave; l\'action</span>
+  <h2 style="margin-top:14px">Pr&ecirc;te &agrave; devenir <em>fleuriste ind&eacute;pendante</em>&#8239;?</h2>
+  <p>Un appel de 20 minutes pour voir si l\'accompagnement est fait pour vous, et tracer un plan concret sur 90 jours.</p>
+  <a class="btn" href="/pages/03-call.html"><span>Devenir fleuriste ind&eacute;pendante</span><span class="arrow">&rarr;</span></a>
+</div></div></section>
+""")
+
 # =================================================== INDEX
 VSL_ROWS = [
  ("01-inscription.html","01","Inscription","Opt-in video offerte"),
@@ -928,6 +1185,9 @@ VSL_ROWS = [
 WEBIN_ROWS = [
  ("webinaire-inscription.html","01","Webinaire &mdash; Inscription","Conference live mardi 20h30"),
 ]
+SITE_ROWS = [
+ ("site.html","01","Site Internet &mdash; Corporate","Page institutionnelle refondue"),
+]
 def render_rows(rows):
     out=""
     for fn,n,t,sub in rows:
@@ -936,6 +1196,7 @@ def render_rows(rows):
     return out
 rows_vsl = render_rows(VSL_ROWS)
 rows_webin = render_rows(WEBIN_ROWS)
+rows_site = render_rows(SITE_ROWS)
 
 INDEX = page(
  "Academie Florale &mdash; Funnel (preversion)",
@@ -954,6 +1215,10 @@ INDEX = page(
   <div class="funnel-group reveal" style="margin-top:42px">
     <div class="group-title"><span class="af-badge"><span class="dot"></span> Funnel Webinaire</span><span class="group-sub">Conference live mardi 20h30</span></div>
     <div class="index-list">"""+rows_webin+"""</div>
+  </div>
+  <div class="funnel-group reveal" style="margin-top:42px">
+    <div class="group-title"><span class="af-badge"><span class="dot"></span> Site Internet</span><span class="group-sub">Page corporate refondue &mdash; academie-florale.fr</span></div>
+    <div class="index-list">"""+rows_site+"""</div>
   </div>
 </div></section>
 <style>
