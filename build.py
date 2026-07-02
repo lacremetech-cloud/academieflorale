@@ -302,11 +302,7 @@ footer{position:relative;z-index:2;background:rgba(255,255,255,.85);border-top:1
 .compare .col-new li::before{content:"\2713";position:absolute;left:0;top:0;color:var(--orange);font-weight:700;}
 @media(max-width:640px){.compare{grid-template-columns:1fr;}}
 
-.value-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;max-width:1080px;margin:0 auto;}
-.value-item{background:rgba(255,255,255,.88);border:1px solid var(--line);border-radius:18px;padding:26px 24px;}
-.value-item .vic{width:44px;height:44px;border-radius:12px;background:rgba(246,75,12,.1);color:var(--orange);font-size:1.2rem;font-family:var(--serif);display:flex;align-items:center;justify-content:center;margin-bottom:14px;}
-.value-item h3{font-size:1.05rem;margin-bottom:8px;font-family:var(--sans);font-weight:600;letter-spacing:-.01em;}
-.value-item p{color:var(--muted);font-size:14.5px;}
+/* value-grid remplace par values-split ci-dessous */
 
 .roadmap{max-width:820px;margin:0 auto;position:relative;padding-left:34px;}
 .roadmap::before{content:"";position:absolute;left:16px;top:16px;bottom:16px;width:2px;background:linear-gradient(180deg,var(--orange),rgba(246,75,12,.15));border-radius:2px;}
@@ -328,6 +324,26 @@ footer{position:relative;z-index:2;background:rgba(255,255,255,.85);border-top:1
 
 .site-final{position:relative;z-index:2;padding:60px 0 80px;}
 
+
+
+/* ============ VALUES SPLIT (piliers accompagnement) ============ */
+.values-split{display:grid;grid-template-columns:1fr 1.15fr;gap:clamp(28px,5vw,72px);align-items:start;max-width:1080px;margin:0 auto;}
+.values-intro{position:sticky;top:100px;}
+.values-intro .af-badge{margin-bottom:14px;}
+.values-intro h2{margin-bottom:14px;}
+.values-intro p.lead{max-width:38ch;}
+.values-list{display:grid;gap:12px;counter-reset:v;}
+.value-row{position:relative;display:flex;gap:18px;background:rgba(255,255,255,.88);border:1px solid var(--line);border-radius:16px;padding:22px 24px;transition:transform .2s,box-shadow .2s;}
+.value-row:hover{transform:translateY(-2px);box-shadow:0 24px 50px -30px rgba(70,40,15,.35);}
+.value-row .vnum{counter-increment:v;font-family:var(--serif);font-size:1.6rem;color:var(--orange);line-height:1;min-width:44px;}
+.value-row .vnum::before{content:"0" counter(v);}
+.value-row h3{font-size:1.12rem;margin-bottom:4px;}
+.value-row p{color:var(--muted);font-size:14.5px;line-height:1.55;}
+@media(max-width:900px){
+  .values-split{grid-template-columns:1fr;gap:28px;}
+  .values-intro{position:static;text-align:center;}
+  .values-intro p.lead{margin:0 auto;}
+}
 
 /* ============ REELS CAROUSEL (Framer/Webflow style) ============ */
 .reels-wrap{position:relative;max-width:1440px;margin:0 auto;padding:8px 0 8px;}
@@ -1137,24 +1153,27 @@ PAGES["site.html"] = page(
 </div></section>
 
 <section class="block tight" id="accompagnement"><div class="wrap">
-  <div class="sec-head reveal">
-    <span class="af-badge"><span class="dot"></span> L\'accompagnement</span>
-    <h2>Cinq piliers pour r&eacute;ussir</h2>
-  </div>
-  <div class="value-grid">
-    <div class="value-item reveal"><div class="vic">&#9733;</div><h3>Succ&egrave;s collectif</h3><p>Une communaut&eacute; bienveillante qui c&eacute;l&egrave;bre vos victoires et vous porte quand &ccedil;a coince.</p></div>
-    <div class="value-item reveal"><div class="vic">&euro;</div><h3>Rentabilit&eacute; ma&icirc;tris&eacute;e</h3><p>Calcul des prix et marges, devis professionnels, vraie vision de ce que vous gagnez.</p></div>
-    <div class="value-item reveal"><div class="vic">&#9873;</div><h3>Visibilit&eacute; digitale</h3><p>Instagram, TikTok, cliente id&eacute;ale, contenu qui vous ressemble et qui convertit.</p></div>
-    <div class="value-item reveal"><div class="vic">&#9998;</div><h3>Business cl&eacute; en main</h3><p>Concept, positionnement, obligations l&eacute;gales, statut &mdash; tout est balis&eacute;.</p></div>
-    <div class="value-item reveal"><div class="vic">&#10029;</div><h3>Expertise totale</h3><p>De la botanique aux techniques avanc&eacute;es, avec le regard d\'une ma&icirc;tre d\'apprentissage.</p></div>
+  <div class="values-split reveal">
+    <div class="values-intro">
+      <span class="af-badge"><span class="dot"></span> L\'accompagnement</span>
+      <h2>Cinq engagements <em>pour votre r&eacute;ussite</em></h2>
+      <p class="lead">Une m&eacute;thode compl&egrave;te qui allie technique, business et communaut&eacute; &mdash; pour vivre sereinement de la fleuristerie.</p>
+    </div>
+    <div class="values-list">
+      <div class="value-row"><span class="vnum"></span><div><h3>Succ&egrave;s collectif</h3><p>Une communaut&eacute; bienveillante qui c&eacute;l&egrave;bre vos victoires et vous porte quand &ccedil;a coince.</p></div></div>
+      <div class="value-row"><span class="vnum"></span><div><h3>Rentabilit&eacute; ma&icirc;tris&eacute;e</h3><p>Calcul des prix et marges, devis professionnels, vraie vision de ce que vous gagnez chaque mois.</p></div></div>
+      <div class="value-row"><span class="vnum"></span><div><h3>Visibilit&eacute; digitale</h3><p>Instagram, TikTok, cliente id&eacute;ale, contenu qui vous ressemble et qui convertit r&eacute;ellement.</p></div></div>
+      <div class="value-row"><span class="vnum"></span><div><h3>Business cl&eacute; en main</h3><p>Concept, positionnement, obligations l&eacute;gales, statut &mdash; tout est balis&eacute;, rien n\'est laiss&eacute; au hasard.</p></div></div>
+      <div class="value-row"><span class="vnum"></span><div><h3>Expertise m&eacute;tier totale</h3><p>De la botanique aux techniques avanc&eacute;es, avec le regard d\'une ma&icirc;tresse d\'apprentissage exp&eacute;riment&eacute;e.</p></div></div>
+    </div>
   </div>
 </div></section>
 
-<section class="block tight" id="temoignages"><div class="wrap">
+<section class="block tight" id="univers"><div class="wrap">
   <div class="sec-head reveal">
-    <span class="af-badge"><span class="dot"></span> Ils ont os&eacute; se lancer</span>
-    <h2>Nos &eacute;l&egrave;ves en action</h2>
-    <p>D&eacute;couvrez les pr&eacute;sentations de nos &eacute;l&egrave;ves qui ont d&eacute;cid&eacute; de faire de leur passion florale un v&eacute;ritable projet professionnel.</p>
+    <span class="af-badge"><span class="dot"></span> L\'univers Acad&eacute;mie Florale</span>
+    <h2>D&eacute;couvre <em>mon univers</em></h2>
+    <p>Plongez dans les coulisses de l\'atelier, les compositions signature et les moments partag&eacute;s avec la communaut&eacute;.</p>
   </div>
 </div>
 <div class="reels-wrap reveal">
@@ -1170,7 +1189,7 @@ PAGES["site.html"] = page(
   </div>
   <button class="reels-nav next" onclick="reelsScroll(1)" aria-label="Suivant">&rsaquo;</button>
 </div>
-<div class="wrap" style="text-align:center;margin-top:14px"><a class="btn" href="/pages/03-call.html"><span>Rejoindre la communaut&eacute;</span><span class="arrow">&rarr;</span></a></div>
+<div class="wrap" style="text-align:center;margin-top:14px"><a class="btn" href="https://www.instagram.com/sybile.academie.florale/" target="_blank" rel="noopener"><span>Suivre sur Instagram</span><span class="arrow">&rarr;</span></a></div>
 </section>
 
 <section class="block tight" id="formatrice"><div class="wrap"><div class="founder">
