@@ -33,9 +33,9 @@ a{color:inherit;text-decoration:none;}
   radial-gradient(ellipse 52% 42% at 12% 66%, rgba(255,184,128,.05) 0%, transparent 50%);}
 .af-spot{position:fixed;top:-12%;left:50%;transform:translateX(-50%);width:min(1000px,120vw);height:62vh;z-index:-4;pointer-events:none;filter:blur(30px);animation:afBreath 9s ease-in-out infinite;background:radial-gradient(ellipse at center, rgba(246,75,12,.07) 0%, rgba(246,75,12,.02) 36%, transparent 66%);}
 .af-orb{position:fixed;z-index:-4;pointer-events:none;border-radius:50%;filter:blur(48px);}
-.af-orb1{top:13%;left:-8%;width:300px;height:300px;animation:afFloat1 13s ease-in-out infinite;background:radial-gradient(circle,rgba(255,180,130,.18),transparent 70%);}
-.af-orb2{bottom:6%;right:-9%;width:350px;height:350px;animation:afFloat2 16s ease-in-out infinite;background:radial-gradient(circle,rgba(246,75,12,.09),transparent 70%);}
-.af-orb3{top:48%;left:42%;width:260px;height:260px;animation:afFloat1 18s ease-in-out infinite reverse;background:radial-gradient(circle,rgba(255,140,80,.05),transparent 70%);}
+.af-orb1{top:13%;left:-8%;width:280px;height:280px;animation:afFloat1 13s ease-in-out infinite;background:radial-gradient(circle,rgba(255,180,130,.10),transparent 70%);}
+.af-orb2{bottom:6%;right:-9%;width:340px;height:340px;animation:afFloat2 16s ease-in-out infinite;background:radial-gradient(circle,rgba(246,75,12,.05),transparent 70%);}
+.af-orb3{top:48%;left:42%;width:240px;height:240px;animation:afFloat1 18s ease-in-out infinite reverse;background:radial-gradient(circle,rgba(255,140,80,.03),transparent 70%);}
 .af-grain{position:fixed;inset:0;z-index:-3;pointer-events:none;opacity:.05;mix-blend-mode:multiply;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");}
 @keyframes afBreath{0%,100%{opacity:.75;transform:translateX(-50%) scale(1);}50%{opacity:1;transform:translateX(-50%) scale(1.12);}}
 @keyframes afFloat1{0%,100%{transform:translate(0,0) scale(1);}33%{transform:translate(28px,-22px) scale(1.1);}66%{transform:translate(-16px,24px) scale(.95);}}
@@ -345,6 +345,68 @@ footer{position:relative;z-index:2;background:rgba(255,255,255,.85);border-top:1
   .values-intro p.lead{margin:0 auto;}
 }
 
+
+/* ============ FOND MODERNE : dot grid + cursor spotlight ============ */
+.af-grid{position:fixed;inset:0;z-index:-2;pointer-events:none;
+  background-image:radial-gradient(circle at 1px 1px, rgba(70,40,15,.055) 1px, transparent 0);
+  background-size:34px 34px;
+  -webkit-mask-image:radial-gradient(ellipse at 50% 40%,#000 25%,transparent 78%);
+  mask-image:radial-gradient(ellipse at 50% 40%,#000 25%,transparent 78%);}
+.af-cursor{position:fixed;top:0;left:0;width:520px;height:520px;pointer-events:none;z-index:-1;border-radius:50%;
+  background:radial-gradient(circle, rgba(246,75,12,.11), rgba(246,75,12,.03) 40%, transparent 65%);
+  filter:blur(24px);
+  transform:translate3d(calc(var(--mx,50vw) - 260px), calc(var(--my,50vh) - 260px), 0);
+  transition:opacity .3s ease;}
+@media (max-width:900px){.af-cursor{display:none;}}
+@media (prefers-reduced-motion: reduce){.af-cursor{display:none;}}
+
+/* ============ BENTO 5 PILIERS ============ */
+.bento-5{display:grid;grid-template-columns:repeat(6,1fr);gap:14px;max-width:1140px;margin:0 auto;}
+.bento-card{position:relative;overflow:hidden;border-radius:24px;padding:34px 30px;transition:transform .35s cubic-bezier(.16,1,.3,1),box-shadow .35s ease;will-change:transform;transform-style:preserve-3d;}
+.bento-card:hover{box-shadow:0 34px 70px -32px rgba(70,40,15,.4);}
+.bento-card h3{font-family:var(--serif);font-size:clamp(1.35rem,2.2vw,1.75rem);margin-bottom:10px;line-height:1.1;letter-spacing:-.01em;}
+.bento-card p{font-size:15px;line-height:1.55;position:relative;z-index:2;}
+.bento-card .b-icon{width:46px;height:46px;border-radius:14px;display:flex;align-items:center;justify-content:center;margin-bottom:22px;font-family:var(--serif);font-size:1.35rem;font-weight:500;position:relative;z-index:2;}
+.bento-card .b-tag{position:absolute;top:18px;right:24px;font-family:var(--serif);font-size:clamp(3.5rem,6vw,5.5rem);color:rgba(0,0,0,.055);line-height:.8;letter-spacing:-.03em;pointer-events:none;font-weight:400;}
+/* Card 1: cream soft */
+.bc-1{grid-column:1/3;background:#FFF7EE;border:1px solid var(--line);}
+.bc-1 .b-icon{background:rgba(246,75,12,.13);color:var(--orange);}
+.bc-1 p{color:var(--muted);}
+/* Card 2: dark contrast — la surprise premium */
+.bc-2{grid-column:3/7;background:linear-gradient(135deg,#221A14 0%,#3A2A20 100%);color:#fff;position:relative;}
+.bc-2::before{content:"";position:absolute;inset:0;background:radial-gradient(600px 300px at 100% 0%, rgba(246,75,12,.28), transparent 60%);pointer-events:none;}
+.bc-2 h3,.bc-2 p{color:#fff;position:relative;z-index:2;}
+.bc-2 p{color:rgba(255,255,255,.78);}
+.bc-2 .b-icon{background:rgba(255,255,255,.10);color:#FFB68C;border:1px solid rgba(255,255,255,.14);}
+.bc-2 .b-tag{color:rgba(255,255,255,.09);}
+/* Card 3: white with gradient icon */
+.bc-3{grid-column:1/5;background:#fff;border:1px solid var(--line);}
+.bc-3 .b-icon{background:linear-gradient(135deg,var(--orange-br),var(--orange));color:#fff;box-shadow:0 10px 24px -10px var(--glow);}
+.bc-3 p{color:var(--muted);}
+/* Card 4: orange washed */
+.bc-4{grid-column:5/7;background:linear-gradient(160deg,#FFF0E5 0%,#FFE0CC 100%);border:1px solid rgba(246,75,12,.18);}
+.bc-4 .b-icon{background:#fff;color:var(--orange);box-shadow:0 6px 14px -8px rgba(246,75,12,.4);}
+.bc-4 p{color:var(--muted);}
+/* Card 5: featured full-width avec photo integree */
+.bc-5{grid-column:1/7;background:#fff;border:1px solid var(--line);display:grid;grid-template-columns:1.25fr 1fr;gap:0;padding:0;overflow:hidden;}
+.bc-5 .b-content{padding:38px 42px;position:relative;}
+.bc-5 .b-content h3{font-size:clamp(1.5rem,2.8vw,1.95rem);}
+.bc-5 .b-content p{color:var(--muted);}
+.bc-5 .b-photo{position:relative;min-height:300px;overflow:hidden;}
+.bc-5 .b-photo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+.bc-5 .b-photo::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,#fff 0%,transparent 30%);}
+@media(max-width:900px){
+  .bento-5{grid-template-columns:1fr;}
+  .bc-1,.bc-2,.bc-3,.bc-4,.bc-5{grid-column:1;}
+  .bc-5{grid-template-columns:1fr;}
+  .bc-5 .b-photo{min-height:200px;order:-1;}
+  .bc-5 .b-photo::after{background:linear-gradient(180deg,transparent 50%,#fff 100%);}
+  .bento-card{padding:28px 24px;}
+}
+
+/* Tilt 3D subtil */
+[data-tilt]{transition:transform .18s cubic-bezier(.2,.9,.3,1),box-shadow .3s ease;}
+
 /* ============ REELS CAROUSEL (Framer/Webflow style) ============ */
 .reels-wrap{position:relative;max-width:1440px;margin:0 auto;padding:8px 0 8px;}
 .reels-track{display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;padding:12px 22px 32px;scrollbar-width:none;-webkit-overflow-scrolling:touch;}
@@ -537,6 +599,33 @@ function reelsScroll(dir){
   },{threshold:.35});
   vids.forEach(function(v){io.observe(v);});
 })();
+
+/* Cursor spotlight (met a jour --mx/--my) */
+(function(){
+  if(window.matchMedia("(max-width:900px)").matches) return;
+  var raf=null,mx=window.innerWidth/2,my=window.innerHeight/2;
+  document.addEventListener('mousemove',function(e){
+    mx=e.clientX; my=e.clientY;
+    if(raf) return;
+    raf=requestAnimationFrame(function(){
+      document.documentElement.style.setProperty('--mx',mx+'px');
+      document.documentElement.style.setProperty('--my',my+'px');
+      raf=null;
+    });
+  });
+})();
+/* Tilt 3D subtil */
+(function(){
+  document.querySelectorAll('[data-tilt]').forEach(function(el){
+    el.addEventListener('mousemove',function(e){
+      var r=el.getBoundingClientRect();
+      var x=(e.clientX-r.left)/r.width, y=(e.clientY-r.top)/r.height;
+      var rx=(y-.5)*-5, ry=(x-.5)*5;
+      el.style.transform='perspective(900px) rotateX('+rx+'deg) rotateY('+ry+'deg) translateY(-4px)';
+    });
+    el.addEventListener('mouseleave',function(){el.style.transform='';});
+  });
+})();
 """
 
 # =================================================== SHELL
@@ -561,6 +650,8 @@ HEAD = """<!DOCTYPE html>
 <div class="af-orb af-orb2" aria-hidden="true"></div>
 <div class="af-orb af-orb3" aria-hidden="true"></div>
 <div class="af-grain" aria-hidden="true"></div>
+<div class="af-grid" aria-hidden="true"></div>
+<div class="af-cursor" aria-hidden="true"></div>
 <header class="nav"><div class="wrap"><div class="nav-inner">
   <a class="nav-logo" href="/pages/01-inscription.html" aria-label="Academie Florale"><img src="/assets/img/logo-orange.png" alt="Academie Florale"></a>
   <span class="nav-tag">Deviens fleuriste independante</span>
@@ -1119,12 +1210,12 @@ PAGES["site.html"] = page(
     <p>De la r&eacute;alit&eacute; du m&eacute;tier &agrave; la prospection professionnelle. Rien n\'est laiss&eacute; au hasard.</p>
   </div>
   <div class="modules-grid">
-    <div class="module reveal"><span class="mnum">01</span><div><h3>Fondamentaux du m&eacute;tier</h3><p>La r&eacute;alit&eacute; du terrain, les d&eacute;bouch&eacute;s, les piliers indispensables pour vivre de la fleuristerie.</p></div></div>
-    <div class="module reveal"><span class="mnum">02</span><div><h3>Botanique</h3><p>Anatomie des v&eacute;g&eacute;taux, substrats, arrosage, ennemis et parasites &mdash; l\'essentiel sans se perdre.</p></div></div>
-    <div class="module reveal"><span class="mnum">03</span><div><h3>Techniques florales</h3><p>Outils, taille, bouquets ronds, compositions piqu&eacute;es, emballages professionnels.</p></div></div>
-    <div class="module reveal"><span class="mnum">04</span><div><h3>Art floral</h3><p>R&egrave;gles de composition, styles, mariages, deuil, cr&eacute;ations signature qui vous ressemblent.</p></div></div>
-    <div class="module reveal"><span class="mnum">05</span><div><h3>Vente &amp; relation client</h3><p>Accueil, besoins, tarification, TVA, construction et d&eacute;fense des devis.</p></div></div>
-    <div class="module reveal"><span class="mnum">06</span><div><h3>Marketing &amp; visibilit&eacute;</h3><p>Positionnement, Instagram, contenu qui convertit, partenariats et prospection B2B.</p></div></div>
+    <div class="module reveal" data-tilt><span class="mnum">01</span><div><h3>Fondamentaux du m&eacute;tier</h3><p>La r&eacute;alit&eacute; du terrain, les d&eacute;bouch&eacute;s, les piliers indispensables pour vivre de la fleuristerie.</p></div></div>
+    <div class="module reveal" data-tilt><span class="mnum">02</span><div><h3>Botanique</h3><p>Anatomie des v&eacute;g&eacute;taux, substrats, arrosage, ennemis et parasites &mdash; l\'essentiel sans se perdre.</p></div></div>
+    <div class="module reveal" data-tilt><span class="mnum">03</span><div><h3>Techniques florales</h3><p>Outils, taille, bouquets ronds, compositions piqu&eacute;es, emballages professionnels.</p></div></div>
+    <div class="module reveal" data-tilt><span class="mnum">04</span><div><h3>Art floral</h3><p>R&egrave;gles de composition, styles, mariages, deuil, cr&eacute;ations signature qui vous ressemblent.</p></div></div>
+    <div class="module reveal" data-tilt><span class="mnum">05</span><div><h3>Vente &amp; relation client</h3><p>Accueil, besoins, tarification, TVA, construction et d&eacute;fense des devis.</p></div></div>
+    <div class="module reveal" data-tilt><span class="mnum">06</span><div><h3>Marketing &amp; visibilit&eacute;</h3><p>Positionnement, Instagram, contenu qui convertit, partenariats et prospection B2B.</p></div></div>
   </div>
   <div style="text-align:center;margin-top:34px"><a class="btn" href="/pages/03-call.html"><span>Devenir fleuriste ind&eacute;pendante</span><span class="arrow">&rarr;</span></a></div>
 </div></section>
@@ -1153,19 +1244,45 @@ PAGES["site.html"] = page(
 </div></section>
 
 <section class="block tight" id="accompagnement"><div class="wrap">
-  <div class="values-split reveal">
-    <div class="values-intro">
-      <span class="af-badge"><span class="dot"></span> L\'accompagnement</span>
-      <h2>Cinq engagements <em>pour votre r&eacute;ussite</em></h2>
-      <p class="lead">Une m&eacute;thode compl&egrave;te qui allie technique, business et communaut&eacute; &mdash; pour vivre sereinement de la fleuristerie.</p>
-    </div>
-    <div class="values-list">
-      <div class="value-row"><span class="vnum"></span><div><h3>Succ&egrave;s collectif</h3><p>Une communaut&eacute; bienveillante qui c&eacute;l&egrave;bre vos victoires et vous porte quand &ccedil;a coince.</p></div></div>
-      <div class="value-row"><span class="vnum"></span><div><h3>Rentabilit&eacute; ma&icirc;tris&eacute;e</h3><p>Calcul des prix et marges, devis professionnels, vraie vision de ce que vous gagnez chaque mois.</p></div></div>
-      <div class="value-row"><span class="vnum"></span><div><h3>Visibilit&eacute; digitale</h3><p>Instagram, TikTok, cliente id&eacute;ale, contenu qui vous ressemble et qui convertit r&eacute;ellement.</p></div></div>
-      <div class="value-row"><span class="vnum"></span><div><h3>Business cl&eacute; en main</h3><p>Concept, positionnement, obligations l&eacute;gales, statut &mdash; tout est balis&eacute;, rien n\'est laiss&eacute; au hasard.</p></div></div>
-      <div class="value-row"><span class="vnum"></span><div><h3>Expertise m&eacute;tier totale</h3><p>De la botanique aux techniques avanc&eacute;es, avec le regard d\'une ma&icirc;tresse d\'apprentissage exp&eacute;riment&eacute;e.</p></div></div>
-    </div>
+  <div class="sec-head reveal">
+    <span class="af-badge"><span class="dot"></span> L\'accompagnement</span>
+    <h2>Cinq engagements <em>pour votre r&eacute;ussite</em></h2>
+    <p>Technique, business, communaut&eacute; &mdash; une m&eacute;thode compl&egrave;te pour vivre sereinement de la fleuristerie.</p>
+  </div>
+  <div class="bento-5 reveal">
+    <article class="bento-card bc-1" data-tilt>
+      <span class="b-tag">01</span>
+      <div class="b-icon">&#10029;</div>
+      <h3>Succ&egrave;s collectif</h3>
+      <p>Une communaut&eacute; bienveillante qui c&eacute;l&egrave;bre vos victoires et vous porte quand &ccedil;a coince.</p>
+    </article>
+    <article class="bento-card bc-2">
+      <span class="b-tag">02</span>
+      <div class="b-icon">&euro;</div>
+      <h3>Rentabilit&eacute; ma&icirc;tris&eacute;e</h3>
+      <p>Calcul des prix et marges, devis professionnels &mdash; enfin une vraie vision de ce que vous gagnez chaque mois.</p>
+    </article>
+    <article class="bento-card bc-3" data-tilt>
+      <span class="b-tag">03</span>
+      <div class="b-icon">#</div>
+      <h3>Visibilit&eacute; digitale</h3>
+      <p>Instagram, TikTok, cliente id&eacute;ale, contenu qui vous ressemble et qui convertit r&eacute;ellement.</p>
+    </article>
+    <article class="bento-card bc-4" data-tilt>
+      <span class="b-tag">04</span>
+      <div class="b-icon">&#10004;</div>
+      <h3>Business cl&eacute; en main</h3>
+      <p>Concept, positionnement, obligations l&eacute;gales, statut &mdash; tout est balis&eacute;.</p>
+    </article>
+    <article class="bento-card bc-5">
+      <div class="b-content">
+        <span class="b-tag">05</span>
+        <div class="b-icon" style="background:rgba(246,75,12,.13);color:var(--orange)">&#10047;</div>
+        <h3>Expertise m&eacute;tier totale</h3>
+        <p>De la botanique aux techniques avanc&eacute;es, avec le regard d\'une ma&icirc;tresse d\'apprentissage exp&eacute;riment&eacute;e. Le savoir-faire qui fait la diff&eacute;rence.</p>
+      </div>
+      <div class="b-photo"><img src="/assets/img/sybile-atelier.jpg" alt="" loading="lazy"></div>
+    </article>
   </div>
 </div></section>
 

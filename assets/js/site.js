@@ -49,3 +49,30 @@ function reelsScroll(dir){
   },{threshold:.35});
   vids.forEach(function(v){io.observe(v);});
 })();
+
+/* Cursor spotlight (met a jour --mx/--my) */
+(function(){
+  if(window.matchMedia("(max-width:900px)").matches) return;
+  var raf=null,mx=window.innerWidth/2,my=window.innerHeight/2;
+  document.addEventListener('mousemove',function(e){
+    mx=e.clientX; my=e.clientY;
+    if(raf) return;
+    raf=requestAnimationFrame(function(){
+      document.documentElement.style.setProperty('--mx',mx+'px');
+      document.documentElement.style.setProperty('--my',my+'px');
+      raf=null;
+    });
+  });
+})();
+/* Tilt 3D subtil */
+(function(){
+  document.querySelectorAll('[data-tilt]').forEach(function(el){
+    el.addEventListener('mousemove',function(e){
+      var r=el.getBoundingClientRect();
+      var x=(e.clientX-r.left)/r.width, y=(e.clientY-r.top)/r.height;
+      var rx=(y-.5)*-5, ry=(x-.5)*5;
+      el.style.transform='perspective(900px) rotateX('+rx+'deg) rotateY('+ry+'deg) translateY(-4px)';
+    });
+    el.addEventListener('mouseleave',function(){el.style.transform='';});
+  });
+})();
