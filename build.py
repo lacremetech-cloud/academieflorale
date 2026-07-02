@@ -328,6 +328,32 @@ footer{position:relative;z-index:2;background:rgba(255,255,255,.85);border-top:1
 
 .site-final{position:relative;z-index:2;padding:60px 0 80px;}
 
+
+/* ============ REELS CAROUSEL (Framer/Webflow style) ============ */
+.reels-wrap{position:relative;max-width:1440px;margin:0 auto;padding:8px 0 8px;}
+.reels-track{display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;padding:12px 22px 32px;scrollbar-width:none;-webkit-overflow-scrolling:touch;}
+.reels-track::-webkit-scrollbar{display:none;}
+.reels-track::after{content:"";flex:0 0 6px;}
+.reel{flex:0 0 auto;width:min(240px,52vw);aspect-ratio:9/16;border-radius:22px;overflow:hidden;scroll-snap-align:start;position:relative;box-shadow:0 30px 70px -34px rgba(70,40,15,.5);background:#1a1410;transition:transform .3s ease;}
+.reel:hover{transform:translateY(-4px);}
+.reel video,.reel img{width:100%;height:100%;object-fit:cover;display:block;}
+.reel .reel-cap{position:absolute;left:12px;bottom:12px;right:12px;color:#fff;font-size:12.5px;letter-spacing:.02em;display:flex;align-items:center;gap:8px;pointer-events:none;text-shadow:0 2px 8px rgba(0,0,0,.5);}
+.reel .reel-cap .live-dot{width:8px;height:8px;border-radius:50%;background:var(--orange);box-shadow:0 0 0 4px rgba(246,75,12,.3);flex:0 0 auto;}
+.reel .reel-tag{position:absolute;top:12px;left:12px;background:rgba(255,255,255,.9);color:var(--ink);font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:5px 10px;border-radius:100px;pointer-events:none;}
+.reels-nav{position:absolute;top:50%;transform:translateY(-50%);width:48px;height:48px;border-radius:50%;background:var(--card);border:1px solid var(--line);color:var(--ink);font-family:var(--serif);font-size:1.8rem;line-height:1;cursor:pointer;box-shadow:0 12px 30px -12px rgba(70,40,15,.35);display:flex;align-items:center;justify-content:center;transition:transform .18s,background .18s;z-index:3;}
+.reels-nav:hover{background:var(--orange);color:#fff;transform:translateY(-50%) scale(1.06);}
+.reels-nav.prev{left:8px;}
+.reels-nav.next{right:8px;}
+@media(max-width:900px){.reels-nav{display:none;}.reel{width:min(230px,64vw);}}
+
+/* ============ MARQUEE (bandeau défilant subtil) ============ */
+.marquee{position:relative;z-index:2;overflow:hidden;background:rgba(255,255,255,.55);border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:16px 0;}
+.marquee-track{display:flex;gap:56px;white-space:nowrap;animation:mqScroll 34s linear infinite;width:max-content;}
+.marquee-track span{font-family:var(--serif);font-size:1.15rem;color:var(--ink);display:inline-flex;align-items:center;gap:56px;}
+.marquee-track span::after{content:"\2726";color:var(--orange);margin-left:56px;}
+@keyframes mqScroll{from{transform:translateX(0);}to{transform:translateX(-50%);}}
+@media (prefers-reduced-motion: reduce){.marquee-track{animation:none;}}
+
 /* ============ RESPONSIVE ============ */
 @media(max-width:900px){
   /* HERO opt-in : NO SCROLL */
@@ -479,6 +505,22 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')afCloseModal
 })();
 function afOpenWebin(){var m=document.getElementById('afModalWebin');if(m){m.classList.add('open');document.body.style.overflow='hidden';}}
 function afCloseWebin(){var m=document.getElementById('afModalWebin');if(m){m.classList.remove('open');document.body.style.overflow='';}}
+
+function reelsScroll(dir){
+  var t=document.getElementById('reelsTrack'); if(!t) return;
+  var c=t.querySelector('.reel'); var step=c?c.offsetWidth+16:260;
+  t.scrollBy({left:dir*step*2,behavior:'smooth'});
+}
+(function(){
+  var vids=document.querySelectorAll('.reel video'); if(!vids.length) return;
+  var io=new IntersectionObserver(function(es){
+    es.forEach(function(e){
+      var v=e.target;
+      if(e.isIntersecting){ v.play().catch(function(){}); } else { v.pause(); }
+    });
+  },{threshold:.35});
+  vids.forEach(function(v){io.observe(v);});
+})();
 """
 
 # =================================================== SHELL
@@ -1023,6 +1065,10 @@ PAGES["site.html"] = page(
   <div class="site-hero-photo"><div class="frame"><img src="/assets/img/hero-sybile.jpg" alt="Sybile Loppe" fetchpriority="high"></div></div>
 </div></div></section>
 
+<div class="marquee reveal" aria-hidden="true"><div class="marquee-track">
+  <span>Ma&icirc;tre d\'apprentissage</span><span>Op&eacute;ra de Montpellier</span><span>Rolex</span><span>Domaine de Verchant</span><span>Richer de Belleval</span><span>Plage Palace</span><span>Ma&icirc;tre d\'apprentissage</span><span>Op&eacute;ra de Montpellier</span><span>Rolex</span><span>Domaine de Verchant</span><span>Richer de Belleval</span><span>Plage Palace</span>
+</div></div>
+
 <section class="block tight" id="programme"><div class="wrap">
   <div class="sec-head reveal">
     <span class="af-badge"><span class="dot"></span> A qui s\'adresse le programme</span>
@@ -1104,20 +1150,28 @@ PAGES["site.html"] = page(
   </div>
 </div></section>
 
-<section class="block tight"><div class="wrap">
+<section class="block tight" id="temoignages"><div class="wrap">
   <div class="sec-head reveal">
-    <span class="af-badge"><span class="dot"></span> Elles l\'ont fait</span>
-    <h2>Ils ont os&eacute; se lancer</h2>
-    <p>Des femmes comme vous, qui sont pass&eacute;es de l\'id&eacute;e au premier devis sign&eacute;.</p>
+    <span class="af-badge"><span class="dot"></span> Ils ont os&eacute; se lancer</span>
+    <h2>Nos &eacute;l&egrave;ves en action</h2>
+    <p>D&eacute;couvrez les pr&eacute;sentations de nos &eacute;l&egrave;ves qui ont d&eacute;cid&eacute; de faire de leur passion florale un v&eacute;ritable projet professionnel.</p>
   </div>
-  <div class="gallery reveal">
-    <figure><img src="/assets/img/compo-1.jpg" alt="" loading="lazy"></figure>
-    <figure><img src="/assets/img/compo-2.jpg" alt="" loading="lazy"></figure>
-    <figure><img src="/assets/img/compo-3.jpg" alt="" loading="lazy"></figure>
-    <figure><img src="/assets/img/compo-4.jpg" alt="" loading="lazy"></figure>
+</div>
+<div class="reels-wrap reveal">
+  <button class="reels-nav prev" onclick="reelsScroll(-1)" aria-label="Pr&eacute;c&eacute;dent">&lsaquo;</button>
+  <div class="reels-track" id="reelsTrack">
+    <div class="reel"><span class="reel-tag">Reel</span><video src="/assets/videos/reel1.mp4" poster="/assets/img/site/reel1-poster.jpg" autoplay muted loop playsinline preload="metadata"></video><div class="reel-cap"><span class="live-dot"></span>&Eacute;l&egrave;ve &middot; en action</div></div>
+    <div class="reel"><span class="reel-tag">Reel</span><video src="/assets/videos/reel2.mp4" poster="/assets/img/site/reel2-poster.jpg" muted loop playsinline preload="metadata"></video><div class="reel-cap"><span class="live-dot"></span>Composition en direct</div></div>
+    <div class="reel"><span class="reel-tag">Reel</span><video src="/assets/videos/reel3.mp4" poster="/assets/img/site/reel3-poster.jpg" muted loop playsinline preload="metadata"></video><div class="reel-cap"><span class="live-dot"></span>Atelier</div></div>
+    <div class="reel"><span class="reel-tag">Reel</span><video src="/assets/videos/reel4.mp4" muted loop playsinline preload="metadata"></video><div class="reel-cap"><span class="live-dot"></span>Bouquet de mari&eacute;e</div></div>
+    <div class="reel"><span class="reel-tag">Reel</span><video src="/assets/videos/reel5.mp4" poster="/assets/img/site/reel5-poster.jpg" muted loop playsinline preload="metadata"></video><div class="reel-cap"><span class="live-dot"></span>Coaching</div></div>
+    <div class="reel"><span class="reel-tag">Reel</span><video src="/assets/videos/reel6.mp4" poster="/assets/img/site/reel6-poster.jpg" muted loop playsinline preload="metadata"></video><div class="reel-cap"><span class="live-dot"></span>Sur le terrain</div></div>
+    <div class="reel"><span class="reel-tag">Reel</span><video src="/assets/videos/reel7.mp4" poster="/assets/img/site/reel7-poster.jpg" muted loop playsinline preload="metadata"></video><div class="reel-cap"><span class="live-dot"></span>Devis sign&eacute;</div></div>
   </div>
-  <div style="text-align:center;margin-top:30px"><a class="btn" href="/pages/03-call.html"><span>Rejoindre la communaut&eacute;</span><span class="arrow">&rarr;</span></a></div>
-</div></section>
+  <button class="reels-nav next" onclick="reelsScroll(1)" aria-label="Suivant">&rsaquo;</button>
+</div>
+<div class="wrap" style="text-align:center;margin-top:14px"><a class="btn" href="/pages/03-call.html"><span>Rejoindre la communaut&eacute;</span><span class="arrow">&rarr;</span></a></div>
+</section>
 
 <section class="block tight" id="formatrice"><div class="wrap"><div class="founder">
   <div class="founder-photo reveal"><img src="/assets/img/sybile-atelier.jpg" alt="Sybile Loppe"></div>

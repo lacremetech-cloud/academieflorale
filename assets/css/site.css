@@ -316,6 +316,32 @@ footer{position:relative;z-index:2;background:rgba(255,255,255,.85);border-top:1
 
 .site-final{position:relative;z-index:2;padding:60px 0 80px;}
 
+
+/* ============ REELS CAROUSEL (Framer/Webflow style) ============ */
+.reels-wrap{position:relative;max-width:1440px;margin:0 auto;padding:8px 0 8px;}
+.reels-track{display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;padding:12px 22px 32px;scrollbar-width:none;-webkit-overflow-scrolling:touch;}
+.reels-track::-webkit-scrollbar{display:none;}
+.reels-track::after{content:"";flex:0 0 6px;}
+.reel{flex:0 0 auto;width:min(240px,52vw);aspect-ratio:9/16;border-radius:22px;overflow:hidden;scroll-snap-align:start;position:relative;box-shadow:0 30px 70px -34px rgba(70,40,15,.5);background:#1a1410;transition:transform .3s ease;}
+.reel:hover{transform:translateY(-4px);}
+.reel video,.reel img{width:100%;height:100%;object-fit:cover;display:block;}
+.reel .reel-cap{position:absolute;left:12px;bottom:12px;right:12px;color:#fff;font-size:12.5px;letter-spacing:.02em;display:flex;align-items:center;gap:8px;pointer-events:none;text-shadow:0 2px 8px rgba(0,0,0,.5);}
+.reel .reel-cap .live-dot{width:8px;height:8px;border-radius:50%;background:var(--orange);box-shadow:0 0 0 4px rgba(246,75,12,.3);flex:0 0 auto;}
+.reel .reel-tag{position:absolute;top:12px;left:12px;background:rgba(255,255,255,.9);color:var(--ink);font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:5px 10px;border-radius:100px;pointer-events:none;}
+.reels-nav{position:absolute;top:50%;transform:translateY(-50%);width:48px;height:48px;border-radius:50%;background:var(--card);border:1px solid var(--line);color:var(--ink);font-family:var(--serif);font-size:1.8rem;line-height:1;cursor:pointer;box-shadow:0 12px 30px -12px rgba(70,40,15,.35);display:flex;align-items:center;justify-content:center;transition:transform .18s,background .18s;z-index:3;}
+.reels-nav:hover{background:var(--orange);color:#fff;transform:translateY(-50%) scale(1.06);}
+.reels-nav.prev{left:8px;}
+.reels-nav.next{right:8px;}
+@media(max-width:900px){.reels-nav{display:none;}.reel{width:min(230px,64vw);}}
+
+/* ============ MARQUEE (bandeau défilant subtil) ============ */
+.marquee{position:relative;z-index:2;overflow:hidden;background:rgba(255,255,255,.55);border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:16px 0;}
+.marquee-track{display:flex;gap:56px;white-space:nowrap;animation:mqScroll 34s linear infinite;width:max-content;}
+.marquee-track span{font-family:var(--serif);font-size:1.15rem;color:var(--ink);display:inline-flex;align-items:center;gap:56px;}
+.marquee-track span::after{content:"\2726";color:var(--orange);margin-left:56px;}
+@keyframes mqScroll{from{transform:translateX(0);}to{transform:translateX(-50%);}}
+@media (prefers-reduced-motion: reduce){.marquee-track{animation:none;}}
+
 /* ============ RESPONSIVE ============ */
 @media(max-width:900px){
   /* HERO opt-in : NO SCROLL */

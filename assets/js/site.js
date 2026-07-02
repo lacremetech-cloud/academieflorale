@@ -33,3 +33,19 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')afCloseModal
 })();
 function afOpenWebin(){var m=document.getElementById('afModalWebin');if(m){m.classList.add('open');document.body.style.overflow='hidden';}}
 function afCloseWebin(){var m=document.getElementById('afModalWebin');if(m){m.classList.remove('open');document.body.style.overflow='';}}
+
+function reelsScroll(dir){
+  var t=document.getElementById('reelsTrack'); if(!t) return;
+  var c=t.querySelector('.reel'); var step=c?c.offsetWidth+16:260;
+  t.scrollBy({left:dir*step*2,behavior:'smooth'});
+}
+(function(){
+  var vids=document.querySelectorAll('.reel video'); if(!vids.length) return;
+  var io=new IntersectionObserver(function(es){
+    es.forEach(function(e){
+      var v=e.target;
+      if(e.isIntersecting){ v.play().catch(function(){}); } else { v.pause(); }
+    });
+  },{threshold:.35});
+  vids.forEach(function(v){io.observe(v);});
+})();
