@@ -76,3 +76,23 @@ function reelsScroll(dir){
     el.addEventListener('mouseleave',function(){el.style.transform='';});
   });
 })();
+
+/* Manifesto scroll-driven (met a jour le grand chiffre + titre + dots) */
+(function(){
+  var panels=document.querySelectorAll('.mf-panel');
+  var num=document.getElementById('mfNum');
+  var title=document.getElementById('mfTitle');
+  var dots=document.querySelectorAll('.mf-progress .d');
+  if(!panels.length || !num) return;
+  var io=new IntersectionObserver(function(es){
+    es.forEach(function(e){
+      if(e.isIntersecting){
+        var i=Array.prototype.indexOf.call(panels,e.target);
+        num.textContent=e.target.dataset.num || (i+1);
+        title.textContent=e.target.dataset.title || '';
+        dots.forEach(function(d,j){d.classList.toggle('active', j===i);});
+      }
+    });
+  },{threshold:[.35], rootMargin:'-30% 0px -30% 0px'});
+  panels.forEach(function(p){io.observe(p);});
+})();

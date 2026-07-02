@@ -407,6 +407,79 @@ footer{position:relative;z-index:2;background:rgba(255,255,255,.85);border-top:1
 /* Tilt 3D subtil */
 [data-tilt]{transition:transform .18s cubic-bezier(.2,.9,.3,1),box-shadow .3s ease;}
 
+
+/* ============ MANIFESTO SCROLL-DRIVEN (5 engagements) ============ */
+.manifesto{position:relative;z-index:2;padding:clamp(40px,7vw,80px) 0 clamp(60px,9vw,120px);}
+.manifesto-wrap{display:grid;grid-template-columns:.85fr 1.15fr;gap:clamp(28px,5vw,90px);max-width:1240px;margin:0 auto;padding:0 22px;align-items:start;}
+.manifesto-anchor{position:sticky;top:110px;padding:26px 0;}
+.mf-chap{font-family:var(--sans);font-size:12px;font-weight:600;letter-spacing:.32em;text-transform:uppercase;color:var(--orange);display:block;margin-bottom:22px;}
+.mf-num{font-family:var(--serif);font-size:clamp(120px,18vw,240px);line-height:.82;color:var(--ink);font-weight:400;letter-spacing:-.06em;font-variation-settings:'opsz' 144;display:block;transition:opacity .35s ease, color .35s ease;}
+.mf-title{font-family:var(--serif);font-style:italic;font-size:clamp(1.4rem,2.6vw,2rem);color:var(--orange);margin-top:8px;transition:opacity .35s ease;letter-spacing:-.01em;line-height:1.05;}
+.mf-progress{display:flex;gap:8px;margin-top:38px;}
+.mf-progress .d{width:24px;height:2px;background:var(--line);border-radius:2px;transition:background .35s ease, width .35s ease;}
+.mf-progress .d.active{background:var(--orange);width:44px;}
+
+.mf-panels{display:flex;flex-direction:column;gap:clamp(90px,14vw,180px);padding:38px 0 60px;}
+.mf-panel{position:relative;min-height:60vh;}
+.mf-panel .mf-tag{display:inline-block;font-family:var(--sans);font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--orange);font-weight:600;padding:6px 14px;background:rgba(246,75,12,.09);border:1px solid rgba(246,75,12,.22);border-radius:100px;margin-bottom:22px;}
+.mf-panel h3{font-family:var(--serif);font-size:clamp(1.9rem,3.6vw,2.9rem);line-height:1.08;font-weight:400;letter-spacing:-.02em;margin-bottom:20px;color:var(--ink);}
+.mf-panel h3 em{color:var(--orange);font-style:italic;}
+.mf-lead{font-size:clamp(1.02rem,1.35vw,1.18rem);color:var(--muted);max-width:44ch;margin-bottom:28px;line-height:1.55;}
+.mf-list{list-style:none;display:grid;gap:10px;margin-top:22px;}
+.mf-list li{position:relative;padding-left:26px;font-size:14.8px;color:var(--ink);line-height:1.55;}
+.mf-list li::before{content:"\2192";position:absolute;left:0;top:1px;color:var(--orange);font-weight:600;}
+.mf-photo{aspect-ratio:5/3;border-radius:22px;overflow:hidden;margin-top:26px;box-shadow:0 40px 80px -40px rgba(70,40,15,.45);}
+.mf-photo img{width:100%;height:100%;object-fit:cover;}
+
+/* Panel 02 : slab dark contraste avec big money symbol */
+.mf-panel.dark{background:linear-gradient(140deg,#221A14 0%,#3A2A20 100%);color:#fff;border-radius:26px;padding:44px 46px;overflow:hidden;position:relative;}
+.mf-panel.dark::before{content:"\20AC";position:absolute;right:-30px;top:-40px;font-family:var(--serif);font-size:400px;line-height:1;color:rgba(255,255,255,.05);font-weight:400;pointer-events:none;letter-spacing:-.05em;}
+.mf-panel.dark .mf-tag{background:rgba(255,182,140,.14);border-color:rgba(255,182,140,.3);color:#FFB68C;}
+.mf-panel.dark h3{color:#fff;position:relative;}
+.mf-panel.dark h3 em{color:#FFB68C;}
+.mf-panel.dark .mf-lead{color:rgba(255,255,255,.75);position:relative;}
+.mf-panel.dark .mf-list li{color:#fff;}
+.mf-panel.dark .mf-list li::before{color:#FFB68C;}
+
+/* Panel 03 : type-only + colonne double */
+.mf-panel.duo{display:grid;grid-template-columns:1fr 1fr;gap:38px;align-items:start;}
+.mf-panel.duo .mf-side{padding:24px 26px;background:rgba(255,255,255,.85);border:1px solid var(--line);border-radius:20px;}
+.mf-panel.duo .mf-side h4{font-family:var(--serif);font-size:1.15rem;margin-bottom:8px;font-weight:500;}
+.mf-panel.duo .mf-side p{color:var(--muted);font-size:14.5px;line-height:1.5;}
+
+/* Panel 04 : checklist elegante */
+.mf-check{display:grid;gap:12px;margin-top:24px;}
+.mf-check .row{display:flex;align-items:center;gap:16px;padding:16px 20px;background:rgba(255,255,255,.85);border:1px solid var(--line);border-radius:14px;transition:transform .18s;}
+.mf-check .row:hover{transform:translateX(4px);border-color:rgba(246,75,12,.35);}
+.mf-check .row .ck{width:26px;height:26px;border-radius:50%;background:rgba(246,75,12,.12);color:var(--orange);display:flex;align-items:center;justify-content:center;flex:0 0 auto;font-weight:700;font-size:14px;}
+.mf-check .row span:last-child{font-size:15px;}
+
+/* Panel 05 : hero full-bleed avec texte en overlay */
+.mf-panel.hero-shot{padding:0;border-radius:26px;overflow:hidden;position:relative;min-height:520px;display:flex;align-items:flex-end;}
+.mf-panel.hero-shot .mf-bg{position:absolute;inset:0;}
+.mf-panel.hero-shot .mf-bg img{width:100%;height:100%;object-fit:cover;}
+.mf-panel.hero-shot .mf-bg::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(34,26,20,.05) 20%,rgba(34,26,20,.85) 100%);}
+.mf-panel.hero-shot .mf-content{position:relative;z-index:2;padding:40px 44px;color:#fff;}
+.mf-panel.hero-shot h3{color:#fff;}
+.mf-panel.hero-shot h3 em{color:#FFB68C;}
+.mf-panel.hero-shot .mf-lead{color:rgba(255,255,255,.85);}
+.mf-panel.hero-shot .mf-tag{background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.25);color:#fff;backdrop-filter:blur(8px);}
+
+@media(max-width:900px){
+  .manifesto-wrap{grid-template-columns:1fr;gap:12px;}
+  .manifesto-anchor{position:relative;top:0;padding:14px 0 4px;text-align:left;}
+  .mf-num{font-size:96px;}
+  .mf-title{font-size:1.35rem;}
+  .mf-panels{gap:64px;padding:12px 0 40px;}
+  .mf-panel{min-height:auto;}
+  .mf-panel h3{font-size:1.7rem;}
+  .mf-panel.dark{padding:32px 26px;}
+  .mf-panel.dark::before{font-size:240px;}
+  .mf-panel.duo{grid-template-columns:1fr;}
+  .mf-panel.hero-shot{min-height:420px;}
+  .mf-panel.hero-shot .mf-content{padding:28px;}
+}
+
 /* ============ REELS CAROUSEL (Framer/Webflow style) ============ */
 .reels-wrap{position:relative;max-width:1440px;margin:0 auto;padding:8px 0 8px;}
 .reels-track{display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;padding:12px 22px 32px;scrollbar-width:none;-webkit-overflow-scrolling:touch;}
@@ -625,6 +698,26 @@ function reelsScroll(dir){
     });
     el.addEventListener('mouseleave',function(){el.style.transform='';});
   });
+})();
+
+/* Manifesto scroll-driven (met a jour le grand chiffre + titre + dots) */
+(function(){
+  var panels=document.querySelectorAll('.mf-panel');
+  var num=document.getElementById('mfNum');
+  var title=document.getElementById('mfTitle');
+  var dots=document.querySelectorAll('.mf-progress .d');
+  if(!panels.length || !num) return;
+  var io=new IntersectionObserver(function(es){
+    es.forEach(function(e){
+      if(e.isIntersecting){
+        var i=Array.prototype.indexOf.call(panels,e.target);
+        num.textContent=e.target.dataset.num || (i+1);
+        title.textContent=e.target.dataset.title || '';
+        dots.forEach(function(d,j){d.classList.toggle('active', j===i);});
+      }
+    });
+  },{threshold:[.35], rootMargin:'-30% 0px -30% 0px'});
+  panels.forEach(function(p){io.observe(p);});
 })();
 """
 
@@ -1243,45 +1336,69 @@ PAGES["site.html"] = page(
   </div>
 </div></section>
 
-<section class="block tight" id="accompagnement"><div class="wrap">
-  <div class="sec-head reveal">
-    <span class="af-badge"><span class="dot"></span> L\'accompagnement</span>
-    <h2>Cinq engagements <em>pour votre r&eacute;ussite</em></h2>
-    <p>Technique, business, communaut&eacute; &mdash; une m&eacute;thode compl&egrave;te pour vivre sereinement de la fleuristerie.</p>
-  </div>
-  <div class="bento-5 reveal">
-    <article class="bento-card bc-1" data-tilt>
-      <span class="b-tag">01</span>
-      <div class="b-icon">&#10029;</div>
-      <h3>Succ&egrave;s collectif</h3>
-      <p>Une communaut&eacute; bienveillante qui c&eacute;l&egrave;bre vos victoires et vous porte quand &ccedil;a coince.</p>
+<section class="manifesto" id="accompagnement"><div class="manifesto-wrap">
+  <aside class="manifesto-anchor">
+    <span class="mf-chap">L&apos;accompagnement</span>
+    <span class="mf-num" id="mfNum">01</span>
+    <span class="mf-title" id="mfTitle">Succ&egrave;s collectif</span>
+    <div class="mf-progress"><span class="d active"></span><span class="d"></span><span class="d"></span><span class="d"></span><span class="d"></span></div>
+  </aside>
+  <div class="mf-panels">
+    <article class="mf-panel reveal" data-num="01" data-title="Succ&egrave;s collectif">
+      <span class="mf-tag">01 &middot; Communaut&eacute;</span>
+      <h3>Personne ne r&eacute;ussit vraiment <em>seule.</em></h3>
+      <p class="mf-lead">Une communaut&eacute; bienveillante qui c&eacute;l&egrave;bre vos victoires et vous porte quand &ccedil;a coince &mdash; 24h/24, partout en France.</p>
+      <div class="mf-photo"><img src="/assets/img/site/photo-lppPxh0G.jpg" alt="" loading="lazy"></div>
+      <ul class="mf-list">
+        <li>Redistribution des vrais devis entre &eacute;l&egrave;ves</li>
+        <li>Groupe priv&eacute; joignable 24h/24</li>
+        <li>Journ&eacute;es en pr&eacute;sentiel tous les 3-4 mois</li>
+      </ul>
     </article>
-    <article class="bento-card bc-2">
-      <span class="b-tag">02</span>
-      <div class="b-icon">&euro;</div>
-      <h3>Rentabilit&eacute; ma&icirc;tris&eacute;e</h3>
-      <p>Calcul des prix et marges, devis professionnels &mdash; enfin une vraie vision de ce que vous gagnez chaque mois.</p>
+
+    <article class="mf-panel dark reveal" data-num="02" data-title="Rentabilit&eacute; ma&icirc;tris&eacute;e">
+      <span class="mf-tag">02 &middot; Chiffres</span>
+      <h3>Vos <em>chiffres</em>,<br>enfin sous contr&ocirc;le.</h3>
+      <p class="mf-lead">Co&ucirc;t de revient r&eacute;el, marges, devis professionnels. La moiti&eacute; business que personne ne vous apprend ailleurs.</p>
+      <ul class="mf-list">
+        <li>Calcul du co&ucirc;t de revient sur vos vrais projets</li>
+        <li>Grille tarifaire pens&eacute;e par prestation</li>
+        <li>V&eacute;rification de chaque devis avant envoi</li>
+      </ul>
     </article>
-    <article class="bento-card bc-3" data-tilt>
-      <span class="b-tag">03</span>
-      <div class="b-icon">#</div>
-      <h3>Visibilit&eacute; digitale</h3>
-      <p>Instagram, TikTok, cliente id&eacute;ale, contenu qui vous ressemble et qui convertit r&eacute;ellement.</p>
-    </article>
-    <article class="bento-card bc-4" data-tilt>
-      <span class="b-tag">04</span>
-      <div class="b-icon">&#10004;</div>
-      <h3>Business cl&eacute; en main</h3>
-      <p>Concept, positionnement, obligations l&eacute;gales, statut &mdash; tout est balis&eacute;.</p>
-    </article>
-    <article class="bento-card bc-5">
-      <div class="b-content">
-        <span class="b-tag">05</span>
-        <div class="b-icon" style="background:rgba(246,75,12,.13);color:var(--orange)">&#10047;</div>
-        <h3>Expertise m&eacute;tier totale</h3>
-        <p>De la botanique aux techniques avanc&eacute;es, avec le regard d\'une ma&icirc;tresse d\'apprentissage exp&eacute;riment&eacute;e. Le savoir-faire qui fait la diff&eacute;rence.</p>
+
+    <article class="mf-panel duo reveal" data-num="03" data-title="Visibilit&eacute; digitale">
+      <div>
+        <span class="mf-tag">03 &middot; Digital</span>
+        <h3>Se rendre <em>visible</em>, sans s&apos;&eacute;puiser.</h3>
+        <p class="mf-lead">Instagram, TikTok, cliente id&eacute;ale : le contenu qui vous ressemble &mdash; et qui convertit r&eacute;ellement.</p>
       </div>
-      <div class="b-photo"><img src="/assets/img/sybile-atelier.jpg" alt="" loading="lazy"></div>
+      <div style="display:grid;gap:12px">
+        <div class="mf-side"><h4>Positionnement clair</h4><p>Identifier votre cliente id&eacute;ale et le langage qui la touche.</p></div>
+        <div class="mf-side"><h4>Contenu r&eacute;gulier</h4><p>Un rythme tenable, une ligne coh&eacute;rente, du visuel qui vous ressemble.</p></div>
+        <div class="mf-side"><h4>D&eacute;marchage B2B</h4><p>H&ocirc;tels, wedding planners, restaurants &mdash; les canaux qui rapportent.</p></div>
+      </div>
+    </article>
+
+    <article class="mf-panel reveal" data-num="04" data-title="Business cl&eacute; en main">
+      <span class="mf-tag">04 &middot; Structure</span>
+      <h3>Le cadre l&eacute;gal, r&eacute;gl&eacute; <em>une bonne fois.</em></h3>
+      <p class="mf-lead">Concept, positionnement, statut juridique, obligations. Tout est balis&eacute; &mdash; rien n&apos;est laiss&eacute; au hasard.</p>
+      <div class="mf-check">
+        <div class="row"><span class="ck">&#10003;</span><span>Choisir votre statut (auto-entrepreneur, EURL, SARL) avec un partenaire juriste</span></div>
+        <div class="row"><span class="ck">&#10003;</span><span>Poser votre concept et votre positionnement diff&eacute;renciant</span></div>
+        <div class="row"><span class="ck">&#10003;</span><span>Structurer vos workflows : devis, factures, livraisons, SAV</span></div>
+        <div class="row"><span class="ck">&#10003;</span><span>Anticiper les obligations l&eacute;gales, TVA, assurances</span></div>
+      </div>
+    </article>
+
+    <article class="mf-panel hero-shot reveal" data-num="05" data-title="Expertise m&eacute;tier">
+      <div class="mf-bg"><img src="/assets/img/sybile-atelier.jpg" alt="" loading="lazy"></div>
+      <div class="mf-content">
+        <span class="mf-tag">05 &middot; M&eacute;tier</span>
+        <h3>L&apos;exigence d&apos;une <em>ma&icirc;tresse d&apos;apprentissage.</em></h3>
+        <p class="mf-lead">De la botanique aux techniques avanc&eacute;es, avec le regard qui a form&eacute; des dizaines d&apos;apprenties. Le savoir-faire qui fait la diff&eacute;rence.</p>
+      </div>
     </article>
   </div>
 </div></section>
