@@ -1,0 +1,150 @@
+---
+/**
+ * Vidéo Wistia qui ne retarde pas l'affichage de la page.
+ * - L'image d'aperçu (hébergée chez nous) s'affiche tout de suite.
+ * - Le lecteur Wistia se charge en différé, une fois la page affichée. Il se charge
+ *   pour chaque visiteuse, même sans clic : les statistiques Wistia (chargements,
+ *   lectures, taux de lecture) restent donc comparables à celles de l'ancien tunnel.
+ * - Si elle touche l'aperçu avant que le lecteur soit prêt, la lecture démarre dès qu'il l'est.
+ */
+import { Picture } from 'astro:assets';
+
+interface Props {
+  /** Identifiant du média Wistia. */
+  media: string;
+  /** Image d'aperçu, la même que celle du lecteur. */
+  apercu: ImageMetadata;
+  /** Sujet de la vidéo, pour les lecteurs d'écran. */
+  sujet: string;
+}
+
+const { media, apercu, sujet } = Astro.props;
+---
+
+<div class="video" data-wistia={media}>
+  <div class={`wistia_embed wistia_async_${media} videoFoam=true`}></div>
+  <button type="button" class="apercu" data-lire aria-label={`Lire la vidéo : ${sujet}`}>
+    <Picture
+      src={apercu}
+      formats={['avif', 'webp']}
+      widths={[480, 720, 960, 1280]}
+      sizes="(min-width: 960px) 900px, 94vw"
+      alt=""
+      loading="eager"
+      fetchpriority="high"
+    />
+    <span class="lecture" aria-hidden="true"></span>
+  </button>
+</div>
+
+<style>
+  .video {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    border-radius: 16px;
+    background: var(--encre);
+    box-shadow: 0 26px 60px -34px var(--ombre);
+  }
+
+  .video > :global(.wistia_embed) {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .apercu {
+    position: absolute;
+    inset: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: pointer;
+    transition: opacity 0.25s ease;
+  }
+
+  .apercu :global(picture),
+  .apercu :global(img) {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .lecture {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    width: clamp(56px, 16%, 84px);
+    aspect-ratio: 1;
+    margin: auto;
+    border-radius: 50%;
+    background: var(--orange);
+    box-shadow: 0 10px 30px -10px var(--ombre);
+  }
+
+  .lecture::after {
+    content: '';
+    width: 0;
+    height: 0;
+    margin-left: 12%;
+    border-style: solid;
+    border-width: 0.7em 0 0.7em 1.15em;
+    border-color: transparent transparent transparent var(--blanc);
+  }
+
+  /* Le lecteur Wistia est prêt : il prend la place de l'aperçu. */
+  .video.pret .apercu {
+    opacity: 0;
+    pointer-events: none;
+  }
+</style>
+
+<script>
+  type LecteurWistia = { play: () => void };
+  type FileWistia = { id: string; onReady: (video: LecteurWistia) => void }[];
+
+  const SCRIPT = 'https://fast.wistia.com/assets/external/E-v1.js';
+
+  document.querySelectorAll<HTMLElement>('[data-wistia]').forEach((conteneur) => {
+    const media = conteneur.dataset.wistia;
+    if (!media) return;
+    let demande = false;
+    let lectureVoulue = false;
+
+    const charger = () => {
+      if (demande) return;
+      demande = true;
+      const script = document.createElement('script');
+      script.src = SCRIPT;
+      script.async = true;
+      document.head.append(script);
+    };
+
+    const fenetre = window as unknown as { _wq?: FileWistia };
+    fenetre._wq = fenetre._wq ?? [];
+    fenetre._wq.push({
+      id: media,
+      onReady: (video) => {
+        conteneur.classList.add('pret');
+        if (lectureVoulue) video.play();
+      },
+    });
+
+    conteneur.querySelector('[data-lire]')?.addEventListener('click', () => {
+      lectureVoulue = true;
+      charger();
+    });
+
+    // En différé : après l'affichage de la page, quand le navigateur est disponible.
+    const differer = () => {
+      if ('requestIdleCallback' in window) window.requestIdleCallback(charger, { timeout: 2500 });
+      else setTimeout(charger, 1200);
+    };
+    if (document.readyState === 'complete') differer();
+    else window.addEventListener('load', differer, { once: true });
+  });
+</script>

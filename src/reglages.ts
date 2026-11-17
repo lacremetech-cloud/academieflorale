@@ -21,6 +21,15 @@ export const LIENS_LEGAUX: { libelle: string; adresse: string }[] = [
 export const MENTION_META =
   'Ce site n’est pas affilié à Facebook ni à Meta Platforms, Inc. « FACEBOOK » est une marque déposée de Meta Platforms, Inc.';
 
+/**
+ * Vidéos Wistia (compte sybile-academieflorale).
+ * La VSL est le même média que sur l'ancien tunnel (« VSL VF », 10 min 31) :
+ * ses statistiques continuent ainsi d'alimenter le cockpit.
+ */
+export const WISTIA = {
+  vsl: 'zklz621hsl',
+} as const;
+
 /** Adresses du tunnel, dans l'ordre du parcours. */
 export const CHEMINS = {
   inscription: '/inscription',

@@ -1,0 +1,28 @@
+---
+/**
+ * Page call : emplacement provisoire.
+ * La vraie page (calendrier iClosed prérempli) se construit à l'étape suivante.
+ * Cet emplacement évite une page introuvable après le bouton de la page vidéo.
+ */
+import Tunnel from '../layouts/Tunnel.astro';
+---
+
+<Tunnel titre="Ton appel · Académie Florale" pied="compact">
+  <div class="conteneur conteneur-texte page">
+    <h1>
+      <span data-sans-prenom>Bientôt ici : ton créneau</span>
+      <span data-si-prenom hidden><em data-prenom></em>, bientôt ici : ton créneau</span>
+    </h1>
+    <p>La page de réservation est la prochaine étape de la refonte : elle n’est pas encore construite.</p>
+    <p class="texte-secondaire">Emplacement provisoire, non indexé.</p>
+  </div>
+</Tunnel>
+
+<style>
+  .page {
+    display: grid;
+    gap: 14px;
+    padding-block: 32px 64px;
+    text-align: center;
+  }
+</style>
