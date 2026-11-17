@@ -11,7 +11,7 @@
  * Pour retirer la perdante ou ajouter une nouvelle idée : modifier cette liste
  * (et créer la variante dans src/contenu/landings.ts). La première sert de repli.
  */
-export const VARIANTES_EN_TEST = Object.freeze(['90-jours', 'mariages', 'garantie']);
+export const VARIANTES_EN_TEST = Object.freeze(['90-jours', '90-jours-plan', '90-jours-rythme']);
 
 /**
  * Empreinte d'un texte (FNV-1a, 32 bits) : le même texte donne toujours le même nombre.

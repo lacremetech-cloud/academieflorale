@@ -34,6 +34,7 @@ export interface Landing {
 const COMMUN = {
   source: 'meta',
   surtitre: 'La vidéo offerte de Sybile Loppé',
+  repere: 'Un mariage : 1 000 à 3 000 € de chiffre d’affaires',
   bouton: 'Je regarde la vidéo',
   // Téléphone demandé : l'équipe rappelle les inscrites (décision du 17/11/2026).
   avecTelephone: true,
@@ -41,30 +42,31 @@ const COMMUN = {
   description: 'La vidéo offerte de Sybile Loppé : devenir fleuriste indépendante depuis chez toi, sans CAP et sans boutique.',
 } as const;
 
+/**
+ * Une seule promesse, retenue le 17/11/2026 : « fleuriste indépendante en 90 jours,
+ * depuis chez toi » (c'est aussi la promesse d'ouverture de la VSL).
+ * Elle se décline en trois formulations, testées à parts égales.
+ */
 export const LANDINGS: Landing[] = [
   {
-    // Angle « transformation rapide » : la promesse d'ouverture de la VSL.
+    // La formulation d'origine. Sous-promesse : la légitimité (CAP, débutante).
     ...COMMUN,
     slug: '90-jours',
     titre: 'Deviens fleuriste indépendante en *90 jours*, depuis chez toi',
     sousTitre: 'Sans CAP, sans boutique, même si tu n’as jamais fait un bouquet de ta vie.',
-    repere: 'Un mariage : 1 000 à 3 000 € de chiffre d’affaires',
   },
   {
-    // Angle « argent concret » : le chiffre d'affaires d'un mariage, cité dans la VSL.
+    // Déclinaison « le cadre » : elle attend un plan, des étapes, une date, et quelqu'un qui la guide.
     ...COMMUN,
-    slug: 'mariages',
-    titre: 'Un mariage fleuri, c’est *1 000 à 3 000 €* de chiffre d’affaires',
-    sousTitre: 'Apprends à en vivre depuis chez toi : sans CAP, sans boutique, même en partant de zéro.',
-    repere: 'Tes premiers clients en 90 jours',
+    slug: '90-jours-plan',
+    titre: 'Ton plan en *90 jours* pour devenir fleuriste indépendante, depuis chez toi',
+    sousTitre: 'Étape par étape avec Sybile : sans CAP, sans boutique, même en partant de zéro.',
   },
   {
-    // Angle « garantie » : formulation exacte de la garantie de l'Académie.
+    // Déclinaison « le temps » : encore en poste, des enfants, la peur de tout quitter.
     ...COMMUN,
-    slug: 'garantie',
-    surtitre: 'Sans CAP · Depuis chez toi · En partant de zéro',
-    titre: 'Tes *10 000 premiers euros* de fleuriste indépendante, en un an',
-    sousTitre:
-      'Si tu n’as pas atteint 10 000 € de chiffre d’affaires au bout d’un an, l’Académie continue de t’accompagner gratuitement.',
+    slug: '90-jours-rythme',
+    titre: 'Deviens fleuriste indépendante en *90 jours*, à ton rythme et depuis chez toi',
+    sousTitre: 'Sans CAP, sans boutique, et sans quitter ton emploi pour te lancer.',
   },
 ];

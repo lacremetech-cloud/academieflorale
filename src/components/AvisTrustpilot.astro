@@ -18,8 +18,11 @@ function cases(valeur: number): string[] {
   return Array.from({ length: 5 }, (_, i) => (i < pleines ? 'pleine' : i === pleines && demie ? 'demie' : 'vide'));
 }
 
-const moitie = Math.ceil(AVIS.length / 2);
-const rangs = [AVIS.slice(0, moitie), AVIS.slice(moitie)];
+// Les avis sont classés du plus fort au moins fort. Sur mobile ils défilent sur deux
+// rangs : les rangs prennent un avis sur deux, pour que chacun commence par un avis fort.
+// Sur grand écran, « ordre » remet le mur dans l'ordre du classement.
+const classes = AVIS.map((avis, ordre) => ({ ...avis, ordre }));
+const rangs = [classes.filter((a) => a.ordre % 2 === 0), classes.filter((a) => a.ordre % 2 === 1)];
 ---
 
 <section class="avis" aria-label="Avis publiés sur Trustpilot">
@@ -37,7 +40,11 @@ const rangs = [AVIS.slice(0, moitie), AVIS.slice(moitie)];
         <ul class:list={['piste', `rang-${i + 1}`]} role="list">
           {[false, true].map((double) =>
             rang.map((avis) => (
-              <li class:list={['carte', { double }]} aria-hidden={double ? 'true' : undefined}>
+              <li
+                class:list={['carte', { double }]}
+                style={`order: ${avis.ordre}`}
+                aria-hidden={double ? 'true' : undefined}
+              >
                 <span class="etoiles mini" role="img" aria-label={`${avis.note} étoiles sur 5`}>
                   {cases(avis.note).map((type) => <span class:list={['etoile', type]}>★</span>)}
                 </span>
