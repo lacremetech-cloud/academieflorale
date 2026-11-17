@@ -1,12 +1,16 @@
 /**
- * Variantes de la landing : une par angle publicitaire, chacune à sa propre adresse.
+ * Variantes de la landing : une par promesse, chacune à sa propre adresse
+ * (/inscription/90-jours, /inscription/mariages…).
  * Ajouter une variante = ajouter un objet à cette liste, sans toucher au gabarit.
+ *
+ * /inscription tire au sort l'une des variantes en test (partage/repartition.js).
+ * La première de cette liste est aussi servie à /inscription en repli.
  *
  * Dans « titre », un passage entre astérisques est mis en valeur (orange).
  * Tout chiffre cité doit pouvoir se prouver (script de la VSL, plaquette, garantie).
  */
 export interface Landing {
-  /** Fin de l'adresse : '' donne /inscription, 'mariages' donne /inscription/mariages. */
+  /** Fin de l'adresse : 'mariages' donne /inscription/mariages. */
   slug: string;
   /** « meta » pose le tag « VSL Meta Ads » sur le lead. Vide : aucun tag de source. */
   source: 'meta' | '';
@@ -41,7 +45,7 @@ export const LANDINGS: Landing[] = [
   {
     // Angle « transformation rapide » : la promesse d'ouverture de la VSL.
     ...COMMUN,
-    slug: '',
+    slug: '90-jours',
     titre: 'Deviens fleuriste indépendante en *90 jours*, depuis chez toi',
     sousTitre: 'Sans CAP, sans boutique, même si tu n’as jamais fait un bouquet de ta vie.',
     repere: 'Un mariage : 1 000 à 3 000 € de chiffre d’affaires',

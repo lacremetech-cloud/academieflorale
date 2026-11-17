@@ -11,6 +11,7 @@ import { extname, join, normalize, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import lead from '../api/lead.js';
 import pays from '../api/pays.js';
+import { choisirVariante } from '../partage/repartition.js';
 
 const RACINE = resolve(fileURLToPath(new URL('../dist', import.meta.url)));
 const PORT = Number(process.env.PORT ?? 4321);
@@ -69,6 +70,17 @@ createServer(async (req, res) => {
       const reponse = await fonction.fetch(await versRequest(req));
       res.writeHead(reponse.status, Object.fromEntries(reponse.headers));
       res.end(Buffer.from(await reponse.arrayBuffer()));
+      return;
+    }
+
+    // Comme le middleware en ligne : /inscription sert une promesse tirée au sort.
+    const tirage =
+      chemin === '/inscription'
+        ? await fichier(`/inscription/${choisirVariante(url.searchParams.get('fbclid'))}.html`)
+        : null;
+    if (tirage) {
+      res.writeHead(200, { 'Content-Type': TYPES['.html'], 'Cache-Control': 'no-store' });
+      res.end(await readFile(tirage));
       return;
     }
 

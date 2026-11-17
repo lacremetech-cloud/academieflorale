@@ -1,8 +1,9 @@
 ---
 /**
  * Landing page : un seul écran, sans défilement, du petit mobile au grand écran.
- * Une variante par angle publicitaire (src/contenu/landings.ts), chacune à son adresse :
- * /inscription, /inscription/mariages, /inscription/garantie…
+ * Une variante par promesse (src/contenu/landings.ts), chacune à son adresse :
+ * /inscription/90-jours, /inscription/mariages, /inscription/garantie…
+ * /inscription sert l'une d'elles, tirée au sort (middleware.js).
  *
  * Tout tient dans la hauteur visible (100svh). La photo occupe la place restante :
  * elle grandit sur les grands téléphones et s'efface sur les plus petits, pour que
@@ -19,10 +20,10 @@ import { LANDINGS, type Landing } from '../../contenu/landings';
 import { CHEMINS, LIENS_LEGAUX, MARQUE, MENTION_META } from '../../reglages';
 
 export function getStaticPaths() {
-  return LANDINGS.map((landing) => ({
-    params: { variante: landing.slug || undefined },
-    props: { landing },
-  }));
+  const variantes = LANDINGS.map((landing) => ({ params: { variante: landing.slug }, props: { landing } }));
+  // /inscription : en ligne, le middleware y sert une variante tirée au sort.
+  // Cette page-ci n'est que le repli (aperçu local, panne) : la première variante.
+  return [{ params: { variante: undefined }, props: { landing: LANDINGS[0]! } }, ...variantes];
 }
 
 interface Props {
@@ -32,7 +33,9 @@ interface Props {
 const { landing } = Astro.props;
 const liens = LIENS_LEGAUX.filter((lien) => lien.adresse);
 const confidentialite = LIENS_LEGAUX.find((lien) => lien.libelle === 'Confidentialité' && lien.adresse);
-const page = landing.slug ? `inscription/${landing.slug}` : 'inscription';
+// Identité de la variante, enregistrée avec chaque inscription : c'est elle qui
+// permet de comparer les promesses.
+const page = `inscription/${landing.slug}`;
 
 // « *90 jours* » devient un passage mis en valeur, sans jamais injecter de HTML.
 const morceaux = landing.titre.split('*').map((texte, i) => ({ texte, fort: i % 2 === 1 }));
