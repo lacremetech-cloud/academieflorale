@@ -56,11 +56,12 @@ const adresse = `https://app.iclosed.io/e/${event}`;
       if (lead.telephone) parametres.push(['iclosedPhone', lead.telephone]);
     }
 
-    if (parametres.length > 0) {
-      // encodeURIComponent, et non URLSearchParams : iClosed attend « %20 », pas « + ».
-      const suite = parametres.map(([cle, valeur]) => `${cle}=${encodeURIComponent(valeur)}`).join('&');
-      widget.dataset.url = `${lien}${lien.includes('?') ? '&' : '?'}${suite}`;
-    }
+    // encodeURIComponent, et non URLSearchParams : iClosed attend « %20 », pas « + ».
+    const suite = parametres
+      .filter(([, valeur]) => valeur)
+      .map(([cle, valeur]) => `${cle}=${encodeURIComponent(valeur)}`)
+      .join('&');
+    if (suite) widget.dataset.url = `${lien}${lien.includes('?') ? '&' : '?'}${suite}`;
 
     const script = document.createElement('script');
     script.src = SCRIPT;

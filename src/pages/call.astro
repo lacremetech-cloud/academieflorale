@@ -56,14 +56,12 @@ import { ICLOSED } from '../reglages';
     text-wrap: pretty;
   }
 
-  /* Le calendrier occupe toute la largeur disponible ; iClosed règle sa hauteur. */
+  /* Le calendrier occupe toute la largeur disponible. iClosed dessine sa propre carte
+     (fond blanc, bordure) et règle lui-même sa hauteur : pas de cadre autour, ni de
+     hauteur imposée, pour ne créer ni double bordure ni double défilement. */
   .calendrier {
     width: 100%;
     max-width: 1000px;
-    overflow: hidden;
-    border: 1px solid var(--trait);
-    border-radius: var(--rayon);
-    background: var(--blanc);
   }
 
   .calendrier :global(iframe) {
@@ -77,8 +75,6 @@ import { ICLOSED } from '../reglages';
     .calendrier {
       width: calc(100% + 2 * var(--marge-page));
       margin-inline: calc(-1 * var(--marge-page));
-      border-inline: 0;
-      border-radius: 0;
     }
   }
 </style>
