@@ -496,6 +496,8 @@ import { CHEMINS, WISTIA } from '../reglages';
   document.documentElement.setAttribute('data-rdv', rdv ? 'oui' : 'non');
   // Le prénom : celui de la landing, sinon celui qu'iClosed vient de transmettre.
   afficherPrenom();
+  // Sans rendez-vous connu, le titre de l'onglet ne doit pas annoncer une réservation.
+  if (!rdv) document.title = 'Prépare ton appel · Académie Florale';
 
   // 2. La date de l'appel, si iClosed l'a transmise sans ambiguïté.
   const date = rdv?.debut ? formaterRdv(rdv.debut) : '';
