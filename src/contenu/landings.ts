@@ -31,7 +31,8 @@ const COMMUN = {
   source: 'meta',
   surtitre: 'La vidéo offerte de Sybile Loppé',
   bouton: 'Je regarde la vidéo',
-  avecTelephone: false,
+  // Téléphone demandé : l'équipe rappelle les inscrites (décision du 17/11/2026).
+  avecTelephone: true,
   titrePage: 'Deviens fleuriste indépendante · Académie Florale',
   description: 'La vidéo offerte de Sybile Loppé : devenir fleuriste indépendante depuis chez toi, sans CAP et sans boutique.',
 } as const;
@@ -57,8 +58,9 @@ export const LANDINGS: Landing[] = [
     // Angle « garantie » : formulation exacte de la garantie de l'Académie.
     ...COMMUN,
     slug: 'garantie',
+    surtitre: 'Sans CAP · Depuis chez toi · En partant de zéro',
     titre: 'Tes *10 000 premiers euros* de fleuriste indépendante, en un an',
     sousTitre:
-      'Depuis chez toi, sans CAP, même en partant de zéro. Si tu n’as pas atteint 10 000 € de chiffre d’affaires au bout d’un an, l’Académie continue de t’accompagner gratuitement.',
+      'Si tu n’as pas atteint 10 000 € de chiffre d’affaires au bout d’un an, l’Académie continue de t’accompagner gratuitement.',
   },
 ];

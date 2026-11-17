@@ -56,6 +56,32 @@ test('téléphone : format international', () => {
   }
 });
 
+test('téléphone : l’indicatif vient du pays choisi', () => {
+  assert.equal(nettoyerTelephone('0470 12 34 56', 'BE'), '+32470123456');
+  assert.equal(nettoyerTelephone('02 123 45 67', 'BE'), '+3221234567');
+  assert.equal(nettoyerTelephone('079 123 45 67', 'CH'), '+41791234567');
+  assert.equal(nettoyerTelephone('621 123 456', 'LU'), '+352621123456');
+  assert.equal(nettoyerTelephone('514 555 0123', 'CA'), '+15145550123');
+  assert.equal(nettoyerTelephone('0692 12 34 56', 're'), '+262692123456');
+  assert.equal(nettoyerTelephone('0612 345678', 'MA'), '+212612345678');
+});
+
+test('téléphone : un numéro déjà international passe quel que soit le pays choisi', () => {
+  assert.equal(nettoyerTelephone('+41 79 123 45 67', 'FR'), '+41791234567');
+  assert.equal(nettoyerTelephone('0032 470 12 34 56', 'FR'), '+32470123456');
+  assert.equal(nettoyerTelephone('+33 (0)6 12 34 56 78', 'BE'), '+33612345678');
+  assert.equal(nettoyerTelephone('+81 90 1234 5678', ''), '+819012345678');
+});
+
+test('téléphone : mauvais nombre de chiffres ou pays inconnu sans indicatif', () => {
+  assert.equal(nettoyerTelephone('06 12 34 56 78', 'CH'), '+41612345678');
+  assert.equal(nettoyerTelephone('0470 12 34', 'BE'), '');
+  assert.equal(nettoyerTelephone('079 123 45', 'CH'), '');
+  assert.equal(nettoyerTelephone('06 12 34 56 78', ''), '');
+  assert.equal(nettoyerTelephone('06 12 34 56 78', 'ZZ'), '');
+  assert.equal(nettoyerTelephone('06 12 34 56 78', '__proto__'), '');
+});
+
 test('UTM : seules les clés connues, en texte court', () => {
   assert.deepEqual(
     nettoyerUTM({ utm_source: ' meta ', utm_campaign: 'vsl', fbclid: 'abc', autre: 'x', utm_term: 12 }),

@@ -19,6 +19,9 @@
   --trait: #d9d1bb; /* bordures et séparateurs */
   --ombre: rgba(26, 26, 26, 0.14);
 
+  /* Couleur d'une marque tierce : le vert de Trustpilot, réservé aux étoiles des avis. */
+  --vert-trustpilot: #00b67a; /* étoiles des avis Trustpilot */
+
   /*
    * Polices. Artis Sans est la police de la charte : elle remplacera Outfit
    * dans --police-titres dès que sa licence web sera confirmée.

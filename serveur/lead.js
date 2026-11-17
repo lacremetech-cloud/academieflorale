@@ -195,7 +195,9 @@ export async function traiterLead(request, contexte = {}) {
   const prenom = nettoyerPrenom(donnees.prenom);
   const email = nettoyerEmail(donnees.email);
   const telephoneSaisi = typeof donnees.telephone === 'string' ? donnees.telephone.trim() : '';
-  const telephone = telephoneSaisi ? nettoyerTelephone(telephoneSaisi) : '';
+  // Le pays choisi dans le formulaire donne l'indicatif (France par défaut).
+  const pays = typeof donnees.pays === 'string' ? donnees.pays : 'FR';
+  const telephone = telephoneSaisi ? nettoyerTelephone(telephoneSaisi, pays) : '';
 
   /** @type {Record<string, string>} */
   const champs = {};

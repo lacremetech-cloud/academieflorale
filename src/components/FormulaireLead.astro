@@ -6,7 +6,13 @@
  *
  * Les textes passent par des propriétés : ceux de la landing viendront des
  * modèles validés. Les messages d'erreur ci-dessous sont des valeurs par défaut.
+ *
+ * Téléphone : la visiteuse tape son numéro comme d'habitude. L'indicatif vient du
+ * pays, présélectionné d'après son adresse IP (/api/pays), sinon d'après le
+ * fuseau horaire de son navigateur. Elle peut toujours le changer.
  */
+import { PAYS_TELEPHONE } from '../../partage/validation.js';
+
 interface Props {
   /** Identifiant unique sur la page (sert aux attributs id des champs). */
   id?: string;
@@ -46,6 +52,16 @@ const {
 } = Astro.props;
 
 const l = { prenom: 'Prénom', email: 'Email', telephone: 'Téléphone', ...libelles };
+
+// Pays du champ téléphone : le drapeau se calcule à partir du code du pays.
+const drapeau = (code: string) =>
+  String.fromCodePoint(...[...code].map((lettre) => 0x1f1e6 + lettre.charCodeAt(0) - 65));
+const pays = Object.entries(PAYS_TELEPHONE).map(([code, p]) => ({
+  code,
+  exemple: p.exemple,
+  court: `${drapeau(code)} +${p.indicatif}`,
+  long: `${drapeau(code)} ${p.nom} (+${p.indicatif})`,
+}));
 const m = {
   prenom: 'Indique ton prénom.',
   email: 'Vérifie ton adresse email.',
@@ -107,19 +123,38 @@ const m = {
 
   {
     avecTelephone && (
-      <div class="champ">
+      <div class="champ champ-tel">
         <label for={`${id}-telephone`}>{l.telephone}</label>
-        <input
-          id={`${id}-telephone`}
-          name="telephone"
-          type="tel"
-          inputmode="tel"
-          autocomplete="tel"
-          enterkeyhint="send"
-          maxlength="24"
-          required
-          aria-describedby={`${id}-telephone-erreur`}
-        />
+        <div class="tel-ligne">
+          <select name="pays" aria-label="Pays du numéro de téléphone" autocomplete="country">
+            {pays.map((p) => (
+              <option
+                value={p.code}
+                data-court={p.court}
+                data-long={p.long}
+                data-exemple={p.exemple}
+                selected={p.code === 'FR'}
+              >
+                {p.long}
+              </option>
+            ))}
+            <option value="" data-court="🌍 Autre" data-long="🌍 Autre pays" data-exemple="+… ton numéro complet">
+              🌍 Autre pays
+            </option>
+          </select>
+          <input
+            id={`${id}-telephone`}
+            name="telephone"
+            type="tel"
+            inputmode="tel"
+            autocomplete="tel-national"
+            enterkeyhint="send"
+            maxlength="24"
+            placeholder={PAYS_TELEPHONE.FR.exemple}
+            required
+            aria-describedby={`${id}-telephone-erreur`}
+          />
+        </div>
         <p class="message-erreur" id={`${id}-telephone-erreur`} data-erreur="telephone" role="alert" />
       </div>
     )
@@ -150,6 +185,40 @@ const m = {
 
   .etat:empty {
     display: none;
+  }
+
+  /* Téléphone : le pays (drapeau et indicatif) à gauche, le numéro à droite. */
+  .tel-ligne {
+    display: grid;
+    grid-template-columns: 5.7rem minmax(0, 1fr);
+    gap: 6px;
+  }
+
+  .tel-ligne select {
+    min-width: 0;
+    padding: 0 4px;
+    border: 1.5px solid var(--trait);
+    border-radius: var(--rayon);
+    background: var(--blanc);
+    color: var(--encre);
+    font-family: var(--police-texte);
+    font-size: var(--corps-champ);
+    text-align: center;
+    text-align-last: center;
+    appearance: none;
+    -webkit-appearance: none;
+    cursor: pointer;
+  }
+
+  .tel-ligne select:focus-visible {
+    outline: 3px solid var(--encre);
+    outline-offset: 1px;
+    border-color: var(--encre);
+  }
+
+  /* Version compacte : le libellé « Téléphone » coiffe le pays, l'indicatif se lit dessous. */
+  .compact .tel-ligne select {
+    padding-top: 15px;
   }
 
   /* Version compacte : libellé dans le champ, hauteur réduite. Le texte saisi reste à 16 px. */
@@ -189,11 +258,92 @@ const m = {
 </style>
 
 <script>
-  import { nettoyerEmail, nettoyerPrenom, nettoyerTelephone } from '../../partage/validation.js';
+  import { PAYS_TELEPHONE, nettoyerEmail, nettoyerPrenom, nettoyerTelephone } from '../../partage/validation.js';
   import { adresseAvecUTM, enregistrerLead, lireUTM } from '../scripts/session';
 
   const PIEGE = 'af_champ_libre';
   const CHAMPS = ['prenom', 'email', 'telephone'];
+
+  /* Pays probable d'après le fuseau horaire, en attendant la réponse de /api/pays. */
+  const FUSEAUX: Record<string, string> = {
+    'Europe/Paris': 'FR',
+    'Europe/Brussels': 'BE',
+    'Europe/Zurich': 'CH',
+    'Europe/Luxembourg': 'LU',
+    'Europe/Monaco': 'MC',
+    'America/Toronto': 'CA',
+    'America/Montreal': 'CA',
+    'Indian/Reunion': 'RE',
+    'America/Guadeloupe': 'GP',
+    'America/Martinique': 'MQ',
+    'America/Cayenne': 'GF',
+    'Indian/Mayotte': 'YT',
+    'Pacific/Noumea': 'NC',
+    'Pacific/Tahiti': 'PF',
+    'Europe/Berlin': 'DE',
+    'Europe/Madrid': 'ES',
+    'Europe/Rome': 'IT',
+    'Europe/Lisbon': 'PT',
+    'Europe/Amsterdam': 'NL',
+    'Europe/London': 'GB',
+    'Europe/Dublin': 'IE',
+    'Africa/Casablanca': 'MA',
+    'Africa/Algiers': 'DZ',
+    'Africa/Tunis': 'TN',
+    'Africa/Dakar': 'SN',
+    'Africa/Abidjan': 'CI',
+  };
+
+  function paysProbable(): string {
+    try {
+      const fuseau = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if (FUSEAUX[fuseau]) return FUSEAUX[fuseau];
+    } catch {
+      /* fuseau indisponible */
+    }
+    const region = (navigator.language.split('-')[1] ?? '').toUpperCase();
+    return Object.hasOwn(PAYS_TELEPHONE, region) ? region : 'FR';
+  }
+
+  /** Une seule demande à /api/pays par page, même avec plusieurs formulaires. */
+  let paysSelonIP: Promise<string> | null = null;
+  function demanderPays(): Promise<string> {
+    paysSelonIP ??= fetch('/api/pays')
+      .then((reponse) => (reponse.ok ? reponse.json() : null))
+      .then((donnees) => (typeof donnees?.pays === 'string' ? donnees.pays : ''))
+      .catch(() => '');
+    return paysSelonIP;
+  }
+
+  function preparerTelephone(form: HTMLFormElement): void {
+    const select = form.elements.namedItem('pays') as HTMLSelectElement | null;
+    const numero = form.elements.namedItem('telephone') as HTMLInputElement | null;
+    if (!select || !numero) return;
+    let choisiALaMain = false;
+
+    // Le pays choisi s'affiche en court (drapeau et indicatif) ; la liste garde les noms.
+    const rafraichir = () => {
+      for (const option of select.options) {
+        option.textContent = (option.selected ? option.dataset.court : option.dataset.long) ?? option.textContent;
+      }
+      numero.placeholder = select.selectedOptions[0]?.dataset.exemple ?? '';
+    };
+    const choisir = (code: string) => {
+      if ([...select.options].some((option) => option.value === code)) select.value = code;
+      rafraichir();
+    };
+
+    select.addEventListener('change', () => {
+      choisiALaMain = true;
+      rafraichir();
+    });
+
+    choisir(paysProbable());
+    demanderPays().then((code) => {
+      if (!code || choisiALaMain || numero.value) return;
+      choisir(Object.hasOwn(PAYS_TELEPHONE, code) ? code : '');
+    });
+  }
 
   function initialiser(form: HTMLFormElement): void {
     const bouton = form.querySelector<HTMLButtonElement>('button[type="submit"]');
@@ -206,6 +356,8 @@ const m = {
     const message = (cle: string) => form.dataset[cle] ?? '';
     const champ = (nom: string) => form.elements.namedItem(nom) as HTMLInputElement | null;
     let envoiEnCours = false;
+
+    preparerTelephone(form);
 
     function signaler(nom: string, texte: string): void {
       const zone = form.querySelector<HTMLElement>(`[data-erreur="${nom}"]`);
@@ -242,7 +394,8 @@ const m = {
       const prenom = nettoyerPrenom(champ('prenom')?.value ?? '');
       const email = nettoyerEmail(champ('email')?.value ?? '');
       const champTelephone = champ('telephone');
-      const telephone = champTelephone ? nettoyerTelephone(champTelephone.value) : '';
+      const pays = (form.elements.namedItem('pays') as HTMLSelectElement | null)?.value ?? 'FR';
+      const telephone = champTelephone ? nettoyerTelephone(champTelephone.value, pays) : '';
 
       const erreurs: [string, string][] = [];
       if (!prenom) erreurs.push(['prenom', message('msgPrenom')]);
@@ -269,6 +422,7 @@ const m = {
             prenom,
             email,
             telephone: telephone || undefined,
+            pays: champTelephone ? pays : undefined,
             source: form.dataset.source || undefined,
             page: form.dataset.page || undefined,
             utm: lireUTM(),

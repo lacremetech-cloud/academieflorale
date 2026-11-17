@@ -147,6 +147,25 @@ test('production : écrit la fiche attendue dans ActiveCampaign', async () => {
   });
 });
 
+test('production : le téléphone prend l’indicatif du pays choisi', async () => {
+  for (const [pays, saisi, attendu] of [
+    ['BE', '0470 12 34 56', '+32470123456'],
+    ['CH', '079 123 45 67', '+41791234567'],
+    ['FR', '06 12 34 56 78', '+33612345678'],
+    [undefined, '06 12 34 56 78', '+33612345678'],
+  ]) {
+    const { ctx, ac } = contexte(PROD);
+    const reponse = await traiterLead(demande({ ...LEAD, telephone: saisi, pays }), ctx);
+    assert.equal(reponse.status, 200, String(pays));
+    assert.equal(ac.appels[0].corps.contact.phone, attendu);
+  }
+  const { ctx, ac } = contexte(PROD);
+  const refuse = await traiterLead(demande({ ...LEAD, telephone: '0470 12 34', pays: 'BE' }), ctx);
+  assert.equal(refuse.status, 400);
+  assert.deepEqual((await refuse.json()).champs, { telephone: 'invalide' });
+  assert.equal(ac.appels.length, 0);
+});
+
 test('production : sans source Meta ni téléphone, un seul tag et pas de téléphone', async () => {
   for (const source of [undefined, 'autre', '__proto__', 'constructor']) {
     const { ctx, ac } = contexte(PROD);

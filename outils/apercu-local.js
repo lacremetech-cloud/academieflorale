@@ -10,10 +10,13 @@ import { readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import lead from '../api/lead.js';
+import pays from '../api/pays.js';
 
 const RACINE = resolve(fileURLToPath(new URL('../dist', import.meta.url)));
 const PORT = Number(process.env.PORT ?? 4321);
-const FONCTIONS = { '/api/lead': lead };
+// En local, /api/pays ne connaît pas le pays (pas de géolocalisation) : le
+// formulaire se rabat alors sur le fuseau horaire du navigateur.
+const FONCTIONS = { '/api/lead': lead, '/api/pays': pays };
 const TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.css': 'text/css; charset=utf-8',

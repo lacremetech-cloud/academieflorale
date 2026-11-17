@@ -1,42 +1,51 @@
 ---
 /**
- * Preuve sociale : note Trustpilot et titres d'avis publiés.
+ * Preuve sociale : note Trustpilot et titres d'avis publiés, aux couleurs de
+ * Trustpilot (étoiles blanches sur carrés verts) pour qu'on les reconnaisse.
  * - Sur mobile : une ligne qui défile lentement, deux sur les grands téléphones.
  * - Sur grand écran : un mur de cartes.
- * Les étoiles reflètent la note réelle (4,5 étoiles affichées pour 4,6).
- * Ni le logo ni les étoiles vertes de Trustpilot ne sont utilisés ici.
+ * Les étoiles reflètent la note réelle : 4,5 étoiles affichées pour 4,6, et la
+ * note donnée par chaque autrice sur sa carte.
  */
 import { AVIS, TRUSTPILOT } from '../contenu/avis';
 
 const note = TRUSTPILOT.note.toLocaleString('fr-FR', { minimumFractionDigits: 1 });
-const remplissage = `${(TRUSTPILOT.etoiles / 5) * 100}%`;
+
+/** Cinq cases : pleine, demie ou vide. */
+function cases(valeur: number): string[] {
+  const pleines = Math.floor(valeur);
+  const demie = valeur - pleines >= 0.5;
+  return Array.from({ length: 5 }, (_, i) => (i < pleines ? 'pleine' : i === pleines && demie ? 'demie' : 'vide'));
+}
+
 const moitie = Math.ceil(AVIS.length / 2);
 const rangs = [AVIS.slice(0, moitie), AVIS.slice(moitie)];
 ---
 
 <section class="avis" aria-label="Avis publiés sur Trustpilot">
   <a class="note" href={TRUSTPILOT.profil} target="_blank" rel="noopener">
-    <span class="etoiles" style={`--remplissage: ${remplissage}`} aria-hidden="true">★★★★★</span>
-    <span>
-      <strong>{TRUSTPILOT.mention} · {note} sur 5</strong> · {TRUSTPILOT.nombre} avis sur Trustpilot
+    <strong>{TRUSTPILOT.mention}</strong>
+    <span class="etoiles" role="img" aria-label={`${note} sur 5`}>
+      {cases(TRUSTPILOT.etoiles).map((type) => <span class:list={['etoile', type]}>★</span>)}
     </span>
+    <span><strong>{note}</strong> sur 5 · {TRUSTPILOT.nombre} avis sur</span>
+    <span class="marque"><span aria-hidden="true">★</span>Trustpilot</span>
   </a>
   <div class="defile">
     {
       rangs.map((rang, i) => (
         <ul class:list={['piste', `rang-${i + 1}`]} role="list">
-          {rang.map((avis) => (
-            <li class="carte">
-              <span class="titre">«&nbsp;{avis.titre}&nbsp;»</span>
-              <span class="nom">{avis.nom}</span>
-            </li>
-          ))}
-          {rang.map((avis) => (
-            <li class="carte double" aria-hidden="true">
-              <span class="titre">«&nbsp;{avis.titre}&nbsp;»</span>
-              <span class="nom">{avis.nom}</span>
-            </li>
-          ))}
+          {[false, true].map((double) =>
+            rang.map((avis) => (
+              <li class:list={['carte', { double }]} aria-hidden={double ? 'true' : undefined}>
+                <span class="etoiles mini" role="img" aria-label={`${avis.note} étoiles sur 5`}>
+                  {cases(avis.note).map((type) => <span class:list={['etoile', type]}>★</span>)}
+                </span>
+                <span class="titre">«&nbsp;{avis.titre}&nbsp;»</span>
+                <span class="nom">{avis.nom}</span>
+              </li>
+            )),
+          )}
         </ul>
       ))
     }
@@ -55,21 +64,50 @@ const rangs = [AVIS.slice(0, moitie), AVIS.slice(moitie)];
     flex-wrap: wrap;
     align-items: center;
     justify-content: center;
-    gap: 2px 8px;
+    gap: 2px 6px;
     color: var(--encre);
     font-size: 0.78rem;
     line-height: 1.2;
     text-decoration: none;
   }
 
+  /* Étoiles façon Trustpilot : blanches sur carrés verts. */
   .etoiles {
-    font-size: 1.05rem;
-    letter-spacing: 0.06em;
+    display: inline-flex;
+    gap: 2px;
+    flex: none;
+  }
+
+  .etoile {
+    display: inline-grid;
+    place-items: center;
+    width: 1.35em;
+    height: 1.35em;
+    background: var(--vert-trustpilot);
+    color: var(--blanc);
+    font-size: 0.8em;
     line-height: 1;
-    background: linear-gradient(90deg, var(--orange) var(--remplissage), var(--trait) var(--remplissage));
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
+  }
+
+  .etoile.demie {
+    background: linear-gradient(90deg, var(--vert-trustpilot) 50%, var(--trait) 50%);
+  }
+
+  .etoile.vide {
+    background: var(--trait);
+  }
+
+  .marque {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-weight: 700;
+  }
+
+  .marque span {
+    color: var(--vert-trustpilot);
+    font-size: 1.25em;
+    line-height: 1;
   }
 
   .defile {
@@ -95,7 +133,7 @@ const rangs = [AVIS.slice(0, moitie), AVIS.slice(moitie)];
     animation-direction: reverse;
   }
 
-  @media (min-height: 760px) {
+  @media (min-height: 800px) {
     .rang-2 {
       display: flex;
     }
@@ -103,7 +141,7 @@ const rangs = [AVIS.slice(0, moitie), AVIS.slice(moitie)];
 
   .carte {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     gap: 6px;
     margin-right: 8px;
     padding: 5px 12px;
@@ -113,6 +151,11 @@ const rangs = [AVIS.slice(0, moitie), AVIS.slice(moitie)];
     font-size: 0.75rem;
     line-height: 1.25;
     white-space: nowrap;
+  }
+
+  .mini {
+    gap: 1px;
+    font-size: 0.82em;
   }
 
   .titre {
@@ -149,11 +192,8 @@ const rangs = [AVIS.slice(0, moitie), AVIS.slice(moitie)];
 
     .note {
       justify-content: flex-start;
+      gap: 4px 9px;
       font-size: clamp(0.9rem, 1.05vw, 1.1rem);
-    }
-
-    .etoiles {
-      font-size: 1.35em;
     }
 
     .defile {
@@ -175,7 +215,7 @@ const rangs = [AVIS.slice(0, moitie), AVIS.slice(moitie)];
       flex: 1 1 calc(50% - 10px);
       flex-direction: column;
       align-items: flex-start;
-      gap: 2px;
+      gap: 4px;
       margin: 0;
       padding: 10px 14px;
       border-radius: 14px;
