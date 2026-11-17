@@ -16,6 +16,7 @@ import {
   nettoyerUTM,
 } from '../partage/validation.js';
 import { synchroniserContact } from './activecampaign.js';
+import { repondre } from './reponse.js';
 import {
   CHAMPS,
   DELAI_MINIMAL_MS,
@@ -28,22 +29,6 @@ import {
 
 /** Nom du champ piège : invisible pour une personne, rempli par les robots. */
 export const CHAMP_PIEGE = 'af_champ_libre';
-
-/**
- * @param {number} statut
- * @param {Record<string, unknown>} corps
- * @param {Record<string, string>} [enTetes]
- */
-function repondre(statut, corps, enTetes = {}) {
-  return new Response(JSON.stringify(corps), {
-    status: statut,
-    headers: {
-      'Content-Type': 'application/json; charset=utf-8',
-      'Cache-Control': 'no-store',
-      ...enTetes,
-    },
-  });
-}
 
 /**
  * La demande vient-elle bien d'une page du site lui-même ?

@@ -1,28 +1,84 @@
 ---
 /**
- * Page call : emplacement provisoire.
- * La vraie page (calendrier iClosed prérempli) se construit à l'étape suivante.
- * Cet emplacement évite une page introuvable après le bouton de la page vidéo.
+ * Page call : choisir un créneau dans iClosed. Le calendrier est l'élément principal.
+ * Le titre reprend le prénom de la session ; sans prénom, la version neutre s'affiche.
+ * Le calendrier est prérempli avec ce que la visiteuse a déjà saisi sur la landing.
  */
 import Tunnel from '../layouts/Tunnel.astro';
+import WidgetIclosed from '../components/WidgetIclosed.astro';
+import { ICLOSED } from '../reglages';
 ---
 
-<Tunnel titre="Ton appel · Académie Florale" pied="compact">
-  <div class="conteneur conteneur-texte page">
-    <h1>
-      <span data-sans-prenom>Bientôt ici : ton créneau</span>
-      <span data-si-prenom hidden><em data-prenom></em>, bientôt ici : ton créneau</span>
-    </h1>
-    <p>La page de réservation est la prochaine étape de la refonte : elle n’est pas encore construite.</p>
-    <p class="texte-secondaire">Emplacement provisoire, non indexé.</p>
+<Tunnel
+  titre="Ton appel · Académie Florale"
+  description="Réserve ton appel de candidature avec l’Académie Florale."
+  pied="compact"
+>
+  <div class="conteneur page">
+    <div class="accroche">
+      <h1>
+        <span data-sans-prenom>Choisis ton créneau</span>
+        <span data-si-prenom hidden><em data-prenom></em>, choisis ton créneau</span>
+      </h1>
+      <p class="sous-titre">
+        Réserve le moment qui t’arrange pour ton appel de candidature. C’est gratuit et sans engagement.
+      </p>
+    </div>
+
+    <div class="calendrier">
+      <WidgetIclosed event={ICLOSED.vsl.event} titre={ICLOSED.vsl.titre} />
+    </div>
   </div>
 </Tunnel>
 
 <style>
   .page {
     display: grid;
-    gap: 14px;
-    padding-block: 32px 64px;
+    justify-items: center;
+    gap: clamp(8px, 2svh, 18px);
+    padding-bottom: clamp(18px, 4svh, 40px);
     text-align: center;
+  }
+
+  .accroche {
+    display: grid;
+    gap: clamp(4px, 1svh, 10px);
+    max-width: 44rem;
+  }
+
+  h1 {
+    font-size: clamp(1.5rem, min(6.6vw, 4.6svh), 2.6rem);
+  }
+
+  .sous-titre {
+    font-size: clamp(0.9rem, min(3.9vw, 2.5svh), 1.2rem);
+    line-height: 1.35;
+    text-wrap: pretty;
+  }
+
+  /* Le calendrier occupe toute la largeur disponible ; iClosed règle sa hauteur. */
+  .calendrier {
+    width: 100%;
+    max-width: 1000px;
+    overflow: hidden;
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon);
+    background: var(--blanc);
+  }
+
+  .calendrier :global(iframe) {
+    display: block;
+    width: 100%;
+    border: 0;
+  }
+
+  @media (max-width: 900px) {
+    /* Sur mobile et tablette, le calendrier va d'un bord à l'autre de l'écran. */
+    .calendrier {
+      width: calc(100% + 2 * var(--marge-page));
+      margin-inline: calc(-1 * var(--marge-page));
+      border-inline: 0;
+      border-radius: 0;
+    }
   }
 </style>

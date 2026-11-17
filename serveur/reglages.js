@@ -5,6 +5,7 @@
  * (ActiveCampaign crée tout seul un tag inconnu : une faute de frappe ici
  * créerait un tag en double dans le compte.)
  */
+import { ICLOSED_VSL } from '../partage/iclosed.js';
 
 /** Tags d'étape du tunnel VSL, validés le 17/11/2026. */
 export const TAGS = Object.freeze({
@@ -57,3 +58,22 @@ export const LIMITE_PERIODE_MS = 10 * 60 * 1000;
 
 /** Taille maximale du corps d'une demande, en caractères. */
 export const TAILLE_MAX_DEMANDE = 4096;
+
+/**
+ * Webhook iClosed (/api/booking).
+ * Seules les réservations de ces events sont traitées : les autres events du compte
+ * iClosed (webinaire, autres tunnels) passent par le même webhook et sont ignorés.
+ */
+export const EVENTS_ICLOSED = Object.freeze([ICLOSED_VSL.event]);
+
+/** Déclencheurs iClosed traités, tels qu'iClosed les nomme (comparés sans tenir compte de la casse). */
+export const DECLENCHEURS = Object.freeze({
+  reserve: Object.freeze(['call booked']),
+  annule: Object.freeze(['call cancelled', 'call canceled']),
+});
+
+/** En dessous de cette longueur, le secret du webhook est refusé : la fonction reste fermée. */
+export const SECRET_MIN = 16;
+
+/** Taille maximale d'un webhook, en caractères (réponses au formulaire comprises). */
+export const TAILLE_MAX_WEBHOOK = 65536;

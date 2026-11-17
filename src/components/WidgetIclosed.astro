@@ -1,0 +1,70 @@
+---
+/**
+ * Calendrier iClosed, intégré dans la page (pas de clic supplémentaire, pas d'autre cadre).
+ * Le bloc ci-dessous est le code « Inline » d'iClosed, tel qu'il le fournit ; seul le
+ * chargement de son script est différé, le temps de préparer le lien de l'event.
+ *
+ * Préremplissage : le script d'iClosed reporte dans son calendrier les paramètres du
+ * lien de l'event (attribut data-url). On y ajoute donc, à partir de la session, le
+ * prénom, l'email et le téléphone déjà donnés sur la landing, avant de charger ce
+ * script. Ces données vont ainsi droit à iClosed : elles ne passent jamais par
+ * l'adresse de la page, ni par un autre script.
+ *
+ * Attribution : iClosed lit les UTM dans l'adresse de la page. Si la visiteuse arrive
+ * ici sans eux (retour arrière, lien direct), on ajoute au lien ceux de la session.
+ *
+ * Le formulaire d'iClosed et ses questions de qualification restent affichés :
+ * le préremplissage évite seulement de ressaisir ce qui a déjà été donné.
+ */
+interface Props {
+  /** Chemin de l'event : « compte/event ». */
+  event: string;
+  titre: string;
+}
+
+const { event, titre } = Astro.props;
+const adresse = `https://app.iclosed.io/e/${event}`;
+---
+
+<!-- iClosed inline widget begin -->
+<div class="iclosed-widget" data-url={adresse} title={titre} style="width: 100%; height: 620px"></div>
+<!-- iClosed inline widget end -->
+<noscript>
+  <p><a href={adresse}>Ouvrir le calendrier de réservation</a></p>
+</noscript>
+
+<script>
+  import { capturerUTM, lireLead } from '../scripts/session';
+
+  const SCRIPT = 'https://app.iclosed.io/assets/widget.js';
+  const widget = document.querySelector<HTMLElement>('.iclosed-widget');
+  const lien = widget?.dataset.url;
+
+  if (widget && lien) {
+    const parametres: [string, string][] = [];
+
+    // UTM de la session, s'ils ne sont pas déjà dans l'adresse de la page.
+    const dansLaPage = new URLSearchParams(window.location.search);
+    for (const [cle, valeur] of Object.entries(capturerUTM())) {
+      if (!dansLaPage.has(cle)) parametres.push([cle, valeur]);
+    }
+
+    // Ce que la visiteuse a déjà saisi sur la landing.
+    const lead = lireLead();
+    if (lead) {
+      parametres.push(['iclosedName', lead.prenom], ['iclosedEmail', lead.email]);
+      if (lead.telephone) parametres.push(['iclosedPhone', lead.telephone]);
+    }
+
+    if (parametres.length > 0) {
+      // encodeURIComponent, et non URLSearchParams : iClosed attend « %20 », pas « + ».
+      const suite = parametres.map(([cle, valeur]) => `${cle}=${encodeURIComponent(valeur)}`).join('&');
+      widget.dataset.url = `${lien}${lien.includes('?') ? '&' : '?'}${suite}`;
+    }
+
+    const script = document.createElement('script');
+    script.src = SCRIPT;
+    script.async = true;
+    document.head.append(script);
+  }
+</script>

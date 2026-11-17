@@ -1,14 +1,16 @@
 // Aperçu local du site construit, au plus près de Vercel :
 // - sert le dossier dist/ avec des adresses sans « .html » (comme « cleanUrls ») ;
-// - branche POST /api/lead sur la vraie fonction serveur.
+// - branche /api/lead, /api/pays et /api/booking sur les vraies fonctions serveur.
 // Usage : npm run apercu   (puis http://localhost:4321)
 //
-// En local, VERCEL_ENV n'est pas « production » : /api/lead n'écrit donc jamais
-// dans ActiveCampaign, sauf pour l'adresse LEAD_TEST_EMAIL si elle est définie.
+// En local, VERCEL_ENV n'est pas « production » : /api/lead et /api/booking
+// n'écrivent donc jamais dans ActiveCampaign, sauf pour l'adresse LEAD_TEST_EMAIL
+// si elle est définie. Sans ICLOSED_WEBHOOK_SECRET, /api/booking reste fermée.
 import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import booking from '../api/booking.js';
 import lead from '../api/lead.js';
 import pays from '../api/pays.js';
 import { choisirVariante } from '../partage/repartition.js';
@@ -17,7 +19,7 @@ const RACINE = resolve(fileURLToPath(new URL('../dist', import.meta.url)));
 const PORT = Number(process.env.PORT ?? 4321);
 // En local, /api/pays ne connaît pas le pays (pas de géolocalisation) : le
 // formulaire se rabat alors sur le fuseau horaire du navigateur.
-const FONCTIONS = { '/api/lead': lead, '/api/pays': pays };
+const FONCTIONS = { '/api/booking': booking, '/api/lead': lead, '/api/pays': pays };
 const TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.css': 'text/css; charset=utf-8',

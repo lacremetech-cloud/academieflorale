@@ -2,6 +2,7 @@
  * Réglages du site, côté pages. Un seul endroit pour ce qui se répète.
  * (Les réglages du serveur — tags, champs ActiveCampaign — sont dans serveur/reglages.js.)
  */
+import { ICLOSED_VSL } from '../partage/iclosed.js';
 
 export const MARQUE = 'Académie Florale';
 
@@ -28,6 +29,14 @@ export const MENTION_META =
  */
 export const WISTIA = {
   vsl: 'zklz621hsl',
+} as const;
+
+/**
+ * Events iClosed. Celui du tunnel VSL est l'event de l'ancienne page call
+ * (« Appel de candidature ») ; son adresse s'écrit dans partage/iclosed.js.
+ */
+export const ICLOSED = {
+  vsl: { event: `${ICLOSED_VSL.compte}/${ICLOSED_VSL.event}`, titre: ICLOSED_VSL.titre },
 } as const;
 
 /** Adresses du tunnel, dans l'ordre du parcours. */
