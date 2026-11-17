@@ -20,6 +20,8 @@ interface Props {
   page?: string;
   /** Affiche le champ téléphone (il devient alors obligatoire). */
   avecTelephone?: boolean;
+  /** Version compacte : le libellé se loge dans le champ, pour la landing d'un seul écran. */
+  compact?: boolean;
   libelles?: { prenom?: string; email?: string; telephone?: string };
   messages?: {
     prenom?: string;
@@ -38,6 +40,7 @@ const {
   source = '',
   page = '',
   avecTelephone = false,
+  compact = false,
   libelles = {},
   messages = {},
 } = Astro.props;
@@ -55,7 +58,7 @@ const m = {
 ---
 
 <form
-  class="formulaire-lead"
+  class:list={['formulaire-lead', { compact }]}
   data-formulaire-lead
   data-suivant={suivant}
   data-source={source}
@@ -147,6 +150,41 @@ const m = {
 
   .etat:empty {
     display: none;
+  }
+
+  /* Version compacte : libellé dans le champ, hauteur réduite. Le texte saisi reste à 16 px. */
+  .compact {
+    gap: clamp(6px, 1svh, 9px);
+  }
+
+  .compact .champ {
+    position: relative;
+    gap: 2px;
+  }
+
+  .compact .champ label {
+    position: absolute;
+    top: 7px;
+    left: 15px;
+    color: var(--encre-douce);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    line-height: 1;
+    pointer-events: none;
+  }
+
+  .compact .champ input {
+    min-height: 50px;
+    padding: 20px 14px 6px;
+  }
+
+  .compact .champ .message-erreur {
+    font-size: 0.75rem;
+    line-height: 1.2;
+  }
+
+  .compact .bouton {
+    min-height: 52px;
   }
 </style>
 

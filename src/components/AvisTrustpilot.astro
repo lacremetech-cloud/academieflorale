@@ -1,0 +1,190 @@
+---
+/**
+ * Preuve sociale : note Trustpilot et titres d'avis publiés.
+ * - Sur mobile : une ligne qui défile lentement, deux sur les grands téléphones.
+ * - Sur grand écran : un mur de cartes.
+ * Les étoiles reflètent la note réelle (4,5 étoiles affichées pour 4,6).
+ * Ni le logo ni les étoiles vertes de Trustpilot ne sont utilisés ici.
+ */
+import { AVIS, TRUSTPILOT } from '../contenu/avis';
+
+const note = TRUSTPILOT.note.toLocaleString('fr-FR', { minimumFractionDigits: 1 });
+const remplissage = `${(TRUSTPILOT.etoiles / 5) * 100}%`;
+const moitie = Math.ceil(AVIS.length / 2);
+const rangs = [AVIS.slice(0, moitie), AVIS.slice(moitie)];
+---
+
+<section class="avis" aria-label="Avis publiés sur Trustpilot">
+  <a class="note" href={TRUSTPILOT.profil} target="_blank" rel="noopener">
+    <span class="etoiles" style={`--remplissage: ${remplissage}`} aria-hidden="true">★★★★★</span>
+    <span>
+      <strong>{TRUSTPILOT.mention} · {note} sur 5</strong> · {TRUSTPILOT.nombre} avis sur Trustpilot
+    </span>
+  </a>
+  <div class="defile">
+    {
+      rangs.map((rang, i) => (
+        <ul class:list={['piste', `rang-${i + 1}`]} role="list">
+          {rang.map((avis) => (
+            <li class="carte">
+              <span class="titre">«&nbsp;{avis.titre}&nbsp;»</span>
+              <span class="nom">{avis.nom}</span>
+            </li>
+          ))}
+          {rang.map((avis) => (
+            <li class="carte double" aria-hidden="true">
+              <span class="titre">«&nbsp;{avis.titre}&nbsp;»</span>
+              <span class="nom">{avis.nom}</span>
+            </li>
+          ))}
+        </ul>
+      ))
+    }
+  </div>
+</section>
+
+<style>
+  .avis {
+    display: grid;
+    gap: clamp(4px, 0.8svh, 8px);
+    min-width: 0;
+  }
+
+  .note {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 2px 8px;
+    color: var(--encre);
+    font-size: 0.78rem;
+    line-height: 1.2;
+    text-decoration: none;
+  }
+
+  .etoiles {
+    font-size: 1.05rem;
+    letter-spacing: 0.06em;
+    line-height: 1;
+    background: linear-gradient(90deg, var(--orange) var(--remplissage), var(--trait) var(--remplissage));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .defile {
+    display: grid;
+    gap: 6px;
+    overflow: hidden;
+    -webkit-mask-image: linear-gradient(90deg, transparent, var(--encre) 7%, var(--encre) 93%, transparent);
+    mask-image: linear-gradient(90deg, transparent, var(--encre) 7%, var(--encre) 93%, transparent);
+  }
+
+  .piste {
+    display: flex;
+    width: max-content;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    animation: defilement 60s linear infinite;
+  }
+
+  /* Le second rang n'apparaît que sur les grands téléphones, et défile en sens inverse. */
+  .rang-2 {
+    display: none;
+    animation-direction: reverse;
+  }
+
+  @media (min-height: 760px) {
+    .rang-2 {
+      display: flex;
+    }
+  }
+
+  .carte {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    margin-right: 8px;
+    padding: 5px 12px;
+    border: 1px solid var(--trait);
+    border-radius: 999px;
+    background: var(--blanc);
+    font-size: 0.75rem;
+    line-height: 1.25;
+    white-space: nowrap;
+  }
+
+  .titre {
+    font-weight: 600;
+  }
+
+  .nom {
+    color: var(--encre-douce);
+  }
+
+  @keyframes defilement {
+    to {
+      transform: translateX(-50%);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .piste {
+      animation: none;
+    }
+
+    .defile {
+      overflow-x: auto;
+    }
+  }
+
+  /* Grand écran : un mur de cartes, sans défilement. */
+  @media (min-width: 1000px) and (min-height: 521px) {
+    .avis {
+      grid-template-rows: auto minmax(0, 1fr);
+      height: 100%;
+      gap: 12px;
+    }
+
+    .note {
+      justify-content: flex-start;
+      font-size: clamp(0.9rem, 1.05vw, 1.1rem);
+    }
+
+    .etoiles {
+      font-size: 1.35em;
+    }
+
+    .defile {
+      display: flex;
+      flex-wrap: wrap;
+      align-content: flex-start;
+      gap: 10px;
+      -webkit-mask-image: linear-gradient(180deg, var(--encre) 80%, transparent);
+      mask-image: linear-gradient(180deg, var(--encre) 80%, transparent);
+    }
+
+    .piste,
+    .rang-2 {
+      display: contents;
+      animation: none;
+    }
+
+    .carte {
+      flex: 1 1 calc(50% - 10px);
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 2px;
+      margin: 0;
+      padding: 10px 14px;
+      border-radius: 14px;
+      font-size: clamp(0.8rem, 0.95vw, 0.95rem);
+      white-space: normal;
+    }
+
+    .double {
+      display: none;
+    }
+  }
+</style>
