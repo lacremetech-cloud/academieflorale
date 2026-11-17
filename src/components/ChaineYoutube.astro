@@ -1,0 +1,160 @@
+---
+/**
+ * La chaîne YouTube de Sybile : une vidéo mise en avant, les autres à côté, et un
+ * bouton vers la chaîne. Chaque vignette (hébergée chez nous) ouvre la vidéo sur
+ * YouTube : aucun lecteur YouTube n'est chargé dans la page, donc aucun cookie tiers.
+ */
+import { Picture } from 'astro:assets';
+import { CHAINE_YOUTUBE, VIDEOS_YOUTUBE } from '../contenu/youtube';
+import { insecables } from '../scripts/typographie';
+---
+
+<div class="chaine">
+  <ul class="videos" role="list">
+    {
+      VIDEOS_YOUTUBE.map((video, rang) => (
+        <li class:list={{ vedette: rang === 0 }}>
+          <a href={`https://www.youtube.com/watch?v=${video.id}`} target="_blank" rel="noopener">
+            <span class="vignette">
+              <Picture
+                src={video.vignette}
+                formats={['avif', 'webp']}
+                widths={[320, 480, 720, 960]}
+                sizes={
+                  rang === 0
+                    ? '(min-width: 900px) 520px, 92vw'
+                    : '(min-width: 900px) 250px, 46vw'
+                }
+                alt=""
+                loading="lazy"
+              />
+              <span class="lecture" aria-hidden="true" />
+            </span>
+            <span class="titre">{insecables(video.titre)}</span>
+            <span class="visuellement-cache"> (YouTube, nouvel onglet)</span>
+          </a>
+        </li>
+      ))
+    }
+  </ul>
+  <a class="bouton" href={CHAINE_YOUTUBE.adresse} target="_blank" rel="noopener">Voir la chaîne YouTube de Sybile</a>
+</div>
+
+<style>
+  .chaine {
+    display: grid;
+    justify-items: center;
+    gap: clamp(18px, 3vw, 28px);
+  }
+
+  /* Téléphone : la vidéo mise en avant sur toute la largeur, les autres deux par deux. */
+  .videos {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px 12px;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    text-align: left;
+  }
+
+  .videos a {
+    display: grid;
+    gap: 8px;
+    color: var(--encre);
+    text-decoration: none;
+  }
+
+  .vignette {
+    position: relative;
+    display: block;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    border-radius: var(--rayon);
+    background: var(--encre);
+    box-shadow: 0 20px 44px -30px var(--ombre);
+  }
+
+  .vignette :global(picture),
+  .vignette :global(img) {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+  }
+
+  .videos a:hover .vignette :global(img) {
+    transform: scale(1.03);
+  }
+
+  .lecture {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    width: clamp(44px, 15%, 72px);
+    aspect-ratio: 1;
+    margin: auto;
+    border-radius: 50%;
+    background: var(--orange);
+    box-shadow: 0 10px 30px -10px var(--ombre);
+  }
+
+  .lecture::after {
+    content: '';
+    width: 0;
+    height: 0;
+    margin-left: 12%;
+    border-style: solid;
+    border-width: 0.55em 0 0.55em 0.9em;
+    border-color: transparent transparent transparent var(--blanc);
+  }
+
+  .titre {
+    font-size: 0.86rem;
+    font-weight: 600;
+    line-height: 1.3;
+    text-wrap: pretty;
+  }
+
+  .vedette {
+    grid-column: 1 / -1;
+  }
+
+  .vedette .titre {
+    font-size: 1.1rem;
+  }
+
+  .bouton {
+    width: min(100%, 26rem);
+  }
+
+  @media (min-width: 520px) {
+    .videos {
+      gap: 20px 16px;
+    }
+
+    .titre {
+      font-size: 0.95rem;
+    }
+  }
+
+  /* Ordinateur : la vidéo mise en avant à gauche, les quatre autres en carré à droite. */
+  @media (min-width: 900px) {
+    .videos {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 22px 18px;
+    }
+
+    .vedette {
+      grid-column: span 2;
+      grid-row: span 2;
+    }
+
+    .vedette .titre {
+      font-size: 1.3rem;
+    }
+  }
+</style>

@@ -29,6 +29,10 @@ export const MENTION_META =
  */
 export const WISTIA = {
   vsl: 'zklz621hsl',
+  /** Page merci call, étape 1 : comment confirmer son rendez-vous (1 min 48). */
+  confirmation: 'ar6g31iwuz',
+  /** Page merci call, étape 2 : présentation de l'Académie Florale (15 min). */
+  presentation: 'obb1ev2cwc',
 } as const;
 
 /**

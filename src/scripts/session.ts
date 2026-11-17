@@ -11,11 +11,23 @@ import { CLES_UTM, nettoyerUTM, prenomAffichable } from '../../partage/validatio
 
 const CLE_UTM = 'af_utm';
 const CLE_LEAD = 'af_lead';
+/** Même clé que dans le petit script d'en-tête de la page merci call. */
+const CLE_RDV = 'af_rdv';
 
 export interface Lead {
   prenom: string;
   email: string;
   telephone?: string;
+}
+
+/** Ce que la page merci call garde d'une réservation : ni email, ni téléphone. */
+export interface Rdv {
+  /** Identifiant de l'appel chez iClosed, vide s'il n'a pas été transmis. */
+  id: string;
+  /** Instant de l'appel (ISO), s'il a été transmis sans ambiguïté. */
+  debut?: string;
+  /** Prénom transmis par iClosed, pour une visiteuse sans session. */
+  prenom?: string;
 }
 
 /* sessionStorage peut être refusé (navigation privée, navigateur intégré) :
@@ -103,14 +115,29 @@ export function lireLead(): Lead | null {
   return null;
 }
 
+export function enregistrerRdv(rdv: Rdv): void {
+  ecrire(CLE_RDV, JSON.stringify(rdv));
+}
+
+export function lireRdv(): Rdv | null {
+  try {
+    const rdv = JSON.parse(lire(CLE_RDV) ?? 'null');
+    if (rdv && typeof rdv.id === 'string') return rdv;
+  } catch {
+    /* donnée illisible */
+  }
+  return null;
+}
+
 /**
- * Personnalise la page avec le prénom, s'il est connu.
+ * Personnalise la page avec le prénom, s'il est connu : celui saisi sur la landing,
+ * sinon celui qu'iClosed a transmis après la réservation.
  *   <span data-sans-prenom>version neutre</span>
  *   <span data-si-prenom hidden>version avec <span data-prenom></span></span>
  * Sans prénom (arrivée par un email, autre appareil), la version neutre reste affichée.
  */
 export function afficherPrenom(racine: ParentNode = document, prenomBrut?: string): string {
-  const prenom = prenomAffichable(prenomBrut ?? lireLead()?.prenom ?? '');
+  const prenom = prenomAffichable(prenomBrut ?? lireLead()?.prenom ?? lireRdv()?.prenom ?? '');
   racine.querySelectorAll<HTMLElement>('[data-prenom]').forEach((element) => {
     element.textContent = prenom;
   });

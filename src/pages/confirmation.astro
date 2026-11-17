@@ -1,0 +1,558 @@
+---
+/**
+ * Page merci call : confirme le rendez-vous et prépare la prospecte à l'appel.
+ * Structure reprise de la page de confirmation du tunnel d'origine : les deux
+ * étapes (confirmer son rendez-vous, découvrir l'Académie Florale), les
+ * témoignages, puis les avis Trustpilot et la chaîne YouTube de Sybile.
+ *
+ * iClosed y renvoie après une réservation, en ajoutant à l'adresse les détails du
+ * rendez-vous. La page s'en sert (prénom, date, détails affichés par iClosed), puis
+ * retire de l'adresse tout ce qui n'est pas un paramètre d'attribution.
+ * Ouverte sans réservation, elle reste lisible et renvoie vers la page call.
+ */
+import { Image } from 'astro:assets';
+import Tunnel from '../layouts/Tunnel.astro';
+import VideoWistia from '../components/VideoWistia.astro';
+import MurAvis from '../components/MurAvis.astro';
+import ChaineYoutube from '../components/ChaineYoutube.astro';
+import apercuRdv from '../assets/videos/rdv-confirmation.jpg';
+import apercuAcademie from '../assets/videos/academie-presentation.jpg';
+import { TEMOIGNAGES, TEMOIGNAGES_VIDEO } from '../contenu/temoignages';
+import { CHEMINS, WISTIA } from '../reglages';
+---
+
+<Tunnel
+  titre="C’est réservé · Académie Florale"
+  description="Ton appel avec l’Académie Florale est réservé : les deux étapes pour le confirmer et le préparer."
+  pied="compact"
+>
+  <link slot="tete" rel="preconnect" href="https://fast.wistia.com" />
+  <!-- Avant tout affichage : la page sait-elle qu'un rendez-vous vient d'être pris ?
+       (retour d'iClosed, réservation gardée en session, ou arrivée depuis la page call) -->
+  <script is:inline slot="tete" define:vars={{ pageCall: CHEMINS.call }}>
+    (function () {
+      var rdv = false;
+      try {
+        var p = new URLSearchParams(window.location.search);
+        rdv = Boolean(p.get('previewId') || p.get('invitee_uuid') || p.get('event_start_time'));
+      } catch (e) {}
+      try {
+        rdv = rdv || Boolean(window.sessionStorage.getItem('af_rdv'));
+      } catch (e) {}
+      try {
+        if (!rdv && document.referrer) {
+          var origine = new URL(document.referrer);
+          rdv = origine.origin === window.location.origin && origine.pathname.replace(/\/$/, '') === pageCall;
+        }
+      } catch (e) {}
+      document.documentElement.setAttribute('data-rdv', rdv ? 'oui' : 'non');
+    })();
+  </script>
+
+  <div class="conteneur accueil">
+    <div class="si-rdv">
+      <span class="coche" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 12.5l4.5 4.5L19 7.5"></path>
+        </svg>
+      </span>
+      <h1>
+        <span data-sans-prenom>Félicitations, c’est réservé&nbsp;!</span>
+        <span data-si-prenom hidden>Félicitations <em data-prenom></em>, c’est réservé&nbsp;!</span>
+      </h1>
+      <p class="date" data-si-date hidden>Ton appel&nbsp;: <strong data-rdv-date></strong></p>
+      <p class="important">
+        <strong>Important&nbsp;:</strong> regarde les 2&nbsp;vidéos ci-dessous et confirme ton rendez-vous.
+      </p>
+    </div>
+
+    <div class="sans-rdv">
+      <h1>Prépare ton appel avec l’Académie Florale</h1>
+      <p class="important">Tu n’as pas encore choisi ton créneau&nbsp;?</p>
+      <a class="bouton" href={CHEMINS.call} data-tunnel>Je réserve mon appel gratuit</a>
+    </div>
+  </div>
+
+  <section class="etape" aria-labelledby="titre-etape-1">
+    <div class="conteneur">
+      <div class="carte-etape">
+        <p class="repere"><span class="numero" aria-hidden="true">1</span>Étape 1 sur 2 · 2 min</p>
+        <h2 id="titre-etape-1">Les informations sur ton rendez-vous</h2>
+        <div class="cadre-video">
+          <VideoWistia
+            media={WISTIA.confirmation}
+            apercu={apercuRdv}
+            sujet="les informations sur ton rendez-vous"
+            format="20 / 9"
+          />
+        </div>
+        <!-- Code « booking confirmation » d'iClosed : il affiche la date et l'heure réservées.
+             Il n'est chargé qu'au retour d'une vraie réservation. -->
+        <div
+          class="call-details-widget"
+          data-url="https://app.iclosed.io/embed"
+          title="Les détails de ton rendez-vous"
+          style="width: 100%; height: 360px"
+          hidden
+        >
+        </div>
+        <ul class="consignes" role="list">
+          <li>
+            <strong>Confirme ton rendez-vous.</strong>
+            On t’a envoyé un email avec la date et l’heure de ton appel&nbsp;: réponds simplement à cet email pour le confirmer.
+          </li>
+          <li>
+            <strong>L’appel se passe sur WhatsApp.</strong>
+            On te contacte au numéro que tu as donné, à la date et à l’heure choisies.
+          </li>
+          <li>
+            <strong>Sois à l’heure, au calme.</strong>
+            Installe-toi dans une pièce calme, sans distraction&nbsp;: on s’engage à faire de même.
+          </li>
+        </ul>
+        <p class="signature">
+          On a hâte de te rencontrer et de t’aider&nbsp;!
+          <span>Sybile et l’équipe de l’Académie Florale</span>
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="etape" aria-labelledby="titre-etape-2">
+    <div class="conteneur">
+      <div class="carte-etape">
+        <p class="repere"><span class="numero" aria-hidden="true">2</span>Étape 2 sur 2 · 15 min</p>
+        <h2 id="titre-etape-2">Découvre pourquoi l’Académie Florale est différente</h2>
+        <div class="cadre-video">
+          <VideoWistia
+            media={WISTIA.presentation}
+            apercu={apercuAcademie}
+            sujet="pourquoi l’Académie Florale est différente"
+            charge="approche"
+            prioritaire={false}
+          />
+        </div>
+        <ul class="temoins" role="list">
+          {
+            TEMOIGNAGES.map((temoin) => (
+              <li>
+                <figure>
+                  <figcaption>
+                    <Image src={temoin.photo} alt="" width={64} height={64} densities={[1, 2, 3]} loading="lazy" />
+                    <span>
+                      <strong>{temoin.nom}</strong>
+                      <span class="situation">{temoin.situation}</span>
+                    </span>
+                  </figcaption>
+                  <blockquote>«&nbsp;{temoin.citation}&nbsp;»</blockquote>
+                </figure>
+              </li>
+            ))
+          }
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="bande rose" aria-labelledby="titre-temoignages">
+    <div class="conteneur bloc">
+      <div class="tete-bloc">
+        <h2 id="titre-temoignages">Nous les avons accompagnées dans leur reconversion</h2>
+        <p>Elles ont répondu à nos questions pour te partager leur histoire.</p>
+      </div>
+      <ul class="entretiens" role="list">
+        {
+          TEMOIGNAGES_VIDEO.map((entretien) => (
+            <li>
+              <VideoWistia
+                media={entretien.media}
+                apercu={entretien.apercu}
+                sujet={`le témoignage de ${entretien.prenom}`}
+                charge="approche"
+                prioritaire={false}
+                tailles="(min-width: 860px) 340px, 92vw"
+              />
+              <p>
+                <strong>{entretien.prenom}</strong>
+                <span>{entretien.duree}</span>
+              </p>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </section>
+
+  <section class="bande" aria-labelledby="titre-avis">
+    <div class="conteneur bloc">
+      <div class="tete-bloc">
+        <h2 id="titre-avis">Ce qu’en disent les élèves sur Trustpilot</h2>
+      </div>
+      <MurAvis />
+    </div>
+  </section>
+
+  <section class="bande rose" aria-labelledby="titre-youtube">
+    <div class="conteneur bloc">
+      <div class="tete-bloc">
+        <h2 id="titre-youtube">En attendant ton appel, découvre la chaîne YouTube de Sybile</h2>
+        <p>
+          Les coulisses de mariages, des journées avec ses élèves, et ses réponses aux questions qu’on se pose avant de se
+          lancer.
+        </p>
+      </div>
+      <ChaineYoutube />
+    </div>
+  </section>
+</Tunnel>
+
+<style>
+  /* Selon qu'un rendez-vous est connu ou non (attribut posé par le script d'en-tête).
+     Sans JavaScript, c'est la confirmation qui s'affiche. */
+  :global(html[data-rdv='non']) .si-rdv,
+  :global(html:not([data-rdv='non'])) .sans-rdv {
+    display: none;
+  }
+
+  .accueil {
+    display: grid;
+    justify-items: center;
+    gap: clamp(14px, 3vw, 22px);
+    padding-bottom: clamp(20px, 4vw, 34px);
+    text-align: center;
+  }
+
+  .si-rdv,
+  .sans-rdv {
+    display: grid;
+    justify-items: center;
+    gap: clamp(8px, 1.8vw, 14px);
+    max-width: 46rem;
+  }
+
+  .coche {
+    display: grid;
+    place-items: center;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: var(--jaune);
+    color: var(--encre);
+  }
+
+  h1 {
+    font-size: clamp(1.7rem, 1.1rem + 3vw, 2.8rem);
+  }
+
+  .date {
+    padding: 0.5em 1.1em;
+    border-radius: var(--rayon-bouton);
+    background: var(--blanc);
+    font-size: clamp(1rem, 0.9rem + 0.6vw, 1.2rem);
+    line-height: 1.3;
+  }
+
+  .date strong {
+    display: inline-block;
+  }
+
+  .date strong::first-letter {
+    text-transform: uppercase;
+  }
+
+  .important {
+    font-size: clamp(1rem, 0.92rem + 0.5vw, 1.2rem);
+    line-height: 1.4;
+    text-wrap: pretty;
+  }
+
+  .sans-rdv .bouton {
+    width: min(100%, 26rem);
+  }
+
+  /* Le bloc d'iClosed : sa taille est celle que donne iClosed (500 × 360 au plus). */
+  .call-details-widget {
+    max-width: 500px;
+    overflow: hidden;
+    border-radius: var(--rayon);
+  }
+
+  /* Les deux étapes : une carte blanche chacune */
+  .etape {
+    padding-bottom: clamp(18px, 4vw, 34px);
+  }
+
+  .carte-etape {
+    display: grid;
+    justify-items: center;
+    gap: clamp(12px, 2.4vw, 20px);
+    max-width: 940px;
+    margin-inline: auto;
+    padding: clamp(18px, 4vw, 38px) clamp(14px, 4vw, 38px);
+    border-radius: 22px;
+    background: var(--blanc);
+    box-shadow: 0 30px 70px -50px var(--ombre);
+    text-align: center;
+  }
+
+  .repere {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--encre-douce);
+    font-size: var(--corps-petit);
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .numero {
+    display: grid;
+    place-items: center;
+    width: 2em;
+    height: 2em;
+    border-radius: 50%;
+    background: var(--jaune);
+    color: var(--encre);
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 0;
+  }
+
+  .cadre-video {
+    width: 100%;
+  }
+
+  .consignes,
+  .temoins,
+  .entretiens {
+    display: grid;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    text-align: left;
+  }
+
+  .consignes {
+    gap: 10px;
+  }
+
+  .consignes li {
+    padding: 14px 16px;
+    border-radius: var(--rayon);
+    background: var(--creme);
+    font-size: 0.98rem;
+    line-height: 1.45;
+  }
+
+  .consignes strong {
+    display: block;
+    margin-bottom: 2px;
+    font-size: 1.05rem;
+  }
+
+  .signature {
+    font-weight: 600;
+    line-height: 1.4;
+  }
+
+  .signature span {
+    display: block;
+    color: var(--encre-douce);
+    font-size: var(--corps-petit);
+    font-weight: 400;
+  }
+
+  /* Témoignages écrits, sous la vidéo de l'étape 2 */
+  .temoins {
+    gap: 12px;
+  }
+
+  .temoins figure {
+    display: grid;
+    gap: 10px;
+    height: 100%;
+    padding: 16px;
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon);
+  }
+
+  .temoins figcaption {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    line-height: 1.25;
+  }
+
+  .temoins figcaption :global(img) {
+    flex: none;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    object-fit: cover;
+  }
+
+  .situation {
+    display: block;
+    margin-top: 2px;
+    color: var(--encre-douce);
+    font-size: 0.8rem;
+  }
+
+  .temoins blockquote {
+    margin: 0;
+    font-size: 0.95rem;
+    line-height: 1.45;
+  }
+
+  /* Bandes de la suite de la page */
+  .bande {
+    padding-block: clamp(30px, 6vw, 60px);
+  }
+
+  .rose {
+    background: var(--rose);
+  }
+
+  .bloc {
+    display: grid;
+    gap: clamp(18px, 3.4vw, 30px);
+    max-width: calc(1020px + 2 * var(--marge-page));
+    text-align: center;
+  }
+
+  .tete-bloc {
+    display: grid;
+    gap: 8px;
+    justify-items: center;
+  }
+
+  .tete-bloc p {
+    max-width: 38rem;
+    text-wrap: pretty;
+  }
+
+  /* Entretiens vidéo */
+  .entretiens {
+    gap: 20px;
+  }
+
+  .entretiens li {
+    display: grid;
+    gap: 8px;
+  }
+
+  .entretiens p {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    padding-inline: 4px;
+  }
+
+  .entretiens p span {
+    color: var(--encre-douce);
+    font-size: var(--corps-petit);
+  }
+
+  @media (min-width: 760px) {
+    .consignes,
+    .temoins {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  @media (min-width: 860px) {
+    .entretiens {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+</style>
+
+<script>
+  import { formaterRdv, lireRetourIclosed, rechercheSansDonnees } from '../../partage/rdv.js';
+  import { CHEMINS } from '../reglages';
+  import { afficherPrenom, enregistrerRdv, lireRdv } from '../scripts/session';
+
+  const WIDGET = 'https://app.iclosed.io/assets/widget.js';
+
+  // 1. Ce qu'on sait du rendez-vous : le retour d'iClosed, sinon la session,
+  //    sinon le simple fait d'arriver de la page call (iClosed y redirige lui-même).
+  const retour = lireRetourIclosed(window.location.search);
+  if (retour) {
+    enregistrerRdv({ id: retour.id, debut: retour.debut, prenom: retour.prenom });
+  } else if (!lireRdv()) {
+    try {
+      const origine = new URL(document.referrer);
+      if (origine.origin === window.location.origin && origine.pathname.replace(/\/$/, '') === CHEMINS.call) {
+        enregistrerRdv({ id: '' });
+      }
+    } catch {
+      /* pas de page d'origine */
+    }
+  }
+  const rdv = lireRdv();
+  document.documentElement.setAttribute('data-rdv', rdv ? 'oui' : 'non');
+  // Le prénom : celui de la landing, sinon celui qu'iClosed vient de transmettre.
+  afficherPrenom();
+
+  // 2. La date de l'appel, si iClosed l'a transmise sans ambiguïté.
+  const date = rdv?.debut ? formaterRdv(rdv.debut) : '';
+  if (date) {
+    document.querySelectorAll<HTMLElement>('[data-rdv-date]').forEach((element) => {
+      element.textContent = date;
+    });
+    document.querySelectorAll<HTMLElement>('[data-si-date]').forEach((element) => {
+      element.hidden = false;
+    });
+  }
+
+  // 3. L'adresse : on en retire le nom, l'email, le téléphone et le reste des détails,
+  //    en ne gardant que l'attribution. Puis le signal de réservation, une seule fois
+  //    par rendez-vous : c'est lui qu'écoutera le pixel.
+  let nettoyee = false;
+  const nettoyer = () => {
+    if (nettoyee) return;
+    nettoyee = true;
+    const propre = rechercheSansDonnees(window.location.search);
+    if (propre !== window.location.search) {
+      window.history.replaceState(null, '', window.location.pathname + propre + window.location.hash);
+    }
+    if (!retour?.id) return;
+    const cle = `af_rdv_signale_${retour.id}`;
+    try {
+      if (window.localStorage.getItem(cle)) return;
+      window.localStorage.setItem(cle, '1');
+    } catch {
+      /* stockage indisponible : le signal part quand même, l'adresse nettoyée évite un doublon au rechargement */
+    }
+    document.dispatchEvent(new CustomEvent('rdv:confirme', { detail: { id: retour.id } }));
+  };
+
+  // 4. Les détails affichés par iClosed. Son script lit l'adresse de la page au moment
+  //    où il crée son cadre : l'adresse n'est donc nettoyée qu'ensuite.
+  const details = document.querySelector<HTMLElement>('.call-details-widget');
+  if (retour?.details && details) {
+    details.hidden = false;
+    const observateur = new MutationObserver(() => {
+      if (details.querySelector('iframe')) {
+        observateur.disconnect();
+        nettoyer();
+      }
+    });
+    observateur.observe(details, { childList: true });
+    // Filet de sécurité si le script d'iClosed ne se charge pas.
+    window.setTimeout(() => {
+      observateur.disconnect();
+      nettoyer();
+    }, 8000);
+
+    const script = document.createElement('script');
+    script.src = WIDGET;
+    script.async = true;
+    document.head.append(script);
+  } else {
+    nettoyer();
+  }
+</script>

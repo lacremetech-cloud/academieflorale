@@ -2,9 +2,11 @@
 /**
  * Vidéo Wistia qui ne retarde pas l'affichage de la page.
  * - L'image d'aperçu (hébergée chez nous) s'affiche tout de suite.
- * - Le lecteur Wistia se charge en différé, une fois la page affichée. Il se charge
- *   pour chaque visiteuse, même sans clic : les statistiques Wistia (chargements,
- *   lectures, taux de lecture) restent donc comparables à celles de l'ancien tunnel.
+ * - Le lecteur Wistia se charge en différé : une fois la page affichée (« differe »,
+ *   pour la vidéo principale d'une page) ou quand la vidéo approche de l'écran
+ *   (« approche », pour les vidéos placées plus bas). Il se charge même sans clic :
+ *   les statistiques Wistia (chargements, lectures, taux de lecture) restent donc
+ *   comparables à celles de l'ancien tunnel.
  * - Si elle touche l'aperçu avant que le lecteur soit prêt, la lecture démarre dès qu'il l'est.
  */
 import { Picture } from 'astro:assets';
@@ -16,22 +18,39 @@ interface Props {
   apercu: ImageMetadata;
   /** Sujet de la vidéo, pour les lecteurs d'écran. */
   sujet: string;
+  /** Quand charger le lecteur : après l'affichage de la page, ou à l'approche de la vidéo. */
+  charge?: 'differe' | 'approche';
+  /** Proportions de la vidéo, en CSS. */
+  format?: string;
+  /** Largeurs d'affichage de l'aperçu (attribut « sizes »). */
+  tailles?: string;
+  /** Vidéo visible dès l'arrivée : son aperçu est chargé en priorité. */
+  prioritaire?: boolean;
 }
 
-const { media, apercu, sujet } = Astro.props;
+const {
+  media,
+  apercu,
+  sujet,
+  charge = 'differe',
+  format = '16 / 9',
+  tailles = '(min-width: 960px) 900px, 94vw',
+  prioritaire = true,
+} = Astro.props;
 ---
 
-<div class="video" data-wistia={media}>
-  <div class={`wistia_embed wistia_async_${media} videoFoam=true`}></div>
+<div class="video" data-wistia={media} data-charge={charge} style={`aspect-ratio: ${format}`}>
+  <!-- Wistia installe son lecteur ici, quand le script lui donne ses classes. -->
+  <div class="emplacement" data-emplacement></div>
   <button type="button" class="apercu" data-lire aria-label={`Lire la vidéo : ${sujet}`}>
     <Picture
       src={apercu}
       formats={['avif', 'webp']}
       widths={[480, 720, 960, 1280]}
-      sizes="(min-width: 960px) 900px, 94vw"
+      sizes={tailles}
       alt=""
-      loading="eager"
-      fetchpriority="high"
+      loading={prioritaire ? 'eager' : 'lazy'}
+      fetchpriority={prioritaire ? 'high' : 'auto'}
     />
     <span class="lecture" aria-hidden="true"></span>
   </button>
@@ -48,7 +67,7 @@ const { media, apercu, sujet } = Astro.props;
     box-shadow: 0 26px 60px -34px var(--ombre);
   }
 
-  .video > :global(.wistia_embed) {
+  .emplacement {
     position: absolute;
     inset: 0;
     width: 100%;
@@ -108,41 +127,66 @@ const { media, apercu, sujet } = Astro.props;
   type FileWistia = { id: string; onReady: (video: LecteurWistia) => void }[];
 
   const SCRIPT = 'https://fast.wistia.com/assets/external/E-v1.js';
+  const fenetre = window as unknown as { _wq?: FileWistia };
+
+  // Le script de Wistia n'est demandé qu'une fois, quel que soit le nombre de vidéos.
+  let scriptDemande = false;
+  const chargerScript = () => {
+    if (scriptDemande) return;
+    scriptDemande = true;
+    const script = document.createElement('script');
+    script.src = SCRIPT;
+    script.async = true;
+    document.head.append(script);
+  };
 
   document.querySelectorAll<HTMLElement>('[data-wistia]').forEach((conteneur) => {
     const media = conteneur.dataset.wistia;
-    if (!media) return;
-    let demande = false;
+    const emplacement = conteneur.querySelector<HTMLElement>('[data-emplacement]');
+    if (!media || !emplacement) return;
+    let active = false;
     let lectureVoulue = false;
 
-    const charger = () => {
-      if (demande) return;
-      demande = true;
-      const script = document.createElement('script');
-      script.src = SCRIPT;
-      script.async = true;
-      document.head.append(script);
+    // Activer une vidéo : Wistia installe son lecteur dans tout élément qui porte ces classes.
+    const activer = () => {
+      if (active) return;
+      active = true;
+      emplacement.classList.add('wistia_embed', `wistia_async_${media}`, 'videoFoam=true');
+      fenetre._wq = fenetre._wq ?? [];
+      fenetre._wq.push({
+        id: media,
+        onReady: (video) => {
+          conteneur.classList.add('pret');
+          if (lectureVoulue) video.play();
+        },
+      });
+      chargerScript();
     };
-
-    const fenetre = window as unknown as { _wq?: FileWistia };
-    fenetre._wq = fenetre._wq ?? [];
-    fenetre._wq.push({
-      id: media,
-      onReady: (video) => {
-        conteneur.classList.add('pret');
-        if (lectureVoulue) video.play();
-      },
-    });
 
     conteneur.querySelector('[data-lire]')?.addEventListener('click', () => {
       lectureVoulue = true;
-      charger();
+      activer();
     });
 
-    // En différé : après l'affichage de la page, quand le navigateur est disponible.
+    if (conteneur.dataset.charge === 'approche' && 'IntersectionObserver' in window) {
+      // Plus bas dans la page : le lecteur se prépare quand la vidéo approche de l'écran.
+      const observateur = new IntersectionObserver(
+        (entrees) => {
+          if (entrees.some((entree) => entree.isIntersecting)) {
+            observateur.disconnect();
+            activer();
+          }
+        },
+        { rootMargin: '500px 0px' },
+      );
+      observateur.observe(conteneur);
+      return;
+    }
+
+    // Vidéo principale : après l'affichage de la page, quand le navigateur est disponible.
     const differer = () => {
-      if ('requestIdleCallback' in window) window.requestIdleCallback(charger, { timeout: 2500 });
-      else setTimeout(charger, 1200);
+      if ('requestIdleCallback' in window) window.requestIdleCallback(activer, { timeout: 2500 });
+      else setTimeout(activer, 1200);
     };
     if (document.readyState === 'complete') differer();
     else window.addEventListener('load', differer, { once: true });
