@@ -1,0 +1,163 @@
+---
+/**
+ * Page témoin : ce que le tunnel garde pendant une visite (UTM, prénom).
+ * Rien n'est envoyé nulle part : la page lit seulement la session du navigateur.
+ */
+import Tunnel from '../../layouts/Tunnel.astro';
+
+const lienDeTest = '/equipe/session?utm_source=test&utm_medium=verification&utm_campaign=socle&utm_content=angle-a&fbclid=TEST123';
+---
+
+<Tunnel titre="Session et UTM · Académie Florale">
+  <div class="conteneur conteneur-texte page">
+    <p class="texte-secondaire"><a href="/equipe" data-tunnel>Espace équipe</a></p>
+
+    <h1>
+      <span data-sans-prenom>Bienvenue</span>
+      <span data-si-prenom hidden>Bienvenue <em data-prenom></em></span>
+    </h1>
+    <p>
+      Ce titre montre la personnalisation : avec un prénom en session, il l’affiche ; sans prénom (arrivée par un email,
+      autre appareil), il garde sa version neutre.
+    </p>
+
+    <section aria-labelledby="titre-utm">
+      <h2 id="titre-utm">Attribution gardée pour la visite</h2>
+      <dl class="releve" data-releve-utm>
+        <div><dt>Aucun paramètre</dt><dd>Ouvre le lien de test ci-dessous.</dd></div>
+      </dl>
+      <p><a href={lienDeTest}>Ouvrir cette page avec des UTM de test</a></p>
+    </section>
+
+    <section aria-labelledby="titre-lead">
+      <h2 id="titre-lead">Données du formulaire</h2>
+      <dl class="releve" data-releve-lead>
+        <div><dt>Aucune donnée</dt><dd>Envoie le formulaire de la page « Charte et composants ».</dd></div>
+      </dl>
+      <p class="texte-secondaire">
+        Ces données restent dans ce navigateur, le temps de la visite. Elles ne passent jamais par l’adresse d’une page.
+      </p>
+    </section>
+
+    <section aria-labelledby="titre-liens">
+      <h2 id="titre-liens">Report des UTM d’une page à l’autre</h2>
+      <p>
+        Le lien suivant est un lien interne du tunnel : son adresse reçoit les UTM de la visite, sans aucune donnée
+        personnelle.
+      </p>
+      <p><a class="bouton" href="/equipe/charte" data-tunnel data-lien-temoin>Aller à la page charte</a></p>
+      <p class="texte-secondaire">Adresse du bouton : <code data-adresse-temoin></code></p>
+      <p><button class="lien" type="button" data-effacer>Effacer la session</button></p>
+    </section>
+  </div>
+</Tunnel>
+
+<style>
+  .page {
+    display: grid;
+    gap: 18px;
+    padding-block: 16px 64px;
+  }
+
+  section {
+    display: grid;
+    gap: 12px;
+    margin-top: 14px;
+  }
+
+  .releve {
+    display: grid;
+    gap: 0;
+    margin: 0;
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon);
+    background: var(--blanc);
+    overflow: hidden;
+  }
+
+  .releve :global(div) {
+    display: grid;
+    grid-template-columns: minmax(110px, 34%) 1fr;
+    gap: 12px;
+    padding: 10px 14px;
+    border-top: 1px solid var(--trait);
+  }
+
+  .releve :global(div:first-child) {
+    border-top: 0;
+  }
+
+  .releve :global(dt) {
+    font-weight: 600;
+  }
+
+  .releve :global(dd) {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+
+  code {
+    font-size: 0.92em;
+    overflow-wrap: anywhere;
+  }
+
+  .lien {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-decoration: underline;
+    text-underline-offset: 0.18em;
+    cursor: pointer;
+  }
+</style>
+
+<script>
+  import { capturerUTM, lireLead, reporterUTMSurLesLiens } from '../../scripts/session';
+
+  // Sans dépendre de l'ordre des scripts : on relit l'adresse et on prépare les liens ici aussi.
+  const utm = capturerUTM();
+  reporterUTMSurLesLiens();
+
+  /** Remplit un relevé avec du texte seulement (jamais de HTML). */
+  function remplir(selecteur: string, lignes: [string, string][]): void {
+    const releve = document.querySelector<HTMLElement>(selecteur);
+    if (!releve || lignes.length === 0) return;
+    releve.replaceChildren(
+      ...lignes.map(([terme, valeur]) => {
+        const ligne = document.createElement('div');
+        const dt = document.createElement('dt');
+        const dd = document.createElement('dd');
+        dt.textContent = terme;
+        dd.textContent = valeur;
+        ligne.append(dt, dd);
+        return ligne;
+      }),
+    );
+  }
+
+  remplir('[data-releve-utm]', Object.entries(utm));
+
+  const lead = lireLead();
+  if (lead) {
+    remplir('[data-releve-lead]', [
+      ['Prénom', lead.prenom],
+      ['Email', lead.email],
+      ['Téléphone', lead.telephone ?? 'non demandé'],
+    ]);
+  }
+
+  const temoin = document.querySelector<HTMLAnchorElement>('[data-lien-temoin]');
+  const adresse = document.querySelector<HTMLElement>('[data-adresse-temoin]');
+  if (temoin && adresse) adresse.textContent = temoin.getAttribute('href') ?? '';
+
+  document.querySelector('[data-effacer]')?.addEventListener('click', () => {
+    try {
+      window.sessionStorage.clear();
+    } catch {
+      /* stockage indisponible */
+    }
+    window.location.assign('/equipe/session');
+  });
+</script>

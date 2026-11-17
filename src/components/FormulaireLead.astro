@@ -1,0 +1,271 @@
+---
+/**
+ * Formulaire de la landing, intégré à la page (pas de modale).
+ * Il valide les champs, envoie à /api/lead, garde le prénom, l'email et le
+ * téléphone en session, puis mène à la page suivante avec les UTM.
+ *
+ * Les textes passent par des propriétés : ceux de la landing viendront des
+ * modèles validés. Les messages d'erreur ci-dessous sont des valeurs par défaut.
+ */
+interface Props {
+  /** Identifiant unique sur la page (sert aux attributs id des champs). */
+  id?: string;
+  /** Page suivante, après un envoi réussi. */
+  suivant: string;
+  /** Libellé du bouton d'envoi. */
+  bouton: string;
+  /** Source déclarée par la landing : « meta » pose le tag « VSL Meta Ads ». */
+  source?: string;
+  /** Identifiant de la page ou de la variante, pour distinguer les angles. */
+  page?: string;
+  /** Affiche le champ téléphone (il devient alors obligatoire). */
+  avecTelephone?: boolean;
+  libelles?: { prenom?: string; email?: string; telephone?: string };
+  messages?: {
+    prenom?: string;
+    email?: string;
+    telephone?: string;
+    echec?: string;
+    limite?: string;
+    envoi?: string;
+  };
+}
+
+const {
+  id = 'lead',
+  suivant,
+  bouton,
+  source = '',
+  page = '',
+  avecTelephone = false,
+  libelles = {},
+  messages = {},
+} = Astro.props;
+
+const l = { prenom: 'Prénom', email: 'Email', telephone: 'Téléphone', ...libelles };
+const m = {
+  prenom: 'Indique ton prénom.',
+  email: 'Vérifie ton adresse email.',
+  telephone: 'Vérifie ton numéro de téléphone.',
+  echec: 'L’envoi n’a pas abouti. Réessaie dans un instant.',
+  limite: 'Trop d’envois en peu de temps. Réessaie dans quelques minutes.',
+  envoi: 'Envoi en cours…',
+  ...messages,
+};
+---
+
+<form
+  class="formulaire-lead"
+  data-formulaire-lead
+  data-suivant={suivant}
+  data-source={source}
+  data-page={page}
+  data-msg-prenom={m.prenom}
+  data-msg-email={m.email}
+  data-msg-telephone={m.telephone}
+  data-msg-echec={m.echec}
+  data-msg-limite={m.limite}
+  data-msg-envoi={m.envoi}
+  novalidate
+>
+  <div class="champ">
+    <label for={`${id}-prenom`}>{l.prenom}</label>
+    <input
+      id={`${id}-prenom`}
+      name="prenom"
+      type="text"
+      autocomplete="given-name"
+      autocapitalize="words"
+      enterkeyhint="next"
+      maxlength="60"
+      required
+      aria-describedby={`${id}-prenom-erreur`}
+    />
+    <p class="message-erreur" id={`${id}-prenom-erreur`} data-erreur="prenom" role="alert"></p>
+  </div>
+
+  <div class="champ">
+    <label for={`${id}-email`}>{l.email}</label>
+    <input
+      id={`${id}-email`}
+      name="email"
+      type="email"
+      inputmode="email"
+      autocomplete="email"
+      autocapitalize="off"
+      spellcheck="false"
+      enterkeyhint={avecTelephone ? 'next' : 'send'}
+      maxlength="254"
+      required
+      aria-describedby={`${id}-email-erreur`}
+    />
+    <p class="message-erreur" id={`${id}-email-erreur`} data-erreur="email" role="alert"></p>
+  </div>
+
+  {
+    avecTelephone && (
+      <div class="champ">
+        <label for={`${id}-telephone`}>{l.telephone}</label>
+        <input
+          id={`${id}-telephone`}
+          name="telephone"
+          type="tel"
+          inputmode="tel"
+          autocomplete="tel"
+          enterkeyhint="send"
+          maxlength="24"
+          required
+          aria-describedby={`${id}-telephone-erreur`}
+        />
+        <p class="message-erreur" id={`${id}-telephone-erreur`} data-erreur="telephone" role="alert" />
+      </div>
+    )
+  }
+
+  <!-- Champ piège : invisible pour une personne, rempli par les robots. -->
+  <div class="visuellement-cache" aria-hidden="true">
+    <label for={`${id}-libre`}>Ne pas remplir ce champ</label>
+    <input id={`${id}-libre`} name="af_champ_libre" type="text" tabindex="-1" autocomplete="off" />
+  </div>
+
+  <button class="bouton bouton-large" type="submit"><span data-libelle>{bouton}</span></button>
+  <p class="etat" data-etat role="status" aria-live="polite"></p>
+  <slot name="mention" />
+</form>
+
+<style>
+  .formulaire-lead {
+    display: grid;
+    gap: 12px;
+  }
+
+  .etat {
+    color: var(--erreur);
+    font-size: var(--corps-petit);
+    font-weight: 500;
+  }
+
+  .etat:empty {
+    display: none;
+  }
+</style>
+
+<script>
+  import { nettoyerEmail, nettoyerPrenom, nettoyerTelephone } from '../../partage/validation.js';
+  import { adresseAvecUTM, enregistrerLead, lireUTM } from '../scripts/session';
+
+  const PIEGE = 'af_champ_libre';
+  const CHAMPS = ['prenom', 'email', 'telephone'];
+
+  function initialiser(form: HTMLFormElement): void {
+    const bouton = form.querySelector<HTMLButtonElement>('button[type="submit"]');
+    const libelle = form.querySelector<HTMLElement>('[data-libelle]');
+    const etat = form.querySelector<HTMLElement>('[data-etat]');
+    if (!bouton || !libelle || !etat) return;
+
+    const affichage = Date.now();
+    const texteBouton = libelle.textContent ?? '';
+    const message = (cle: string) => form.dataset[cle] ?? '';
+    const champ = (nom: string) => form.elements.namedItem(nom) as HTMLInputElement | null;
+    let envoiEnCours = false;
+
+    function signaler(nom: string, texte: string): void {
+      const zone = form.querySelector<HTMLElement>(`[data-erreur="${nom}"]`);
+      const saisie = champ(nom);
+      if (zone) zone.textContent = texte;
+      if (saisie) {
+        if (texte) saisie.setAttribute('aria-invalid', 'true');
+        else saisie.removeAttribute('aria-invalid');
+      }
+    }
+
+    function liberer(): void {
+      envoiEnCours = false;
+      bouton!.disabled = false;
+      libelle!.textContent = texteBouton;
+    }
+
+    // Une correction efface le message du champ concerné.
+    form.addEventListener('input', (evenement) => {
+      const cible = evenement.target as HTMLInputElement | null;
+      if (cible?.name) signaler(cible.name, '');
+      etat.textContent = '';
+    });
+
+    // Retour arrière depuis la page suivante : le bouton redevient utilisable.
+    window.addEventListener('pageshow', (evenement) => {
+      if (evenement.persisted) liberer();
+    });
+
+    form.addEventListener('submit', async (evenement) => {
+      evenement.preventDefault();
+      if (envoiEnCours) return;
+
+      const prenom = nettoyerPrenom(champ('prenom')?.value ?? '');
+      const email = nettoyerEmail(champ('email')?.value ?? '');
+      const champTelephone = champ('telephone');
+      const telephone = champTelephone ? nettoyerTelephone(champTelephone.value) : '';
+
+      const erreurs: [string, string][] = [];
+      if (!prenom) erreurs.push(['prenom', message('msgPrenom')]);
+      if (!email) erreurs.push(['email', message('msgEmail')]);
+      if (champTelephone && !telephone) erreurs.push(['telephone', message('msgTelephone')]);
+
+      CHAMPS.forEach((nom) => signaler(nom, ''));
+      etat.textContent = '';
+      if (erreurs.length > 0) {
+        erreurs.forEach(([nom, texte]) => signaler(nom, texte));
+        champ(erreurs[0]![0])?.focus();
+        return;
+      }
+
+      envoiEnCours = true;
+      bouton.disabled = true;
+      libelle.textContent = message('msgEnvoi');
+
+      try {
+        const reponse = await fetch('/api/lead', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prenom,
+            email,
+            telephone: telephone || undefined,
+            source: form.dataset.source || undefined,
+            page: form.dataset.page || undefined,
+            utm: lireUTM(),
+            delai: Date.now() - affichage,
+            [PIEGE]: champ(PIEGE)?.value ?? '',
+          }),
+        });
+        const resultat = await reponse.json().catch(() => null);
+
+        if (reponse.ok && resultat?.ok) {
+          enregistrerLead({ prenom, email, ...(telephone ? { telephone } : {}) });
+          form.dispatchEvent(
+            new CustomEvent('lead:envoye', { bubbles: true, detail: { simulation: Boolean(resultat.simulation) } }),
+          );
+          // Le bouton reste désactivé pendant le changement de page.
+          window.location.assign(adresseAvecUTM(form.dataset.suivant || '/'));
+          return;
+        }
+
+        if (reponse.status === 400 && resultat?.champs) {
+          const refuses = CHAMPS.filter((nom) => resultat.champs[nom]);
+          refuses.forEach((nom) => signaler(nom, message('msg' + nom.charAt(0).toUpperCase() + nom.slice(1))));
+          if (refuses[0]) champ(refuses[0])?.focus();
+          else etat.textContent = message('msgEchec');
+        } else if (reponse.status === 429) {
+          etat.textContent = message('msgLimite');
+        } else {
+          etat.textContent = message('msgEchec');
+        }
+      } catch {
+        etat.textContent = message('msgEchec');
+      }
+      liberer();
+    });
+  }
+
+  document.querySelectorAll<HTMLFormElement>('form[data-formulaire-lead]').forEach(initialiser);
+</script>

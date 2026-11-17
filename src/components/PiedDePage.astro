@@ -1,0 +1,83 @@
+---
+/**
+ * Pied de page : liens légaux et mention de non-affiliation à Meta.
+ * « compact » : une version sur peu de lignes, pour la landing d'un seul écran.
+ */
+import { LIENS_LEGAUX, MARQUE, MENTION_META } from '../reglages';
+
+interface Props {
+  compact?: boolean;
+}
+
+const { compact = false } = Astro.props;
+const liens = LIENS_LEGAUX.filter((lien) => lien.adresse);
+---
+
+<footer class:list={['pied', { compact }]}>
+  <div class="conteneur">
+    {
+      liens.length > 0 && (
+        <nav aria-label="Informations légales">
+          <ul>
+            {liens.map((lien) => (
+              <li>
+                <a href={lien.adresse} target="_blank" rel="noopener">
+                  {lien.libelle}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )
+    }
+    <p class="mention">{MENTION_META} © {MARQUE}.</p>
+  </div>
+</footer>
+
+<style>
+  .pied {
+    padding-block: 28px;
+    border-top: 1px solid var(--trait);
+    color: var(--encre-douce);
+    font-size: var(--corps-petit);
+    text-align: center;
+  }
+
+  .pied ul {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px 22px;
+    margin: 0 0 12px;
+    padding: 0;
+    list-style: none;
+  }
+
+  .pied a {
+    display: inline-block;
+    padding-block: 6px;
+  }
+
+  .mention {
+    max-width: 70ch;
+    margin-inline: auto;
+    font-size: 0.75rem;
+    line-height: 1.45;
+  }
+
+  .pied.compact {
+    padding-block: 10px;
+    border-top: 0;
+  }
+
+  .pied.compact ul {
+    margin-bottom: 2px;
+    gap: 0 16px;
+    font-size: 0.75rem;
+  }
+
+  .pied.compact .mention {
+    font-size: 0.625rem;
+    line-height: 1.35;
+  }
+</style>

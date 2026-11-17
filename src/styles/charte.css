@@ -1,0 +1,44 @@
+/*
+ * Charte Académie Florale
+ * Seul fichier où vivent les couleurs et les polices du tunnel.
+ * Partout ailleurs : var(--nom), jamais une valeur écrite en dur.
+ */
+:root {
+  /* Couleurs du logo officiel */
+  --creme: #faf3e0; /* fond de page */
+  --orange: #fe4b01; /* boutons, accents, mots mis en valeur */
+  --rose: #fcdeeb; /* fonds de blocs secondaires */
+  --jaune: #fae462; /* touches ponctuelles */
+
+  /* Couleurs dérivées (contrastes mesurés sur le fond crème) */
+  --encre: #1a1a1a; /* texte courant, 15,7:1 */
+  --encre-douce: #5c564b; /* texte secondaire, 6,6:1 */
+  --blanc: #ffffff; /* champs de formulaire, libellés de bouton */
+  --orange-fonce: #d93f00; /* bouton survolé ou pressé */
+  --erreur: #b3261e; /* messages d'erreur, 5,9:1 */
+  --trait: #d9d1bb; /* bordures et séparateurs */
+  --ombre: rgba(26, 26, 26, 0.14);
+
+  /*
+   * Polices. Artis Sans est la police de la charte : elle remplacera Outfit
+   * dans --police-titres dès que sa licence web sera confirmée.
+   */
+  --police-texte: 'Outfit Variable', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --police-titres: var(--police-texte);
+
+  /* Corps de texte */
+  --corps: 1.0625rem; /* 17 px */
+  --corps-petit: 0.875rem; /* 14 px */
+  --corps-champ: 1rem; /* 16 px : en dessous, iOS zoome sur le champ */
+  --corps-bouton: 1.1875rem; /* 19 px, gras : « grand corps » pour le blanc sur orange */
+  --titre-1: clamp(1.9rem, 1.1rem + 3.6vw, 3.4rem);
+  --titre-2: clamp(1.45rem, 1.1rem + 1.6vw, 2.2rem);
+  --titre-3: clamp(1.15rem, 1.05rem + 0.5vw, 1.4rem);
+
+  /* Formes et espaces */
+  --rayon: 14px;
+  --rayon-bouton: 999px;
+  --marge-page: clamp(18px, 5vw, 40px);
+  --largeur-page: 1120px;
+  --largeur-texte: 640px;
+}

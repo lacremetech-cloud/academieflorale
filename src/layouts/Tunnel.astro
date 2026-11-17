@@ -1,0 +1,57 @@
+---
+/**
+ * Mise en page commune à toutes les pages du tunnel.
+ * Par défaut une page n'est pas indexée : seule une page marquée « indexable »
+ * peut sortir dans Google.
+ */
+import '@fontsource-variable/outfit';
+import '../styles/charte.css';
+import '../styles/base.css';
+import charte from '../styles/charte.css?raw';
+import policeLatine from '@fontsource-variable/outfit/files/outfit-latin-wght-normal.woff2?url';
+import EnTete from '../components/EnTete.astro';
+import PiedDePage from '../components/PiedDePage.astro';
+
+interface Props {
+  titre: string;
+  description?: string;
+  indexable?: boolean;
+  enTete?: boolean;
+  pied?: 'complet' | 'compact' | 'aucun';
+}
+
+const { titre, description, indexable = false, enTete = true, pied = 'complet' } = Astro.props;
+
+// La couleur de la barre du navigateur vient de la charte, comme le reste.
+const creme = /--creme:\s*([^;]+);/.exec(charte)?.[1]?.trim();
+---
+
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>{titre}</title>
+    {description && <meta name="description" content={description} />}
+    {!indexable && <meta name="robots" content="noindex" />}
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <meta name="format-detection" content="telephone=no" />
+    {creme && <meta name="theme-color" content={creme} />}
+    <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="preload" as="font" type="font/woff2" href={policeLatine} crossorigin />
+    <slot name="tete" />
+  </head>
+  <body>
+    {enTete && <EnTete />}
+    <main>
+      <slot />
+    </main>
+    {pied !== 'aucun' && <PiedDePage compact={pied === 'compact'} />}
+    <script>
+      import { demarrerSession } from '../scripts/session';
+      demarrerSession();
+    </script>
+  </body>
+</html>

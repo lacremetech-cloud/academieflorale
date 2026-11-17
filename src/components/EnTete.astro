@@ -1,0 +1,31 @@
+---
+/**
+ * En-tête du tunnel : le logo seul, sans lien.
+ * Rien ne doit détourner la visiteuse du formulaire, de la vidéo ou du calendrier.
+ */
+import { Image } from 'astro:assets';
+import logo from '../assets/logo-academie-florale.png';
+import { MARQUE } from '../reglages';
+---
+
+<header class="en-tete">
+  <div class="conteneur">
+    <Image src={logo} alt={MARQUE} width={150} densities={[1, 2, 3]} loading="eager" class="logo" />
+  </div>
+</header>
+
+<style>
+  .en-tete {
+    padding-block: clamp(12px, 3vw, 22px);
+  }
+
+  .en-tete .conteneur {
+    display: flex;
+    justify-content: center;
+  }
+
+  .logo {
+    width: clamp(104px, 28vw, 150px);
+    height: auto;
+  }
+</style>

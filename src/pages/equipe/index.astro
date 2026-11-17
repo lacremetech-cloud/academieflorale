@@ -1,0 +1,71 @@
+---
+/**
+ * Espace réservé à l'équipe : pages internes, non indexées.
+ * Le sommaire des pages ressources viendra ici à l'étape « ressources ».
+ */
+import Tunnel from '../../layouts/Tunnel.astro';
+---
+
+<Tunnel titre="Espace équipe · Académie Florale">
+  <div class="conteneur conteneur-texte page">
+    <h1>Espace équipe</h1>
+    <p class="texte-secondaire">Pages internes, non indexées. Ne pas envoyer ces liens aux prospectes.</p>
+
+    <h2>Socle du tunnel</h2>
+    <ul class="liste">
+      <li>
+        <a href="/equipe/charte" data-tunnel>Charte et composants</a>
+        <span>Couleurs, typographie, bouton, formulaire.</span>
+      </li>
+      <li>
+        <a href="/equipe/session" data-tunnel>Session et UTM</a>
+        <span>Ce que le tunnel garde en mémoire pendant une visite.</span>
+      </li>
+    </ul>
+
+    <h2>Pages historiques</h2>
+    <ul class="liste">
+      <li>
+        <a href="/">Sommaire de la préversion</a>
+        <span>Les pages de juin et juillet 2026, inchangées.</span>
+      </li>
+    </ul>
+  </div>
+</Tunnel>
+
+<style>
+  .page {
+    display: grid;
+    gap: 16px;
+    padding-block: 24px 56px;
+  }
+
+  h2 {
+    margin-top: 16px;
+  }
+
+  .liste {
+    display: grid;
+    gap: 10px;
+    padding: 0;
+    list-style: none;
+  }
+
+  .liste li {
+    display: grid;
+    gap: 2px;
+    padding: 14px 16px;
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon);
+    background: var(--blanc);
+  }
+
+  .liste a {
+    font-weight: 600;
+  }
+
+  .liste span {
+    color: var(--encre-douce);
+    font-size: var(--corps-petit);
+  }
+</style>

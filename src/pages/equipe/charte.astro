@@ -1,0 +1,228 @@
+---
+/**
+ * Page témoin du socle : charte, typographie, bouton et formulaire.
+ * Les couleurs affichées sont lues dans charte.css : rien n'est recopié ici.
+ */
+import Tunnel from '../../layouts/Tunnel.astro';
+import FormulaireLead from '../../components/FormulaireLead.astro';
+import charte from '../../styles/charte.css?raw';
+
+const couleurs = [...charte.matchAll(/--([a-z-]+):\s*(#[0-9a-fA-F]{3,8});\s*\/\*\s*([^*]+?)\s*\*\//g)].map(
+  ([, nom, valeur, usage]) => ({ nom, valeur, usage }),
+);
+---
+
+<Tunnel titre="Charte et composants · Académie Florale">
+  <div class="conteneur page">
+    <header class="intro">
+      <p class="texte-secondaire"><a href="/equipe" data-tunnel>Espace équipe</a></p>
+      <h1>Charte et <em>composants</em></h1>
+      <p>
+        Page témoin du socle. Elle montre les couleurs, la typographie, le bouton et le formulaire qui serviront aux
+        pages du tunnel. Les textes ci-dessous sont des textes de démonstration, pas ceux des pages.
+      </p>
+    </header>
+
+    <section aria-labelledby="titre-couleurs">
+      <h2 id="titre-couleurs">Couleurs</h2>
+      <ul class="couleurs">
+        {
+          couleurs.map((c) => (
+            <li>
+              <span class="pastille" style={`background: var(--${c.nom})`} />
+              <span class="nom">{c.nom}</span>
+              <span class="valeur">{c.valeur}</span>
+              <span class="usage">{c.usage}</span>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+
+    <section aria-labelledby="titre-typo">
+      <h2 id="titre-typo">Typographie</h2>
+      <div class="exemples">
+        <p class="h1">Titre de niveau 1, avec un <em>mot mis en valeur</em></p>
+        <p class="h2">Titre de niveau 2</p>
+        <p class="h3">Titre de niveau 3</p>
+        <p>
+          Texte courant : un paragraphe du tunnel, avec ses accents (é, è, à, ç, œ) et sa ponctuation : « guillemets »,
+          point-virgule ; point d’interrogation ?
+        </p>
+        <p class="texte-secondaire">Texte secondaire, pour les mentions et les précisions.</p>
+      </div>
+      <p class="texte-secondaire">
+        Police affichée : Outfit, sous licence libre. Artis Sans, la police de la charte, la remplacera dans les titres
+        dès que sa licence web sera confirmée.
+      </p>
+    </section>
+
+    <section aria-labelledby="titre-blocs">
+      <h2 id="titre-blocs">Bouton et blocs</h2>
+      <div class="blocs">
+        <div class="bloc">
+          <a class="bouton" href="/equipe/session" data-tunnel>Bouton principal</a>
+          <button class="bouton" type="button" disabled>Bouton en attente</button>
+        </div>
+        <div class="bloc bloc-rose">
+          <p class="h3">Bloc secondaire</p>
+          <p>Fond rose, pour un encadré ou un témoignage.</p>
+          <p><span class="touche-jaune">Touche jaune</span>, à utiliser avec parcimonie.</p>
+        </div>
+      </div>
+    </section>
+
+    <section aria-labelledby="titre-formulaire">
+      <h2 id="titre-formulaire">Formulaire</h2>
+      <p>
+        Le formulaire envoie vraiment à <code>/api/lead</code>. Sur cette preview, rien n’est écrit dans ActiveCampaign,
+        sauf avec l’adresse de test. Après l’envoi, tu arrives sur la page « Session et UTM ».
+      </p>
+      <div class="formulaires">
+        <div class="carte">
+          <p class="h3">Prénom et email</p>
+          <FormulaireLead id="demo-2" suivant="/equipe/session" bouton="Envoyer (démonstration)" page="equipe/charte" />
+        </div>
+        <div class="carte">
+          <p class="h3">Avec le téléphone</p>
+          <FormulaireLead
+            id="demo-3"
+            suivant="/equipe/session"
+            bouton="Envoyer (démonstration)"
+            page="equipe/charte"
+            avecTelephone
+          />
+        </div>
+      </div>
+    </section>
+  </div>
+</Tunnel>
+
+<style>
+  .page {
+    display: grid;
+    gap: 44px;
+    padding-block: 16px 64px;
+  }
+
+  .intro,
+  section {
+    display: grid;
+    gap: 14px;
+  }
+
+  .intro p:not(.texte-secondaire),
+  section > p {
+    max-width: 68ch;
+  }
+
+  .h1 {
+    font-family: var(--police-titres);
+    font-size: var(--titre-1);
+    font-weight: 600;
+    line-height: 1.12;
+    letter-spacing: -0.01em;
+  }
+
+  .h1 em {
+    font-style: normal;
+    color: var(--orange);
+  }
+
+  .h2 {
+    font-family: var(--police-titres);
+    font-size: var(--titre-2);
+    font-weight: 600;
+    line-height: 1.12;
+  }
+
+  .h3 {
+    font-family: var(--police-titres);
+    font-size: var(--titre-3);
+    font-weight: 600;
+    line-height: 1.2;
+  }
+
+  .couleurs {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 12px;
+    padding: 0;
+    list-style: none;
+  }
+
+  .couleurs li {
+    display: grid;
+    gap: 2px;
+    padding: 10px;
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon);
+    background: var(--blanc);
+    font-size: var(--corps-petit);
+  }
+
+  .pastille {
+    height: 56px;
+    margin-bottom: 6px;
+    border: 1px solid var(--trait);
+    border-radius: 8px;
+  }
+
+  .nom {
+    font-weight: 600;
+  }
+
+  .valeur,
+  .usage {
+    color: var(--encre-douce);
+  }
+
+  .exemples {
+    display: grid;
+    gap: 12px;
+    padding: 20px;
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon);
+  }
+
+  .blocs,
+  .formulaires {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+    gap: 16px;
+    align-items: start;
+  }
+
+  .bloc {
+    display: grid;
+    gap: 12px;
+    justify-items: start;
+    padding: 20px;
+    border-radius: var(--rayon);
+  }
+
+  .bloc-rose {
+    background: var(--rose);
+  }
+
+  .touche-jaune {
+    padding: 0.1em 0.45em;
+    border-radius: 6px;
+    background: var(--jaune);
+    font-weight: 600;
+  }
+
+  .carte {
+    display: grid;
+    gap: 14px;
+    padding: 20px;
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon);
+    background: var(--blanc);
+    box-shadow: 0 10px 30px -18px var(--ombre);
+  }
+
+  code {
+    font-size: 0.92em;
+  }
+</style>
