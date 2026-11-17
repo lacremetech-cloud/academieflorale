@@ -29,9 +29,12 @@ const adresse = `https://app.iclosed.io/e/${event}`;
 <!-- iClosed inline widget begin -->
 <div class="iclosed-widget" data-url={adresse} title={titre} style="width: 100%; height: 620px"></div>
 <!-- iClosed inline widget end -->
-<noscript>
-  <p><a href={adresse}>Ouvrir le calendrier de réservation</a></p>
-</noscript>
+
+<!-- Filet de sécurité : si le calendrier ne se charge pas (script bloqué, JavaScript
+     coupé), ce lien mène au même event, avec le même préremplissage. -->
+<p class="secours texte-secondaire">
+  Le calendrier ne s’affiche pas ? <a href={adresse} data-lien-iclosed>Ouvre-le en pleine page</a>.
+</p>
 
 <script>
   import { capturerUTM, lireLead } from '../scripts/session';
@@ -63,9 +66,23 @@ const adresse = `https://app.iclosed.io/e/${event}`;
       .join('&');
     if (suite) widget.dataset.url = `${lien}${lien.includes('?') ? '&' : '?'}${suite}`;
 
+    // Le lien de secours ouvre le même event, avec les mêmes paramètres.
+    document.querySelectorAll<HTMLAnchorElement>('a[data-lien-iclosed]').forEach((secours) => {
+      secours.href = widget.dataset.url ?? lien;
+    });
+
     const script = document.createElement('script');
     script.src = SCRIPT;
     script.async = true;
     document.head.append(script);
   }
 </script>
+
+<style>
+  .secours {
+    margin-top: 10px;
+    padding-inline: var(--marge-page);
+    font-size: var(--corps-petit);
+    text-align: center;
+  }
+</style>
