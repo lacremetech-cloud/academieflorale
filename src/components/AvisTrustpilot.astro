@@ -9,6 +9,13 @@
  */
 import { AVIS, TRUSTPILOT } from '../contenu/avis';
 
+interface Props {
+  /** N'affiche que la ligne de note (pour une page qui montre déjà des avis complets). */
+  noteSeule?: boolean;
+}
+
+const { noteSeule = false } = Astro.props;
+
 const note = TRUSTPILOT.note.toLocaleString('fr-FR', { minimumFractionDigits: 1 });
 
 /** Cinq cases : pleine, demie ou vide. */
@@ -34,6 +41,8 @@ const rangs = [classes.filter((a) => a.ordre % 2 === 0), classes.filter((a) => a
     <span><strong>{note}</strong> sur 5 · {TRUSTPILOT.nombre} avis sur</span>
     <span class="marque"><span aria-hidden="true">★</span>Trustpilot</span>
   </a>
+  {
+    !noteSeule && (
   <div class="defile">
     {
       rangs.map((rang, i) => (
@@ -57,6 +66,8 @@ const rangs = [classes.filter((a) => a.ordre % 2 === 0), classes.filter((a) => a
       ))
     }
   </div>
+    )
+  }
 </section>
 
 <style>

@@ -1,17 +1,36 @@
 ---
 /**
- * Page VSL : la vidéo de vente, puis un seul bouton vers la réservation de l'appel.
+ * Page VSL : la vidéo de vente, puis le bouton vers la réservation de l'appel.
  * Titre, vidéo et bouton tiennent dans le premier écran, sur mobile comme sur ordinateur.
- * Rien d'autre ne détourne l'attention.
+ * En dessous, la réassurance demandée avant l'appel : ce qui s'y passe (dit par
+ * Sybile dans la vidéo), les avis Trustpilot, puis le bouton une seconde fois.
  *
  * Le titre reprend le prénom saisi sur la landing. Sans prénom (arrivée par un
  * email, autre appareil), la version neutre s'affiche : la page fonctionne aussi
  * pour une visiteuse qui n'est pas passée par le formulaire.
  */
+import { Image } from 'astro:assets';
 import Tunnel from '../layouts/Tunnel.astro';
 import VideoWistia from '../components/VideoWistia.astro';
+import AvisTrustpilot from '../components/AvisTrustpilot.astro';
 import apercu from '../assets/vsl-apercu.jpg';
+import avisAlexandra from '../assets/avis/alexandra-noirot.png';
+import avisChristelle from '../assets/avis/christelle.png';
+import avisSaly from '../assets/avis/saly-kt.png';
+import avisAmelie from '../assets/avis/amelie-bortolin.png';
+import { TRUSTPILOT } from '../contenu/avis';
 import { CHEMINS, WISTIA } from '../reglages';
+
+// Avis complets : les images de la page VSL d'origine, pour les avis toujours
+// publiés sur le profil Trustpilot. Du plus proche de la promesse au plus court.
+const avisComplets = [
+  { image: avisAlexandra, nom: 'Alexandra Noirot', titre: 'J’ai commencé la formation académie et sans regret que du positif' },
+  { image: avisChristelle, nom: 'Christelle', titre: 'Je suis en formation à l’Académie Florale, rejoignez nous !' },
+  { image: avisSaly, nom: 'Saly Kt', titre: 'Formation au top !' },
+  { image: avisAmelie, nom: 'amelie bortolin', titre: 'Formatrice à l’écoute' },
+];
+
+const bouton = 'Je réserve mon appel gratuit';
 ---
 
 <Tunnel
@@ -35,18 +54,64 @@ import { CHEMINS, WISTIA } from '../reglages';
     </div>
 
     <div class="action">
-      <a class="bouton" href={CHEMINS.call} data-tunnel>Je réserve mon appel de découverte</a>
-      <p class="texte-secondaire">Appel offert, pour faire le point sur ton projet.</p>
+      <p class="candidature">
+        Postule pour un <strong>appel de candidature de 20 minutes</strong>, pour savoir si tu es admissible à
+        l’Académie Florale.
+      </p>
+      <a class="bouton" href={CHEMINS.call} data-tunnel>{bouton}</a>
+      <p class="texte-secondaire">Avec Sybile ou un directeur pédagogique. Gratuit et sans engagement.</p>
     </div>
   </div>
+
+  <section class="reassurance" aria-labelledby="titre-appel">
+    <div class="conteneur conteneur-reassurance">
+      <h2 id="titre-appel">Ce qui se passe pendant ces 20 minutes</h2>
+      <ol class="etapes">
+        <li><span class="numero" aria-hidden="true">1</span>On prend le temps de comprendre ton projet.</li>
+        <li><span class="numero" aria-hidden="true">2</span>On trace ton plan sur 90 jours.</li>
+        <li><span class="numero" aria-hidden="true">3</span>On répond à toutes tes questions.</li>
+      </ol>
+      <p class="promesse-appel">C’est gratuit, sans engagement, et tu repars avec une réponse claire.</p>
+    </div>
+  </section>
+
+  <section class="temoignages" aria-labelledby="titre-avis">
+    <div class="conteneur conteneur-reassurance">
+      <h2 id="titre-avis">Ce qu’en disent les élèves</h2>
+      <AvisTrustpilot noteSeule />
+      <ul class="mur">
+        {
+          avisComplets.map((avis) => (
+            <li>
+              <Image
+                src={avis.image}
+                alt={`Avis 5 étoiles de ${avis.nom} sur Trustpilot : « ${avis.titre} »`}
+                widths={[480, 720, 1100]}
+                sizes="(min-width: 900px) 440px, 92vw"
+                loading="lazy"
+              />
+            </li>
+          ))
+        }
+      </ul>
+      <p class="tous-les-avis">
+        <a href={TRUSTPILOT.profil} target="_blank" rel="noopener">Lire tous les avis sur Trustpilot</a>
+      </p>
+
+      <div class="action action-finale">
+        <a class="bouton" href={CHEMINS.call} data-tunnel>{bouton}</a>
+        <p class="texte-secondaire">Avec Sybile ou un directeur pédagogique. Gratuit et sans engagement.</p>
+      </div>
+    </div>
+  </section>
 </Tunnel>
 
 <style>
   .page {
     display: grid;
     justify-items: center;
-    gap: clamp(10px, 2.2svh, 22px);
-    padding-bottom: clamp(14px, 3svh, 32px);
+    gap: clamp(8px, 2svh, 20px);
+    padding-bottom: clamp(18px, 4svh, 40px);
     text-align: center;
   }
 
@@ -69,8 +134,8 @@ import { CHEMINS, WISTIA } from '../reglages';
   /* La vidéo prend la largeur disponible, sans jamais pousser le bouton hors de l'écran :
      sa hauteur est bornée par celle de la fenêtre. */
   .cadre {
-    width: min(100%, 900px, calc((100svh - 340px) * 16 / 9));
-    min-width: min(100%, 300px);
+    width: min(100%, 900px, calc((100svh - 400px) * 16 / 9));
+    min-width: min(100%, 280px);
   }
 
   .action {
@@ -80,23 +145,31 @@ import { CHEMINS, WISTIA } from '../reglages';
     width: 100%;
   }
 
+  .candidature {
+    max-width: 36rem;
+    font-size: clamp(0.9rem, min(3.9vw, 2.5svh), 1.15rem);
+    line-height: 1.35;
+    text-wrap: pretty;
+  }
+
   .action .bouton {
     width: min(100%, 26rem);
   }
 
   @media (max-width: 600px) {
     .cadre {
-      width: min(100%, calc((100svh - 330px) * 16 / 9));
+      width: min(100%, calc((100svh - 380px) * 16 / 9));
     }
   }
 
   /* Petits écrans en hauteur : on resserre pour garder le bouton visible. */
   @media (max-height: 600px) {
     .page {
-      gap: 8px;
+      gap: 7px;
     }
 
-    .sous-titre {
+    .sous-titre,
+    .candidature {
       font-size: 0.86rem;
       line-height: 1.3;
     }
@@ -108,8 +181,91 @@ import { CHEMINS, WISTIA } from '../reglages';
 
   /* Téléphone à l'horizontale : le titre, la vidéo et le bouton, rien d'autre. */
   @media (max-height: 440px) {
-    .sous-titre {
+    .sous-titre,
+    .candidature {
       display: none;
     }
+  }
+
+  /* Réassurance, sous le premier écran */
+  .reassurance {
+    padding-block: clamp(28px, 6vw, 56px);
+    background: var(--rose);
+  }
+
+  .temoignages {
+    padding-block: clamp(28px, 6vw, 56px) clamp(20px, 4vw, 40px);
+  }
+
+  .conteneur-reassurance {
+    display: grid;
+    gap: clamp(16px, 3vw, 26px);
+    max-width: calc(940px + 2 * var(--marge-page));
+    text-align: center;
+  }
+
+  .etapes {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
+    gap: 12px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .etapes li {
+    display: grid;
+    justify-items: center;
+    gap: 10px;
+    padding: 18px 16px;
+    border-radius: var(--rayon);
+    background: var(--blanc);
+    font-weight: 500;
+    line-height: 1.35;
+  }
+
+  .numero {
+    display: grid;
+    place-items: center;
+    width: 2.1em;
+    height: 2.1em;
+    border-radius: 50%;
+    background: var(--jaune);
+    font-weight: 700;
+  }
+
+  .promesse-appel {
+    font-weight: 600;
+  }
+
+  .mur {
+    columns: 2 380px;
+    column-gap: 16px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    text-align: left;
+  }
+
+  .mur li {
+    break-inside: avoid;
+    margin-bottom: 16px;
+    padding: clamp(8px, 2vw, 14px);
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon);
+    background: var(--blanc);
+  }
+
+  .mur :global(img) {
+    width: 100%;
+    height: auto;
+  }
+
+  .tous-les-avis {
+    font-size: var(--corps-petit);
+  }
+
+  .action-finale {
+    margin-top: 8px;
   }
 </style>
