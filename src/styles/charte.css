@@ -22,6 +22,10 @@
   /* Couleur d'une marque tierce : le vert de Trustpilot, réservé aux étoiles des avis. */
   --vert-trustpilot: #00b67a; /* étoiles des avis Trustpilot */
 
+  /* Couleur d'une marque tierce : le rouge de YouTube, réservé au bloc de la chaîne YouTube. */
+  --rouge-youtube: #ff0000; /* bouton vers la chaîne et bouton de lecture des vidéos */
+  --rouge-youtube-fonce: #cc0000; /* bouton survolé ou pressé */
+
   /*
    * Polices. Artis Sans est la police de la charte : elle remplacera Outfit
    * dans --police-titres dès que sa licence web sera confirmée.

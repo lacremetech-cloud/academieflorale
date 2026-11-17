@@ -28,7 +28,10 @@ import { insecables } from '../scripts/typographie';
                 alt=""
                 loading="lazy"
               />
-              <span class="lecture" aria-hidden="true" />
+              <svg class="lecture" viewBox="0 0 68 48" aria-hidden="true">
+                <rect width="68" height="48" rx="13"></rect>
+                <path d="M27 14v20l18-10z"></path>
+              </svg>
             </span>
             <span class="titre">{insecables(video.titre)}</span>
             <span class="visuellement-cache"> (YouTube, nouvel onglet)</span>
@@ -89,27 +92,27 @@ import { insecables } from '../scripts/typographie';
     transform: scale(1.03);
   }
 
+  /* Bouton de lecture aux couleurs de YouTube : on reconnaît tout de suite une vidéo YouTube. */
   .lecture {
     position: absolute;
     inset: 0;
-    display: grid;
-    place-items: center;
-    width: clamp(44px, 15%, 72px);
-    aspect-ratio: 1;
+    width: clamp(46px, 17%, 78px);
+    height: auto;
     margin: auto;
-    border-radius: 50%;
-    background: var(--orange);
-    box-shadow: 0 10px 30px -10px var(--ombre);
+    filter: drop-shadow(0 6px 14px var(--ombre));
+    transition: transform 0.2s ease;
   }
 
-  .lecture::after {
-    content: '';
-    width: 0;
-    height: 0;
-    margin-left: 12%;
-    border-style: solid;
-    border-width: 0.55em 0 0.55em 0.9em;
-    border-color: transparent transparent transparent var(--blanc);
+  .lecture rect {
+    fill: var(--rouge-youtube);
+  }
+
+  .lecture path {
+    fill: var(--blanc);
+  }
+
+  .videos a:hover .lecture {
+    transform: scale(1.08);
   }
 
   .titre {
@@ -127,8 +130,15 @@ import { insecables } from '../scripts/typographie';
     font-size: 1.1rem;
   }
 
+  /* Le bouton vers la chaîne prend lui aussi le rouge de YouTube. */
   .bouton {
     width: min(100%, 26rem);
+    background: var(--rouge-youtube);
+  }
+
+  .bouton:hover,
+  .bouton:active {
+    background: var(--rouge-youtube-fonce);
   }
 
   @media (min-width: 520px) {
