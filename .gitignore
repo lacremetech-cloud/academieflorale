@@ -1,4 +1,16 @@
+# Dépendances et fichiers construits
 node_modules/
-package-lock.json
-package.json
+dist/
+.astro/
+.vercel/
+
+# Secrets : jamais dans le repo
+.env
+.env.*
+
+# Réglages locaux de l'outil de développement
+.claude/
+
+# Divers
+.DS_Store
 shot.cjs
