@@ -141,9 +141,12 @@ const CHAMPS_FICHE = [
   'name,effective_status,created_time,creative{title,body,thumbnail_url}',
   'name,effective_status,created_time',
 ];
+/** Publicités demandées en même temps. */
+const FICHES_A_LA_FOIS = 10;
 
 /**
- * Le nom, l'état et le texte de quelques publicités.
+ * Le nom, l'état et le texte de quelques publicités, demandées une par une
+ * (depuis la version 26 de son API, Meta n'accepte plus la lecture groupée « ids »).
  * @param {object} options
  * @param {Record<string, string | undefined>} options.env
  * @param {string[]} options.ids
@@ -154,16 +157,16 @@ async function fichesDesPubs({ env, ids, fetchImpl }) {
   const jeton = (env.META_ACCESS_TOKEN ?? '').trim();
   /** @type {Record<string, import('../../partage/pubs.js').FichePub>} */
   const fiches = {};
-  const voulus = ids.slice(0, 50);
+  const voulus = [...new Set(ids.filter((id) => /^\d{6,25}$/.test(id)))].slice(0, FICHES_MAX + 10);
   const diagnostic = { demandees: voulus.length, lues: 0, refus: '' };
   if (!jeton || voulus.length === 0) return { fiches, diagnostic };
 
-  /** @param {string[]} groupe @param {string} champs @returns {Promise<Record<string, unknown> | null>} */
-  const demander = async (groupe, champs) => {
+  /** @param {string} id @param {string} champs @returns {Promise<any | null>} */
+  const demander = async (id, champs) => {
     try {
-      const reponse = await fetchImpl(`https://graph.facebook.com/${versionMeta(env)}/?${new URLSearchParams({ ids: groupe.join(','), fields: champs })}`, {
+      const reponse = await fetchImpl(`https://graph.facebook.com/${versionMeta(env)}/${id}?${new URLSearchParams({ fields: champs })}`, {
         headers: { Authorization: `Bearer ${jeton}`, Accept: 'application/json' },
-        signal: AbortSignal.timeout(12000),
+        signal: AbortSignal.timeout(9000),
       });
       const corps = await reponse.json().catch(() => null);
       if (reponse.ok && corps && typeof corps === 'object') return corps;
@@ -175,31 +178,39 @@ async function fichesDesPubs({ env, ids, fetchImpl }) {
     return null;
   };
 
-  /** @type {Record<string, unknown> | null} */
-  let corps = null;
-  for (const champs of CHAMPS_FICHE) {
-    corps = await demander(voulus, champs);
-    if (corps) break;
-  }
-  if (!corps && voulus.length > 1) {
-    // Une seule publicité illisible (supprimée depuis longtemps) fait échouer toute la demande : on les prend une par une.
-    const une = await Promise.all(voulus.map((id) => demander([id], CHAMPS_FICHE[1] ?? '')));
-    corps = Object.assign({}, ...une.filter(Boolean));
-  }
-  for (const [id, pub] of Object.entries(corps ?? {})) {
-    if (!/^\d{6,25}$/.test(id) || !pub || typeof pub !== 'object') continue;
-    const creation = /** @type {any} */ (pub).creative ?? {};
+  /** @param {string} id @param {any} pub */
+  const ranger = (id, pub) => {
+    const creation = pub.creative ?? {};
     const recit = creation.object_story_spec ?? {};
     const flux = creation.asset_feed_spec ?? {};
     const vignette = typeof creation.thumbnail_url === 'string' && creation.thumbnail_url.startsWith('https://') ? creation.thumbnail_url.slice(0, 1000) : '';
     fiches[id] = {
-      nom: court(/** @type {any} */ (pub).name, 200),
-      statut: court(/** @type {any} */ (pub).effective_status, 40),
-      creeLe: court(/** @type {any} */ (pub).created_time, 10),
+      nom: court(pub.name, 200),
+      statut: court(pub.effective_status, 40),
+      creeLe: court(pub.created_time, 10),
       titre: court(creation.title || recit.video_data?.title || recit.link_data?.name || flux.titles?.[0]?.text, 300),
       texte: court(creation.body || recit.video_data?.message || recit.link_data?.message || flux.bodies?.[0]?.text, 3000),
       vignette,
     };
+  };
+
+  // La première publicité dit quel niveau de détail Meta accepte de donner ; les autres le demandent directement.
+  let niveau = 0;
+  const [premiere, ...suivantes] = voulus;
+  for (; niveau < CHAMPS_FICHE.length; niveau += 1) {
+    const pub = await demander(String(premiere), CHAMPS_FICHE[niveau] ?? '');
+    if (pub) {
+      ranger(String(premiere), pub);
+      break;
+    }
+  }
+  const champs = CHAMPS_FICHE[Math.min(niveau, CHAMPS_FICHE.length - 1)] ?? '';
+  for (let rang = 0; rang < suivantes.length; rang += FICHES_A_LA_FOIS) {
+    const groupe = suivantes.slice(rang, rang + FICHES_A_LA_FOIS);
+    const lues = await Promise.all(groupe.map((id) => demander(id, champs)));
+    lues.forEach((pub, place) => {
+      if (pub) ranger(String(groupe[place]), pub);
+    });
   }
   diagnostic.lues = Object.keys(fiches).length;
   return { fiches, diagnostic };
