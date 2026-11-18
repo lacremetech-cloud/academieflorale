@@ -21,6 +21,17 @@
   ],
   "redirects": [
     {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "decouvrir.academie-florale.fr"
+        }
+      ],
+      "destination": "/inscription",
+      "permanent": false
+    },
+    {
       "source": "/temoignage",
       "destination": "/ressources/temoignage-amelie",
       "permanent": false
