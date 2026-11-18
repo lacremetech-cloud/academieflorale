@@ -344,7 +344,8 @@ test('suivi du tunnel : chaque maillon dit s’il est en place, ce qui manque et
     conversions: 'a-brancher',
   });
   assert.deepEqual(nu.activecampaign.variables, ['ACTIVECAMPAIGN_API_URL', 'ACTIVECAMPAIGN_API_KEY']);
-  assert.deepEqual(nu.conversions.variables, ['META_PIXEL_ID', 'META_CAPI_TOKEN']);
+  // Le pixel est connu : seul le jeton de l'API de conversion reste à saisir.
+  assert.deepEqual(nu.conversions.variables, ['META_CAPI_TOKEN']);
 
   // Tout réglé, en production : ActiveCampaign est interrogé (ses listes, le déclencheur de la séquence).
   const activecampaign = (url) =>
@@ -358,7 +359,7 @@ test('suivi du tunnel : chaque maillon dit s’il est en place, ce qui manque et
   assert.deepEqual(Object.values(pret).map((maillon) => maillon.etat), ['ok', 'ok', 'ok', 'ok', 'ok']);
   assert.deepEqual(pret.activecampaign.lignes, ['Liste « Prospect » trouvée.', 'Liste « Client » trouvée.', '« VSL Séquence Mail » démarre bien à l’inscription (Source = VSL).']);
   assert.equal(pret.rdv.lignes[0], 'iClosed relu il y a 4 min (toutes les 10 minutes).');
-  assert.equal(pret.conversions.lignes[1], 'Dernier événement (Lead) il y a 2 h : reçu par Meta.');
+  assert.deepEqual(pret.conversions.lignes, ['Envoie Prospect, Rendez-vous programmé et Achat.', 'Dernier événement (Lead) il y a 2 h : reçu par Meta.']);
   assert.deepEqual(m.vers('activecampaign').map((d) => [d.url.href, d.options.headers['Api-Token']]), [
     [`${AC}/api/3/lists?limit=100`, 'cle-activecampaign-de-test'],
     [`${AC}/api/3/automations/1/triggers`, 'cle-activecampaign-de-test'],

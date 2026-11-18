@@ -16,7 +16,7 @@ import { FORMULES } from '../../partage/ventes.js';
 import { nettoyerEmail } from '../../partage/validation.js';
 import { changerListe, synchroniserContact } from '../activecampaign.js';
 import { empreinteEmail } from '../empreinte.js';
-import { accesConversions, construireEvenement, envoiPermis, envoyerEvenement } from '../meta-conversions.js';
+import { accesConversions, construireEvenement, envoiPermis, envoyerEvenement, regleConsentement } from '../meta-conversions.js';
 import { LISTES } from '../reglages.js';
 import { lireInscriptions, noterEtat } from '../suivi.js';
 
@@ -84,7 +84,7 @@ export async function suivreVente({ env, vente, ancienne, fetchImpl = fetch, mai
   if (avant.meta === 'ok') suivi.meta = 'ok';
   else if (!accesConversions(env)) suivi.meta = 'a-brancher';
   else if (!production) suivi.meta = 'simulation';
-  else if (!envoiPermis(inscription?.accord === 1)) suivi.meta = 'sans-accord';
+  else if (!envoiPermis(inscription?.accord === 1, regleConsentement(env))) suivi.meta = 'sans-accord';
   else {
     // Une vente du jour part à l'instant ; une vente passée, à midi ce jour-là.
     const instant = vente.date === jourParis(maintenant) ? maintenant : new Date(jourVente);

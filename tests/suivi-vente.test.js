@@ -104,14 +104,23 @@ test('vente sans email : enregistrée, rien ne bouge ailleurs', async () => {
   assert.equal(m.demandes.length, 0);
 });
 
-test('sans accord ou sans inscription connue : la liste change, l’achat ne part pas chez Meta', async () => {
+test('élève jamais passée par la landing : la liste change et l’achat part quand même, sans publicité connue', async () => {
   const m = monde();
+  const inconnue = await suivreVente({ env: ENV, vente: { ...VENTE, id: 'v9', email: 'lea@exemple.fr' }, fetchImpl: m.fetchImpl, maintenant: MAINTENANT, journal: fauxJournal().journal });
+  assert.deepEqual(inconnue, { pub: '', delai: null, le: MAINTENANT.toISOString(), ac: 'ok', meta: 'ok' });
+  const [evenement] = m.vers('meta')[0].corps.data;
+  assert.deepEqual([evenement.event_name, evenement.action_source, 'fbc' in evenement.user_data], ['Purchase', 'phone_call', false]);
+});
+
+test('si l’accord redevenait requis : sans lui, la liste change, l’achat ne part pas chez Meta', async () => {
+  const m = monde();
+  m.ctx.env = { ...ENV, META_CONSENTEMENT: 'requis' };
   await inscrire(m, false);
   const reponse = await traiterVente(demande({ mois: '2026-11', vente: VENTE, closerNom: 'Albane' }), m.ctx);
   assert.deepEqual((await reponse.json()).ventes[0].suivi, { pub: 'id:120212345678901234', delai: 6, le: MAINTENANT.toISOString(), ac: 'ok', meta: 'sans-accord' });
   assert.equal(m.vers('meta').length, 0);
 
-  const inconnue = await suivreVente({ env: ENV, vente: { ...VENTE, id: 'v9', email: 'lea@exemple.fr' }, fetchImpl: m.fetchImpl, maintenant: MAINTENANT, journal: fauxJournal().journal });
+  const inconnue = await suivreVente({ env: m.ctx.env, vente: { ...VENTE, id: 'v9', email: 'lea@exemple.fr' }, fetchImpl: m.fetchImpl, maintenant: MAINTENANT, journal: fauxJournal().journal });
   assert.deepEqual(inconnue, { pub: '', delai: null, le: MAINTENANT.toISOString(), ac: 'ok', meta: 'sans-accord' });
 });
 

@@ -26,7 +26,7 @@ import { nettoyerEmail } from '../partage/validation.js';
 import { synchroniserContact } from './activecampaign.js';
 import { empreinteEmail } from './empreinte.js';
 import { demander, ErreurIclosed, estAnnule, instantDe, lireAppels, lister, trouverEvent, utmDe } from './iclosed.js';
-import { accesConversions, construireEvenement, envoiPermis, envoyerEvenement } from './meta-conversions.js';
+import { accesConversions, construireEvenement, envoiPermis, envoyerEvenement, regleConsentement } from './meta-conversions.js';
 import { CHAMPS, RDV_RECUL_MS, SUIVI_DEPUIS, TAGS } from './reglages.js';
 import { repondre } from './reponse.js';
 import { CLE_VERROU_RDV, cleRdv, lireInscriptions, noterEtat } from './suivi.js';
@@ -234,7 +234,7 @@ export async function synchroniserRdv(contexte = {}) {
         if (fiche.ac === 0 && acRegle && (production || email === adresseDeTest)) echecs += 1;
       }
       if (email && metaRegle && fiche.meta !== 1 && fiche.meta !== -2) {
-        if (!envoiPermis(suivi?.inscription?.accord === 1)) {
+        if (!envoiPermis(suivi?.inscription?.accord === 1, regleConsentement(env))) {
           fiche.meta = -1;
         } else {
           const surLeSite = Boolean(suivi?.contexte?.ua);

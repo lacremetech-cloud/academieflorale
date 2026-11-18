@@ -1,0 +1,60 @@
+---
+/**
+ * Pixel Meta du navigateur : il compte l'affichage de la page (PageView) et pose
+ * les cookies de Meta (« _fbp », « _fbc »), que le formulaire transmet ensuite au
+ * serveur avec l'inscription.
+ *
+ * Les conversions ne partent pas d'ici : Prospect, Rendez-vous programmé et Achat
+ * sont envoyés par le serveur (API de conversion, serveur/meta-conversions.js),
+ * une seule fois chacun. Rien ne peut donc être compté deux fois.
+ *
+ * - Chargé sans bandeau de consentement : décision de l'Académie du 18/11/2026.
+ * - Chargé en production seulement : ni les préversions ni l'aperçu local
+ *   n'envoient de visites à Meta (PIXEL_META_ACTIF=1 le force, pour un contrôle local).
+ * - « differe » : la page appelle elle-même window.afPixel.voir() quand son adresse
+ *   ne porte plus aucune donnée personnelle (page merci call, après le retour d'iClosed).
+ */
+import { PIXEL_META } from '../../partage/meta.js';
+
+interface Props {
+  differe?: boolean;
+}
+
+const { differe = false } = Astro.props;
+const actif = process.env.VERCEL_ENV === 'production' || process.env.PIXEL_META_ACTIF === '1';
+---
+
+{
+  actif && (
+    <script is:inline define:vars={{ pixel: PIXEL_META, differe }}>
+      /* Amorce officielle du pixel Meta : les appels sont mis en file en attendant le script. */
+      !(function (f, b, e, v, n, t, s) {
+        if (f.fbq) return;
+        n = f.fbq = function () {
+          n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments);
+        };
+        if (!f._fbq) f._fbq = n;
+        n.push = n;
+        n.loaded = !0;
+        n.version = '2.0';
+        n.queue = [];
+        t = b.createElement(e);
+        t.async = !0;
+        t.src = v;
+        s = b.getElementsByTagName(e)[0];
+        s.parentNode.insertBefore(t, s);
+      })(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js');
+      fbq('init', pixel);
+      /* L'affichage de la page n'est compté qu'une fois, et jamais avec une donnée personnelle dans l'adresse. */
+      window.afPixel = {
+        vue: false,
+        voir: function () {
+          if (this.vue) return;
+          this.vue = true;
+          fbq('track', 'PageView');
+        },
+      };
+      if (!differe) window.afPixel.voir();
+    </script>
+  )
+}

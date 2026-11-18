@@ -71,15 +71,16 @@ export const AUTOMATISATIONS = Object.freeze({
 });
 
 /**
- * API de conversion Meta : faut-il l'accord de la visiteuse avant d'envoyer ses
- * événements à Meta ?
- * - 'requis' : rien ne part sans un accord explicite (bandeau de consentement) ;
- * - 'non-requis' : les événements partent pour toutes les inscrites.
- * Décision qui revient à l'Académie (brief : « ne charger le pixel qu'après
- * consentement »). Tant qu'aucun bandeau ne recueille l'accord, 'requis' veut
- * dire qu'aucun événement n'est envoyé.
+ * Meta (pixel et API de conversion) : faut-il l'accord de la visiteuse avant de
+ * lui envoyer ses événements ?
+ * - 'non-requis' : les événements partent pour toutes les visiteuses ;
+ * - 'requis' : rien ne part sans un accord explicite (bandeau de consentement).
+ * Décision de l'Académie du 18/11/2026 : « Pas de bandeau, on charge sans
+ * consentement », comme sur l'ancien tunnel. Pour revenir en arrière sans toucher
+ * au code : variable META_CONSENTEMENT=requis dans Vercel (le pixel du navigateur,
+ * lui, se retire dans src/layouts/Tunnel.astro).
  */
-export const CONSENTEMENT_META = /** @type {'requis' | 'non-requis'} */ ('requis');
+export const CONSENTEMENT_META = /** @type {'requis' | 'non-requis'} */ ('non-requis');
 
 /** Durée de garde de l'attribution d'une inscrite (sa publicité d'arrivée), en secondes : 400 jours. */
 export const GARDE_INSCRIPTION_S = 400 * 86400;

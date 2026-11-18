@@ -6,8 +6,8 @@
  * - la publicité d'arrivée de chaque inscrite, sous l'empreinte de son email
  *   (gardée 400 jours) ;
  * - le contexte technique de l'inscription (adresse IP, navigateur), seulement
- *   quand elle a donné son accord, gardé 14 jours : il accompagne l'événement
- *   « rendez-vous » envoyé à Meta ;
+ *   quand ses événements peuvent partir chez Meta, gardé 14 jours : il accompagne
+ *   l'événement « rendez-vous » ;
  * - le nombre d'inscrites par publicité et par jour, et par créneau horaire ;
  * - le dernier état de chaque branchement (rendez-vous, API de conversion).
  * Rien ici ne lève d'erreur : le suivi ne doit jamais gêner une inscription.
@@ -83,7 +83,8 @@ export function paires(brut) {
  * @param {string} infos.email
  * @param {string} [infos.variante]
  * @param {Record<string, string>} [infos.utm]
- * @param {boolean} [infos.accord]
+ * @param {boolean} [infos.accord] vrai quand ses événements peuvent partir chez Meta
+ * @param {string} [infos.fbc] identifiant de clic posé par le pixel (cookie « _fbc »), s'il existe
  * @param {{ ip?: string, ua?: string, fbp?: string }} [infos.contexte]
  * @param {{ fetchImpl?: typeof fetch, maintenant?: Date }} [options]
  * @returns {Promise<{ ok: boolean, nouvelle: boolean, inscription: Inscription | null }>}
@@ -104,7 +105,7 @@ export async function enregistrerInscription(env, infos, options = {}) {
     campagne: court(utm.utm_campaign, 120),
     ensemble: court(utm.utm_term, 120),
     annonce: court(utm.utm_content, 120),
-    fbc: fbcDepuis(utm.fbclid, maintenant.getTime()),
+    fbc: court(infos.fbc, 600) || fbcDepuis(utm.fbclid, maintenant.getTime()),
     accord: infos.accord === true ? 1 : 0,
   };
   try {

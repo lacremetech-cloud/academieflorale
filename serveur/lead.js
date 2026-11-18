@@ -112,6 +112,7 @@ export function construireContact({ prenom, email, telephone, source, utm, page 
  * @property {string} ip
  * @property {string} ua navigateur
  * @property {string} fbp identifiant de navigateur posé par le pixel Meta, s'il y en a un
+ * @property {string} fbc identifiant de clic posé par le pixel Meta, s'il y en a un
  * @property {string} adresse page de l'inscription, sans paramètre
  * @property {string} idEvenement identifiant de l'événement « Lead », commun au navigateur et au serveur
  */
@@ -132,9 +133,15 @@ function pageDuFormulaire(request) {
   return `${DOMAINE_PUBLIC}/inscription`;
 }
 
-/** Le cookie « _fbp » du pixel Meta, s'il existe. @param {Request} request */
+/** Le cookie « _fbp » du pixel Meta (identifiant de navigateur), s'il existe. @param {Request} request */
 function cookieFbp(request) {
   const trouve = /(?:^|;\s*)_fbp=(fb\.\d\.\d{10,16}\.\d{1,20})(?:;|$)/.exec(request.headers.get('cookie') ?? '');
+  return trouve?.[1] ?? '';
+}
+
+/** Le cookie « _fbc » du pixel Meta (identifiant de clic), s'il existe. @param {Request} request */
+function cookieFbc(request) {
+  const trouve = /(?:^|;\s*)_fbc=(fb\.\d\.\d{10,16}\.[A-Za-z0-9_-]{8,500})(?:;|$)/.exec(request.headers.get('cookie') ?? '');
   return trouve?.[1] ?? '';
 }
 
@@ -280,6 +287,7 @@ export async function traiterLead(request, contexte = {}) {
         ip: adresseCliente(request),
         ua: (request.headers.get('user-agent') ?? '').slice(0, 400),
         fbp: cookieFbp(request),
+        fbc: cookieFbc(request),
         adresse: pageDuFormulaire(request),
         idEvenement: idRecu || `lead-${identifiant()}`,
       });

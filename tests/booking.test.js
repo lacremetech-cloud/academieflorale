@@ -122,9 +122,24 @@ test('nouvelle réservation : ActiveCampaign, puis Meta, puis la base ; jamais d
   assert.equal(JSON.stringify(m.lignes).includes('exemple'), false);
 });
 
-test('sans accord, ou sans inscription connue : ActiveCampaign oui, Meta non', async () => {
+test('sans inscription connue : le rendez-vous part quand même chez Meta, sans se dire « site web »', async () => {
+  const m = monde([appel({ id: 502, inviteeEmail: 'lea@exemple.fr' })]);
+  await synchroniserRdv({ ...m.ctx, maintenant: MAINTENANT });
+  const [evenement] = m.vers('meta')[0].corps.data;
+  // Léa n'est pas passée par la landing : ni navigateur ni clic connus, seulement l'empreinte de son email et de son téléphone.
+  assert.deepEqual([evenement.event_name, evenement.event_id, evenement.action_source, 'event_source_url' in evenement, 'fbc' in evenement.user_data], ['Schedule', 'rdv-502', 'other', false, false]);
+  assert.deepEqual(evenement.user_data.em, [empreinteEmail('lea@exemple.fr')]);
+  assert.equal(JSON.parse((await m.commandes(['HGET', 'af:c1:rdv:2026-11', '502']))[0]).meta, 1);
+});
+
+test('si l’accord redevenait requis : sans lui, ActiveCampaign oui, Meta non', async () => {
   const m = monde([appel(), appel({ id: 502, inviteeEmail: 'lea@exemple.fr' })]);
-  await inscrire(m, false);
+  m.ctx.env = { ...PROD, META_CONSENTEMENT: 'requis' };
+  await enregistrerInscription(
+    PROD,
+    { email: 'camille@exemple.fr', utm: { utm_id: '120212345678901234' }, accord: false },
+    { fetchImpl: m.fetchImpl, maintenant: new Date('2026-11-18T17:00:00Z') },
+  );
   await synchroniserRdv({ ...m.ctx, maintenant: MAINTENANT });
   assert.equal(m.vers('activecampaign').length, 2);
   assert.equal(m.vers('meta').length, 0);

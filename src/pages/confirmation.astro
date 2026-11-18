@@ -512,7 +512,7 @@ import { CHEMINS, WISTIA } from '../reglages';
 
   // 3. L'adresse : on en retire le nom, l'email, le téléphone et le reste des détails,
   //    en ne gardant que l'attribution. Puis le signal de réservation, une seule fois
-  //    par rendez-vous : c'est lui qu'écoutera le pixel.
+  //    par rendez-vous : il prévient le serveur, qui envoie lui-même l'événement à Meta.
   let nettoyee = false;
   const nettoyer = () => {
     if (nettoyee) return;
@@ -521,6 +521,8 @@ import { CHEMINS, WISTIA } from '../reglages';
     if (propre !== window.location.search) {
       window.history.replaceState(null, '', window.location.pathname + propre + window.location.hash);
     }
+    // L'adresse ne porte plus aucune donnée personnelle : le pixel peut compter l'affichage.
+    (window as unknown as { afPixel?: { voir(): void } }).afPixel?.voir();
     if (!retour?.id) return;
     const cle = `af_rdv_signale_${retour.id}`;
     try {

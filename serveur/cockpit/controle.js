@@ -7,8 +7,8 @@
  */
 import { accesCompteurs } from '../../partage/compteurs.js';
 import { lireReglage } from '../activecampaign.js';
-import { accesConversions } from '../meta-conversions.js';
-import { AUTOMATISATIONS, CHAMPS, CONSENTEMENT_META, LISTES } from '../reglages.js';
+import { accesConversions, regleConsentement } from '../meta-conversions.js';
+import { AUTOMATISATIONS, CHAMPS, LISTES } from '../reglages.js';
 import { lireEtats } from '../suivi.js';
 
 /**
@@ -140,11 +140,11 @@ export async function controlerSuivi({ env, fetchImpl = fetch, maintenant = new 
       nom: 'API de conversion Meta',
       etat: 'a-brancher',
       lignes: ['Prospect à l’inscription, Rendez-vous programmé à la réservation, Achat à la vente.'],
-      variables: ['META_PIXEL_ID', 'META_CAPI_TOKEN'],
+      variables: ['META_CAPI_TOKEN'],
     };
   } else {
     const dernier = etats.conversions;
-    const lignes = [CONSENTEMENT_META === 'requis' ? 'N’envoie que les événements des visiteuses qui ont donné leur accord.' : 'Envoie Prospect, Rendez-vous programmé et Achat.'];
+    const lignes = [regleConsentement(env) === 'requis' ? 'N’envoie que les événements des visiteuses qui ont donné leur accord.' : 'Envoie Prospect, Rendez-vous programmé et Achat.'];
     if (dernier?.t) lignes.push(`Dernier événement (${dernier.nom}) ${ilYA(String(dernier.t), maintenant)} : ${dernier.ok ? 'reçu par Meta' : `refusé (${String(dernier.detail || 'erreur').slice(0, 120)})`}.`);
     else lignes.push('Aucun événement envoyé pour l’instant.');
     conversions = { nom: 'API de conversion Meta', etat: dernier?.t && !dernier.ok ? 'erreur' : production ? 'ok' : 'attente', lignes };

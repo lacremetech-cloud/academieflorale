@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { empreinteEmail, empreintePrenom, empreinteTelephone } from '../serveur/empreinte.js';
-import { accesConversions, construireEvenement, envoiPermis, envoyerEvenement } from '../serveur/meta-conversions.js';
+import { PIXEL_META } from '../partage/meta.js';
+import { accesConversions, construireEvenement, envoiPermis, envoyerEvenement, regleConsentement } from '../serveur/meta-conversions.js';
 import { CONSENTEMENT_META } from '../serveur/reglages.js';
 import { suivreInscription } from '../serveur/suivi-inscription.js';
 import { fauxJournal, fauxMonde, PROD } from './faux.js';
@@ -17,13 +18,17 @@ const INSCRIPTION = {
   ip: '203.0.113.7',
   ua: 'Navigateur de test',
   fbp: 'fb.1.1795000000000.123456789',
+  fbc: '',
   adresse: 'https://decouvrir.academie-florale.fr/inscription',
   idEvenement: 'lead-0001-test',
 };
 
-test('réglage : pixel et jeton nécessaires, code de test facultatif', () => {
+test('réglage : le jeton suffit (le pixel de l’Académie est connu), code de test facultatif', () => {
   assert.equal(accesConversions({}), null);
   assert.equal(accesConversions({ META_PIXEL_ID: '1234567890123456' }), null);
+  // Sans autre pixel indiqué, c'est celui de l'Académie, le même que dans les pages.
+  assert.equal(accesConversions({ META_CAPI_TOKEN: 'jeton' }).pixel, PIXEL_META);
+  assert.match(PIXEL_META, /^\d{8,20}$/);
   assert.equal(accesConversions({ META_PIXEL_ID: 'pas-un-pixel', META_CAPI_TOKEN: 'jeton' }), null);
   assert.deepEqual(accesConversions({ META_PIXEL_ID: ' 1234567890123456 ', META_CAPI_TOKEN: ' jeton ', META_TEST_EVENT_CODE: 'TEST12345' }), {
     pixel: '1234567890123456',
@@ -33,13 +38,18 @@ test('réglage : pixel et jeton nécessaires, code de test facultatif', () => {
   });
 });
 
-test('accord : rien ne part sans lui quand il est requis', () => {
-  // Le réglage livré : l'accord de la visiteuse est requis (décision à prendre par l'Académie).
-  assert.equal(CONSENTEMENT_META, 'requis');
+test('accord : pas de bandeau, tout part ; la règle se change par une variable', () => {
+  // Décision de l'Académie du 18/11/2026 : « Pas de bandeau, on charge sans consentement ».
+  assert.equal(CONSENTEMENT_META, 'non-requis');
+  assert.equal(regleConsentement({}), 'non-requis');
+  assert.equal(regleConsentement({ META_CONSENTEMENT: ' requis ' }), 'requis');
+  assert.equal(regleConsentement({ META_CONSENTEMENT: 'autre chose' }), 'non-requis');
+  assert.equal(envoiPermis(undefined), true);
+  assert.equal(envoiPermis(false, 'non-requis'), true);
+  // Si un jour l'accord redevient requis, rien ne part sans lui.
   assert.equal(envoiPermis(true, 'requis'), true);
   assert.equal(envoiPermis(false, 'requis'), false);
   assert.equal(envoiPermis(undefined, 'requis'), false);
-  assert.equal(envoiPermis(undefined, 'non-requis'), true);
 });
 
 test('événement : coordonnées en empreintes, jamais en clair', () => {
@@ -127,10 +137,17 @@ test('après une inscription : publicité retenue, puis « Prospect » envoyé u
   assert.deepEqual(await suivreInscription({ ...options, inscription: { ...INSCRIPTION, idEvenement: 'lead-0002-test' } }), { retenue: true, nouvelle: false, meta: 'deja' });
   assert.equal(monde.vers('meta').length, 1);
 
-  // Sans accord : la publicité est retenue pour le cockpit, rien ne part chez Meta.
-  const sansAccord = await suivreInscription({ ...options, inscription: { ...INSCRIPTION, email: 'lea@exemple.fr', accord: false } });
+  // Pas de bandeau : une inscrite à qui l'on n'a rien demandé est envoyée aussi, avec l'identifiant de clic du pixel s'il existe.
+  const sansQuestion = await suivreInscription({ ...options, inscription: { ...INSCRIPTION, email: 'lea@exemple.fr', accord: false, fbc: 'fb.1.1795000000001.ClicDuPixel_0001' } });
+  assert.deepEqual(sansQuestion, { retenue: true, nouvelle: true, meta: 'ok' });
+  assert.equal(monde.vers('meta').length, 2);
+  assert.equal(monde.vers('meta')[1].corps.data[0].user_data.fbc, 'fb.1.1795000000001.ClicDuPixel_0001');
+
+  // Si l'accord redevenait requis : la publicité resterait retenue pour le cockpit, rien ne partirait chez Meta.
+  const requis = { ...options, env: { ...PROD, META_CONSENTEMENT: 'requis' } };
+  const sansAccord = await suivreInscription({ ...requis, inscription: { ...INSCRIPTION, email: 'ines@exemple.fr', accord: false } });
   assert.deepEqual(sansAccord, { retenue: true, nouvelle: true, meta: 'sans-accord' });
-  assert.equal(monde.vers('meta').length, 1);
+  assert.equal(monde.vers('meta').length, 2);
 
   // Sans jeton : rien à envoyer.
   const { META_CAPI_TOKEN: _, ...sansJeton } = PROD;

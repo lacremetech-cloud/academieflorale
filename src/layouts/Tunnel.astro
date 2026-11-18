@@ -11,6 +11,7 @@ import charte from '../styles/charte.css?raw';
 import policeLatine from '@fontsource-variable/outfit/files/outfit-latin-wght-normal.woff2?url';
 import EnTete from '../components/EnTete.astro';
 import PiedDePage from '../components/PiedDePage.astro';
+import PixelMeta from '../components/PixelMeta.astro';
 
 interface Props {
   titre: string;
@@ -24,6 +25,14 @@ const { titre, description, indexable = false, enTete = true, pied = 'complet' }
 
 // La couleur de la barre du navigateur vient de la charte, comme le reste.
 const creme = /--creme:\s*([^;]+);/.exec(charte)?.[1]?.trim();
+
+// Le pixel Meta : sur les pages du tunnel et les pages ressources, jamais sur les
+// pages internes (/equipe : bibliothèque de liens, cockpit). Sur la page merci call,
+// l'affichage n'est compté qu'une fois l'adresse nettoyée (iClosed y ajoute le nom,
+// l'email et le téléphone de la prospecte).
+const chemin = Astro.url.pathname.replace(/\/+$/, '').replace(/\.html$/, '');
+const pagePublique = !chemin.startsWith('/equipe');
+const pixelDiffere = chemin === '/confirmation';
 ---
 
 <!doctype html>
@@ -42,6 +51,7 @@ const creme = /--creme:\s*([^;]+);/.exec(charte)?.[1]?.trim();
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="preload" as="font" type="font/woff2" href={policeLatine} crossorigin />
     <slot name="tete" />
+    {pagePublique && <PixelMeta differe={pixelDiffere} />}
   </head>
   <body>
     {enTete && <EnTete />}

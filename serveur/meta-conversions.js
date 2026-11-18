@@ -7,17 +7,21 @@
  * - « Purchase » (Achat) : à l'enregistrement d'une vente dans le cockpit.
  *
  * Variables d'environnement (saisies dans Vercel, jamais dans le repo) :
- * - META_PIXEL_ID : identifiant du pixel (ensemble de données) de l'Académie ;
  * - META_CAPI_TOKEN : jeton de l'API de conversion, créé dans le Gestionnaire
  *   d'évènements (Paramètres du pixel, « API Conversions ») ;
+ * - META_PIXEL_ID (facultatif) : un autre pixel que celui de partage/meta.js ;
+ * - META_CONSENTEMENT (facultatif) : « requis » ou « non-requis », pour changer la
+ *   règle de serveur/reglages.js sans toucher au code ;
  * - META_TEST_EVENT_CODE (facultatif, le temps d'un essai) : code de l'onglet
  *   « Évènements de test ». Meta traite quand même ces événements comme des vrais.
  *
  * Règles :
  * - l'email, le téléphone et le prénom ne partent que sous forme d'empreintes ;
- * - rien ne part sans l'accord demandé par CONSENTEMENT_META (serveur/reglages.js) ;
+ * - la règle d'accord est celle de CONSENTEMENT_META (serveur/reglages.js) : quand
+ *   l'accord est requis, rien ne part sans lui ;
  * - aucune donnée personnelle dans les journaux, et le jeton ne voyage que dans un en-tête.
  */
+import { PIXEL_META } from '../partage/meta.js';
 import { empreinteEmail, empreintePrenom, empreinteTelephone } from './empreinte.js';
 import { CONSENTEMENT_META } from './reglages.js';
 
@@ -39,11 +43,21 @@ export function versionMeta(env) {
  * @returns {{ pixel: string, jeton: string, version: string, codeDeTest: string } | null} null si rien n'est réglé
  */
 export function accesConversions(env) {
-  const pixel = (env.META_PIXEL_ID ?? '').trim();
+  const pixel = (env.META_PIXEL_ID ?? '').trim() || PIXEL_META;
   const jeton = (env.META_CAPI_TOKEN ?? '').trim();
   if (!/^\d{8,20}$/.test(pixel) || !jeton) return null;
   const code = (env.META_TEST_EVENT_CODE ?? '').trim();
   return { pixel, jeton, version: versionMeta(env), codeDeTest: /^[A-Za-z0-9_-]{4,40}$/.test(code) ? code : '' };
+}
+
+/**
+ * La règle d'accord en vigueur : celle du code, ou celle de la variable META_CONSENTEMENT.
+ * @param {Record<string, string | undefined>} env
+ * @returns {'requis' | 'non-requis'}
+ */
+export function regleConsentement(env) {
+  const voulue = (env.META_CONSENTEMENT ?? '').trim();
+  return voulue === 'requis' || voulue === 'non-requis' ? voulue : CONSENTEMENT_META;
 }
 
 /**

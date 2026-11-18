@@ -162,7 +162,7 @@ test('production : après l’inscription, le suivi reçoit la publicité d’ar
     referer: `${SITE}/inscription?utm_id=120212345678901234&fbclid=IwAR0abcDEF_123-xyz`,
     host: 'tunnel.test',
     'user-agent': 'Navigateur de test',
-    cookie: 'autre=1; _fbp=fb.1.1795000000000.123456789',
+    cookie: 'autre=1; _fbp=fb.1.1795000000000.123456789; _fbc=fb.1.1795000000001.IwAR0abcDEF_123-xyz',
   };
   assert.deepEqual(await (await traiterLead(demande(lead, { enTetes }), hooks)).json(), { ok: true });
   assert.deepEqual(comptees, [['inscrits', 'inscription/90-jours']]);
@@ -173,11 +173,13 @@ test('production : après l’inscription, le suivi reçoit la publicité d’ar
       telephone: '+33612345678',
       variante: 'inscription/90-jours',
       utm: { utm_source: 'meta', utm_content: 'P01 H1', utm_id: '120212345678901234', fbclid: 'IwAR0abcDEF_123-xyz' },
-      // Aucun bandeau ne recueille encore l'accord : il n'est jamais supposé.
+      // Aucun bandeau ne demande d'accord : il n'est jamais supposé (la règle d'envoi se décide plus loin).
       accord: false,
       ip: '203.0.113.7',
       ua: 'Navigateur de test',
+      // Les deux cookies du pixel Meta, quand il les a posés.
       fbp: 'fb.1.1795000000000.123456789',
+      fbc: 'fb.1.1795000000001.IwAR0abcDEF_123-xyz',
       // L'adresse donnée à Meta : la page du formulaire, sans ses paramètres, sur le domaine public.
       adresse: 'https://decouvrir.academie-florale.fr/inscription',
       idEvenement: 'lead-uuid-de-test',
@@ -186,7 +188,7 @@ test('production : après l’inscription, le suivi reçoit la publicité d’ar
 
   // L'accord et l'identifiant d'événement donnés par la page sont repris ; une page d'un autre site, jamais.
   await traiterLead(demande({ ...lead, consentement: true, idEvenement: 'lead-navigateur-0001' }, { enTetes: { referer: 'https://ailleurs.test/piege?email=x' } }), hooks);
-  assert.deepEqual([suivies[1].accord, suivies[1].idEvenement, suivies[1].adresse, suivies[1].fbp], [true, 'lead-navigateur-0001', 'https://decouvrir.academie-florale.fr/inscription', '']);
+  assert.deepEqual([suivies[1].accord, suivies[1].idEvenement, suivies[1].adresse, suivies[1].fbp, suivies[1].fbc], [true, 'lead-navigateur-0001', 'https://decouvrir.academie-florale.fr/inscription', '', '']);
 
   // Un suivi qui plante ne fait jamais échouer l'inscription.
   const plante = await traiterLead(demande(lead), {
