@@ -8,6 +8,7 @@
  * Fonctions pures, communes au serveur et à la page : aucune dépendance,
  * aucun secret. Les montants sont en euros, calculés en centimes.
  */
+import { estTunnel, TUNNEL_PAR_DEFAUT } from './tunnels.js';
 import { nettoyerEmail } from './validation.js';
 
 /** Les trois formules vendues. Le montant de la vente est toujours saisi. */
@@ -56,7 +57,8 @@ const PREMIER_JOUR = '2024-01-01';
  *   déclenché : liste « Client » dans ActiveCampaign, événement « Achat » chez Meta, publicité d'arrivée de l'élève
  * @typedef {{ id?: string, date: string, formule: string, montant: number, commission: number,
  *   closer?: string, closerNom?: string, paiements: Paiement[], note?: string, creeLe?: string,
- *   email?: string, suivi?: SuiviVente }} Vente
+ *   email?: string, suivi?: SuiviVente, tunnel?: string }} Vente « tunnel » : d'où vient l'élève
+ *   (VSL, webinaire, organique) ; une vente enregistrée avant les onglets vient du tunnel VSL
  * @typedef {{ date: string, montant: number, methode: string, etape: string }} Echeance
  */
 
@@ -204,9 +206,12 @@ export function texteCourt(texte, longueur) {
  * @returns {{ ok: true, vente: Vente } | { ok: false, erreur: 'vente' | 'date' | 'formule' | 'montant' | 'commission' | 'paiements' | 'repartition' }}
  */
 export function normaliserVente(brut, { aujourdHui }) {
-  /** @param {'vente' | 'date' | 'formule' | 'montant' | 'commission' | 'paiements' | 'repartition' | 'email'} code */
+  /** @param {'vente' | 'date' | 'formule' | 'montant' | 'commission' | 'paiements' | 'repartition' | 'email' | 'tunnel'} code */
   const refus = (code) => /** @type {const} */ ({ ok: false, erreur: code });
   if (!brut || typeof brut !== 'object') return refus('vente');
+  // Le tunnel d'où vient l'élève : sans précision, celui de ce site.
+  if (brut.tunnel != null && brut.tunnel !== '' && !estTunnel(brut.tunnel)) return refus('tunnel');
+  const tunnel = estTunnel(brut.tunnel) ? brut.tunnel : TUNNEL_PAR_DEFAUT;
   const date = typeof brut.date === 'string' ? brut.date : '';
   // Une vente ne s'enregistre pas pour un jour à venir.
   if (!jourValide(date) || date > aujourdHui || date < PREMIER_JOUR) return refus('date');
@@ -239,7 +244,7 @@ export function normaliserVente(brut, { aujourdHui }) {
 
   return {
     ok: true,
-    vente: { date, formule: brut.formule, montant, commission: commission ?? 0, paiements, note: texteCourt(brut.note, NOTE_VENTE_MAX), email },
+    vente: { date, formule: brut.formule, montant, commission: commission ?? 0, paiements, note: texteCourt(brut.note, NOTE_VENTE_MAX), email, tunnel },
   };
 }
 
@@ -255,6 +260,16 @@ function moisPlus(mois, ecart) {
 }
 
 /**
+ * Le tunnel d'où vient l'élève d'une vente. Une vente enregistrée avant les onglets
+ * du cockpit n'en dit rien : elle vient du tunnel de ce site.
+ * @param {{ tunnel?: unknown }} vente
+ * @returns {import('./tunnels.js').Tunnel}
+ */
+export function tunnelDeVente(vente) {
+  return estTunnel(vente?.tunnel) ? vente.tunnel : TUNNEL_PAR_DEFAUT;
+}
+
+/**
  * À partir de toutes les ventes, ce que le cockpit affiche pour un mois :
  * - `jours` : par jour de vente, le nombre de ventes, le commandé (`contracte`)
  *   et ce qui en est déjà encaissé aujourd'hui ;
@@ -263,10 +278,13 @@ function moisPlus(mois, ecart) {
  *   confondues), par moyen de paiement : pour les mois à venir, c'est le MRR ;
  * - `aEncaisser` : tout ce qui reste à venir, toutes ventes confondues ;
  * - `commissions` : par closer, pour les ventes du mois.
+ * Avec `tunnel`, `jours` et `ventes` ne comptent que les ventes de ce tunnel (un
+ * onglet du cockpit) ; les encaissements et les commissions restent ceux de
+ * toutes les ventes : la caisse et la paie des closers ne se découpent pas par tunnel.
  * @param {Vente[]} toutes
- * @param {{ mois: string, aujourdHui: string, horizon?: number }} options
+ * @param {{ mois: string, aujourdHui: string, horizon?: number, tunnel?: string }} options
  */
-export function calculerVentes(toutes, { mois, aujourdHui, horizon = 12 }) {
+export function calculerVentes(toutes, { mois, aujourdHui, horizon = 12, tunnel }) {
   /** @type {Record<string, { ventes: number, contracte: number, encaisse: number }>} */
   const jours = {};
   /** @type {Record<string, { mois: string, total: number, encaisse: number, parMethode: Record<string, number> }>} */
@@ -294,16 +312,20 @@ export function calculerVentes(toutes, { mois, aujourdHui, horizon = 12 }) {
       if (echeance.date <= aujourdHui) ligne.encaisse += valeur;
     }
     if (vente.date.slice(0, 7) !== mois) continue;
-    const jour = (jours[vente.date] ??= { ventes: 0, contracte: 0, encaisse: 0 });
-    jour.ventes += 1;
-    jour.contracte += centimes(vente.montant);
-    jour.encaisse += encaisse;
+    // Les commissions du mois : toutes les ventes, quel que soit le tunnel.
     const cle = vente.closer ?? '';
     const closer = (parCloser[cle] ??= { closer: cle, nom: vente.closerNom ?? '', ventes: 0, contracte: 0, commission: 0 });
     closer.ventes += 1;
     closer.contracte += centimes(vente.montant);
     closer.commission += centimes(vente.commission ?? 0);
-    duMois.push({ ...vente, encaisse: encaisse / 100, reste: (centimes(vente.montant) - encaisse) / 100 });
+    // Les ventes par jour et la liste du mois : celles du tunnel demandé seulement.
+    const duTunnel = tunnelDeVente(vente);
+    if (tunnel && duTunnel !== tunnel) continue;
+    const jour = (jours[vente.date] ??= { ventes: 0, contracte: 0, encaisse: 0 });
+    jour.ventes += 1;
+    jour.contracte += centimes(vente.montant);
+    jour.encaisse += encaisse;
+    duMois.push({ ...vente, tunnel: duTunnel, encaisse: encaisse / 100, reste: (centimes(vente.montant) - encaisse) / 100 });
   }
 
   for (const jour of Object.values(jours)) {

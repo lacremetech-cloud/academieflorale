@@ -15,7 +15,7 @@
 import { clePub, joursEntre, PARAMETRES_PUB, SANS_PUB, trancheDelai, TRANCHES_DELAI } from '../../partage/attribution.js';
 import { joursEcoules, jourParis, moisCourant, moisDecale, moisValide } from '../../partage/cockpit.js';
 import { rattacherTunnel, regrouperPubs } from '../../partage/pubs.js';
-import { encaisseAu } from '../../partage/ventes.js';
+import { encaisseAu, tunnelDeVente } from '../../partage/ventes.js';
 import { nettoyerEmail } from '../../partage/validation.js';
 import { empreinteEmail } from '../empreinte.js';
 import { estAnnule, jourDe, utmDe } from '../iclosed.js';
@@ -24,7 +24,7 @@ import { repondre } from '../reponse.js';
 import { lireInscriptions, lireInscritesParPub, lireMoments } from '../suivi.js';
 import { verifierAcces } from './acces.js';
 import { lireAppelsReserves } from './iclosed.js';
-import { filtreCampagnes } from './meta.js';
+import { filtreCampagnes, valeurAction } from './meta.js';
 import { lireRegistre } from './registre.js';
 
 /** Périodes proposées, en nombre de mois (le mois affiché compris). */
@@ -61,19 +61,8 @@ const TOUS_LES_ETATS = [
   'PENDING_BILLING_INFO',
 ];
 
-/**
- * La valeur d'une action dans la liste rendue par Meta.
- * @param {unknown} actions
- * @param {string[]} types
- */
-function action(actions, types) {
-  if (!Array.isArray(actions)) return 0;
-  for (const type of types) {
-    const trouvee = actions.find((a) => a?.action_type === type);
-    if (trouvee) return Number(trouvee.value) || 0;
-  }
-  return 0;
-}
+/** La valeur d'une action dans la liste rendue par Meta. */
+const action = valeurAction;
 
 /** @param {unknown} texte @param {number} longueur */
 const court = (texte, longueur) => (typeof texte === 'string' ? texte.replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, ' ').trim().slice(0, longueur) : '');
@@ -295,7 +284,8 @@ export async function assemblerPubs({ mois, periode, env, fetchImpl = fetch, mai
     });
 
   // 2. Ce que le tunnel a vu : rendez-vous et ventes, rattachés à la publicité d'arrivée par l'email.
-  const ventesDePeriode = registre.ventes.filter((vente) => dansLaPeriode.has(vente.date));
+  // Seulement les ventes du tunnel VSL : celles du webinaire et de l'organique ont leur onglet, et ne viennent pas de ces publicités.
+  const ventesDePeriode = registre.ventes.filter((vente) => dansLaPeriode.has(vente.date) && tunnelDeVente(vente) === 'vsl');
   const emailsAppels = appels.appels.map((appel) => nettoyerEmail(appel?.inviteeEmail ?? appel?.contact?.email ?? ''));
   const emailsVentes = ventesDePeriode.map((vente) => nettoyerEmail(vente.email ?? ''));
   const inscriptions = await lireInscriptions(env, [...emailsAppels, ...emailsVentes].filter(Boolean), { fetchImpl });

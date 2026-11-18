@@ -227,6 +227,8 @@ test('rapport : Meta, inscrites du tunnel, rendez-vous d’iClosed et ventes du 
     ['HSET', 'af:c1:ventes', 'v1', JSON.stringify({ date: '2026-11-25', formule: 'independant', montant: 3000, commission: 0, paiements, email: 'camille@exemple.fr' })],
     ['HSET', 'af:c1:ventes', 'v2', JSON.stringify({ date: '2026-11-26', formule: 'essentiel', montant: 1800, commission: 0, paiements: [{ methode: 'cpf', montant: 1800, mensualites: 1, debut: '2026-11-26' }] })],
     ['HSET', 'af:c1:ventes', 'v3', JSON.stringify({ date: '2026-10-02', formule: 'essentiel', montant: 999, commission: 0, paiements: [{ methode: 'virement', montant: 999, mensualites: 1, debut: '2026-10-02' }] })],
+    // Une vente du webinaire, à une élève pourtant inscrite par la pub P01 : elle a son onglet, le rapport des publicités du tunnel VSL ne la compte pas.
+    ['HSET', 'af:c1:ventes', 'v4', JSON.stringify({ date: '2026-11-27', formule: 'business', montant: 5000, commission: 0, tunnel: 'webinaire', email: 'camille@exemple.fr', paiements: [{ methode: 'virement', montant: 5000, mensualites: 1, debut: '2026-11-27' }] })],
   );
 
   const rapport = await assemblerPubs({ mois: '2026-11', periode: 'mois', env: PROD, fetchImpl: m.fetchImpl, maintenant: APRES });

@@ -7,6 +7,7 @@
  * ActiveCampaign et envoie l'événement « Achat » à Meta (serveur/cockpit/suivi-vente.js).
  */
 import { jourParis, moisCourant, moisValide } from '../../partage/cockpit.js';
+import { tunnelValide } from '../../partage/tunnels.js';
 import { calculerVentes, NOM_CLOSER_MAX, normaliserVente, texteCourt } from '../../partage/ventes.js';
 import { repondre } from '../reponse.js';
 import { memeOrigine } from '../requete.js';
@@ -18,13 +19,16 @@ import { suivreVente } from './suivi-vente.js';
 const ID = /^[a-z0-9-]{8,40}$/;
 
 /**
- * Ce que la page reçoit sur les ventes d'un mois.
+ * Ce que la page reçoit sur les ventes d'un mois, pour un onglet du cockpit : les
+ * ventes de son tunnel, jour par jour ; les encaissements et les commissions de
+ * toutes les ventes.
  * @param {{ ventes: import('../../partage/ventes.js').Vente[], closers: { id: string, nom: string }[] }} registre
  * @param {string} mois
  * @param {Date} maintenant
+ * @param {unknown} [tunnel] l'onglet affiché (celui du tunnel VSL sans précision)
  */
-export function blocVentes(registre, mois, maintenant) {
-  return { ...calculerVentes(registre.ventes, { mois, aujourdHui: jourParis(maintenant) }), closers: registre.closers };
+export function blocVentes(registre, mois, maintenant, tunnel) {
+  return { ...calculerVentes(registre.ventes, { mois, aujourdHui: jourParis(maintenant), tunnel: tunnelValide(tunnel) }), closers: registre.closers };
 }
 
 /**
@@ -61,9 +65,10 @@ async function ouvrir(request, methodes, { env, fetchImpl }) {
 const moisDemande = (texte, maintenant = new Date()) => (moisValide(texte) ? String(texte) : moisCourant(maintenant));
 
 /**
- * POST /api/cockpit/vente : enregistre une vente ({ mois, vente, closerNom? }) ;
+ * POST /api/cockpit/vente : enregistre une vente ({ mois, tunnel?, vente, closerNom? }) ;
  * avec `vente.id`, modifie la vente existante. Un nom de closer inconnu crée le
- * closer, qui se choisira ensuite dans la liste.
+ * closer, qui se choisira ensuite dans la liste. `tunnel` est l'onglet affiché (le
+ * bloc rendu est le sien) ; le tunnel de la vente elle-même est `vente.tunnel`.
  * POST { mois, renvoyer: id } : relance ce que la vente devait déclencher
  * (ActiveCampaign, Meta) et qui n'a pas abouti.
  * DELETE /api/cockpit/vente?id=…&mois=… : supprime une vente (rien n'est défait
@@ -90,7 +95,7 @@ export async function traiterVente(request, contexte = {}) {
     if (!ID.test(id) || !registre.ventes.some((vente) => vente.id === id)) return repondre(404, { ok: false, erreur: 'vente' });
     if ((await ecrireRegistre(env, { sansVente: id }, { fetchImpl })) !== 'ok') return repondre(502, { ok: false, erreur: 'indisponible' });
     const reste = { ...registre, ventes: registre.ventes.filter((vente) => vente.id !== id) };
-    return repondre(200, { ok: true, ...blocVentes(reste, moisDemande(adresse.searchParams.get('mois'), maintenant), maintenant) });
+    return repondre(200, { ok: true, ...blocVentes(reste, moisDemande(adresse.searchParams.get('mois'), maintenant), maintenant, adresse.searchParams.get('tunnel')) });
   }
 
   const demande = await corpsJson(request);
@@ -103,7 +108,7 @@ export async function traiterVente(request, contexte = {}) {
     const relancee = suivi ? { ...existante, suivi } : existante;
     if (suivi && (await ecrireRegistre(env, { vente: relancee }, { fetchImpl })) !== 'ok') return repondre(502, { ok: false, erreur: 'indisponible' });
     const apres = { ...registre, ventes: registre.ventes.map((vente) => (vente.id === relancee.id ? relancee : vente)) };
-    return repondre(200, { ok: true, id: relancee.id, ...blocVentes(apres, moisDemande(demande?.mois, maintenant), maintenant) });
+    return repondre(200, { ok: true, id: relancee.id, ...blocVentes(apres, moisDemande(demande?.mois, maintenant), maintenant, demande?.tunnel) });
   }
 
   const lue = normaliserVente(demande?.vente, { aujourdHui: jourParis(maintenant) });
@@ -149,7 +154,7 @@ export async function traiterVente(request, contexte = {}) {
     ventes: [...registre.ventes.filter((v) => v.id !== vente.id), vente],
     closers: nouveauCloser ? [...registre.closers, nouveauCloser].sort((a, b) => a.nom.localeCompare(b.nom, 'fr')) : registre.closers,
   };
-  return repondre(200, { ok: true, id: vente.id, ...blocVentes(suite, moisDemande(demande?.mois, maintenant), maintenant) });
+  return repondre(200, { ok: true, id: vente.id, ...blocVentes(suite, moisDemande(demande?.mois, maintenant), maintenant, demande?.tunnel) });
 }
 
 /**

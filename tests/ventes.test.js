@@ -113,7 +113,14 @@ test('vente saisie : mise au propre, et refus de ce qui ne tient pas', () => {
     ],
     note: 'b appel du soir /b',
     email: '',
+    // Sans précision, l'élève vient du tunnel de ce site.
+    tunnel: 'vsl',
   });
+  // Le tunnel d'où vient l'élève : l'un des onglets du cockpit, rien d'autre.
+  assert.equal(normaliserVente({ ...brute, tunnel: 'webinaire' }, { aujourdHui: AUJOURD_HUI }).vente.tunnel, 'webinaire');
+  assert.equal(normaliserVente({ ...brute, tunnel: 'organique' }, { aujourdHui: AUJOURD_HUI }).vente.tunnel, 'organique');
+  assert.equal(normaliserVente({ ...brute, tunnel: '' }, { aujourdHui: AUJOURD_HUI }).vente.tunnel, 'vsl');
+  assert.equal(normaliserVente({ ...brute, tunnel: 'salon' }, { aujourdHui: AUJOURD_HUI }).erreur, 'tunnel');
   // L'email de l'élève est facultatif ; saisi, il est mis au propre, et refusé s'il est illisible.
   assert.equal(normaliserVente({ ...brute, email: '  Camille@Exemple.FR ' }, { aujourdHui: AUJOURD_HUI }).vente.email, 'camille@exemple.fr');
   const refus = (changement) => normaliserVente({ ...brute, ...changement }, { aujourdHui: AUJOURD_HUI }).erreur;
@@ -172,6 +179,28 @@ test('cockpit : ventes par jour, encaissements par mois (MRR), reste à encaisse
   assert.deepEqual(octobre.jours, { '2026-10-05': { ventes: 1, contracte: 3000, encaisse: 1000 } });
   assert.deepEqual([octobre.encaissements[0].total, octobre.encaissements[0].encaisse], [500, 500]);
   assert.deepEqual(calculerVentes([], { mois: '2026-11', aujourdHui: AUJOURD_HUI }).jours, {});
+});
+
+test('cockpit, par onglet : les ventes du tunnel, jour par jour ; la caisse et les commissions de toutes les ventes', () => {
+  const paiement = (montant) => [{ methode: 'virement', montant, mensualites: 1, debut: '2026-11-18' }];
+  const ventes = [
+    // Enregistrée avant les onglets : sans tunnel, elle vient du tunnel VSL.
+    { id: 'a', date: '2026-11-18', formule: 'independant', montant: 3000, commission: 300, closer: 'c1', closerNom: 'Camille', creeLe: '2026-11-18T09:00:00Z', paiements: paiement(3000) },
+    { id: 'b', date: '2026-11-18', formule: 'essentiel', montant: 1800, commission: 180, closer: 'c1', closerNom: 'Camille', creeLe: '2026-11-18T10:00:00Z', tunnel: 'webinaire', paiements: paiement(1800) },
+    { id: 'c', date: '2026-11-17', formule: 'business', montant: 4000, commission: 400, closer: 'c2', closerNom: 'Albane', creeLe: '2026-11-17T10:00:00Z', tunnel: 'organique', paiements: paiement(4000) },
+  ];
+  const onglet = (tunnel) => calculerVentes(ventes, { mois: '2026-11', aujourdHui: AUJOURD_HUI, tunnel });
+  assert.deepEqual(onglet('vsl').jours, { '2026-11-18': { ventes: 1, contracte: 3000, encaisse: 3000 } });
+  assert.deepEqual(onglet('vsl').ventes.map((v) => [v.id, v.tunnel]), [['a', 'vsl']]);
+  assert.deepEqual(onglet('webinaire').jours, { '2026-11-18': { ventes: 1, contracte: 1800, encaisse: 1800 } });
+  assert.deepEqual(onglet('organique').ventes.map((v) => [v.id, v.tunnel]), [['c', 'organique']]);
+  // La caisse et la paie des closers ne se découpent pas par tunnel : les mêmes dans chaque onglet.
+  for (const tunnel of ['vsl', 'webinaire', 'organique']) {
+    assert.equal(onglet(tunnel).encaissements[0].total, 8800);
+    assert.deepEqual(onglet(tunnel).commissions.map((c) => [c.nom, c.ventes, c.commission]), [['Albane', 1, 400], ['Camille', 2, 480]]);
+  }
+  // Sans onglet demandé : toutes les ventes du mois.
+  assert.deepEqual(calculerVentes(ventes, { mois: '2026-11', aujourdHui: AUJOURD_HUI }).ventes.map((v) => v.id), ['c', 'a', 'b']);
 });
 
 /* ---------- Les fonctions serveur ---------- */
@@ -266,6 +295,36 @@ test('vente : enregistrée avec un nouveau closer, qui se choisit ensuite dans l
   assert.equal((await supprimee.json()).ventes.some((v) => v.id === 'fiche-0002'), false);
   assert.equal(base.tables['af:c1:ventes'].has('fiche-0002'), false);
   assert.equal((await traiterVente(demande('/api/cockpit/vente?id=fiche-0002&mois=2026-11', { methode: 'DELETE' }), ctx)).status, 404);
+});
+
+test('vente : rangée dans son tunnel ; la réponse rend le bloc de l’onglet affiché', async () => {
+  const base = fausseBase();
+  let numero = 0;
+  const ctx = { env: ENV, fetchImpl: base.fetchImpl, maintenant: MAINTENANT, identifiant: () => `fiche-${String((numero += 1)).padStart(4, '0')}` };
+  const enregistrer = async (corps) => (await traiterVente(demande('/api/cockpit/vente', { corps }), ctx)).json();
+
+  // Depuis l'onglet Webinaire, une vente du webinaire : elle est dans le bloc rendu, et rangée avec son tunnel.
+  const webinaire = await enregistrer({ mois: '2026-11', tunnel: 'webinaire', vente: { ...VENTE, tunnel: 'webinaire' }, closerNom: 'Camille' });
+  assert.deepEqual(webinaire.ventes.map((v) => [v.id, v.tunnel]), [['fiche-0002', 'webinaire']]);
+  assert.equal(JSON.parse(base.tables['af:c1:ventes'].get('fiche-0002')).tunnel, 'webinaire');
+
+  // Toujours depuis l'onglet Webinaire, une vente du tunnel VSL : enregistrée, mais absente du bloc de cet onglet.
+  const ailleurs = await enregistrer({ mois: '2026-11', tunnel: 'webinaire', vente: { ...VENTE, tunnel: 'vsl', closer: 'fiche-0001' } });
+  assert.deepEqual([ailleurs.id, ailleurs.ventes.map((v) => v.id)], ['fiche-0003', ['fiche-0002']]);
+  assert.deepEqual(ailleurs.jours, { '2026-11-18': { ventes: 1, contracte: 3000, encaisse: 1000 } });
+  // Les commissions du mois comptent les deux ventes.
+  assert.deepEqual(ailleurs.commissions.map((c) => [c.nom, c.ventes]), [['Camille', 2]]);
+
+  // Sans onglet précisé : celui du tunnel VSL (les demandes d'avant les onglets).
+  const sansOnglet = await enregistrer({ mois: '2026-11', vente: { ...VENTE, tunnel: 'organique', closer: 'fiche-0001' } });
+  assert.deepEqual(sansOnglet.ventes.map((v) => v.id), ['fiche-0003']);
+  // Un tunnel inconnu est refusé.
+  const refus = await traiterVente(demande('/api/cockpit/vente', { corps: { mois: '2026-11', vente: { ...VENTE, tunnel: 'salon', closer: 'fiche-0001' } } }), ctx);
+  assert.deepEqual([refus.status, (await refus.json()).erreur], [400, 'tunnel']);
+
+  // Suppression depuis l'onglet Organique : le bloc rendu est le sien.
+  const supprimee = await traiterVente(demande('/api/cockpit/vente?id=fiche-0002&mois=2026-11&tunnel=organique', { methode: 'DELETE' }), ctx);
+  assert.deepEqual((await supprimee.json()).ventes.map((v) => [v.id, v.tunnel]), [['fiche-0004', 'organique']]);
 });
 
 test('vente : session, origine, base et saisie vérifiées avant toute écriture', async () => {

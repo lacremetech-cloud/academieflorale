@@ -3,9 +3,11 @@ import { test } from 'node:test';
 import { compter, lireCompteurs, nomDeVariante } from '../partage/compteurs.js';
 import { visiteACompter } from '../partage/visites.js';
 import { assemblerMois } from '../serveur/cockpit/donnees.js';
+import { TUNNELS } from '../partage/tunnels.js';
 import { lireIclosed } from '../serveur/cockpit/iclosed.js';
-import { filtreCampagnes, lireMeta } from '../serveur/cockpit/meta.js';
+import { filtreCampagnes, filtreWebinaire, lireMeta, oublierConversions } from '../serveur/cockpit/meta.js';
 import { lireWistia } from '../serveur/cockpit/wistia.js';
+import { oublierEvents } from '../serveur/iclosed.js';
 import { creerLimiteur, traiterLead } from '../serveur/lead.js';
 
 const MOIS = '2026-11';
@@ -406,4 +408,196 @@ test('inscription : comptée une fois, seulement quand elle est vraiment enregis
     throw new Error('compteur en panne');
   });
   assert.equal(plante.statut, 200);
+});
+
+/* ---------- Les onglets Webinaire et Organique ---------- */
+
+test('Meta, webinaire : ses campagnes, et ses inscriptions comptées comme dans le gestionnaire de publicités', async () => {
+  oublierConversions();
+  const env = { META_ACCESS_TOKEN: 'jeton-meta-de-test', META_AD_ACCOUNT_ID: 'act_123456789' };
+  const lecture = { env, mois: MOIS, maintenant: APRES, filtre: filtreWebinaire(env), resultat: TUNNELS.webinaire.resultat };
+  const { demandes, fetchImpl } = fauxReseau((url) => {
+    if (url.pathname.endsWith('/customconversions')) return { data: [{ id: '998877665544', name: 'Lead_VSL' }, { id: '112233445566', name: 'lead_nuitfleuristes' }] };
+    return {
+      data: [
+        { date_start: '2026-11-01', spend: '440', impressions: '33266', inline_link_clicks: '647', actions: [{ action_type: 'lead', value: '61' }, { action_type: 'offsite_conversion.custom.112233445566', value: '54' }] },
+        { date_start: '2026-11-02', spend: '434', impressions: '43494', inline_link_clicks: '775', actions: [{ action_type: 'lead', value: '3' }] },
+      ],
+    };
+  });
+  const lu = await lireMeta({ ...lecture, fetchImpl });
+  assert.deepEqual([lu.etat, lu.mesure], ['ok', 'resultat']);
+  // Le résultat visé par les campagnes (« Lead_NuitFleuristes »), et non tous les prospects.
+  assert.deepEqual(lu.jours['2026-11-01'], { depense: 440, impressions: 33266, clics: 647, inscrits: 54 });
+  // Un jour sans ce résultat : zéro.
+  assert.equal(lu.jours['2026-11-02'].inscrits, 0);
+  const [conversions, insights] = demandes;
+  assert.equal(conversions.url.pathname, '/v27.0/act_123456789/customconversions');
+  assert.equal(conversions.options.headers.Authorization, 'Bearer jeton-meta-de-test');
+  assert.deepEqual(JSON.parse(insights.url.searchParams.get('filtering')), [{ field: 'campaign.name', operator: 'CONTAIN', value: 'nuit des fleuristes' }]);
+  assert.equal(insights.url.searchParams.get('fields'), 'spend,impressions,inline_link_clicks,actions');
+  assert.equal(demandes.some((d) => d.url.href.includes('jeton-meta-de-test')), false);
+  // La conversion est retenue : la lecture suivante ne la redemande pas.
+  await lireMeta({ ...lecture, fetchImpl });
+  assert.equal(demandes.filter((d) => d.url.pathname.endsWith('/customconversions')).length, 1);
+
+  // Conversion introuvable, ou que Meta ne veut pas donner : les prospects attribués aux campagnes, et l'onglet le dit.
+  oublierConversions();
+  const sans = fauxReseau((url) =>
+    url.pathname.endsWith('/customconversions')
+      ? new Response(JSON.stringify({ error: { message: 'droit manquant' } }), { status: 403 })
+      : { data: [{ date_start: '2026-11-01', spend: '440', impressions: '33266', inline_link_clicks: '647', actions: [{ action_type: 'offsite_conversion.fb_pixel_lead', value: '58' }] }] },
+  );
+  const repli = await lireMeta({ ...lecture, fetchImpl: sans.fetchImpl });
+  assert.deepEqual([repli.etat, repli.mesure, repli.jours['2026-11-01'].inscrits], ['ok', 'prospects', 58]);
+
+  // Le texte des campagnes du webinaire se règle, mais ne se vide jamais (l'onglet ne doit pas compter tout le compte).
+  assert.equal(filtreWebinaire({}), 'nuit des fleuristes');
+  assert.equal(filtreWebinaire({ META_CAMPAGNES_WEBINAIRE: '  WEBINAIRE ' }), 'WEBINAIRE');
+  assert.equal(filtreWebinaire({ META_CAMPAGNES_WEBINAIRE: '   ' }), 'nuit des fleuristes');
+  oublierConversions();
+});
+
+/** Les events du compte, tels qu'iClosed les liste. */
+const EVENTS = [
+  { id: 12, linkPrefix: 'academie-florale/candidature-vsl' },
+  { id: 71, linkPrefix: 'academie-florale/candidature' },
+  { id: 72, linkPrefix: 'academie-florale/setting' },
+  { id: 73, linkPrefix: 'academie-florale/candidature-site' },
+  { id: 74, linkPrefix: 'academie-florale/candidature-dm' },
+  { id: 75, linkPrefix: 'academie-florale/candidature-yt' },
+];
+
+/** iClosed de test : chaque event rend ses propres appels. */
+const iclosedParEvent = (parEvent, events = EVENTS) => (url) => {
+  if (url.pathname === '/v1/events') return { data: events };
+  if (url.pathname === '/v1/eventCalls') {
+    const liste = parEvent[url.searchParams.get('eventIds')] ?? [];
+    return { data: { count: liste.length, eventCalls: liste } };
+  }
+  return new Response('{}', { status: 404 });
+};
+
+test('iClosed, autres tunnels : les appels de plusieurs events, jour par jour et source par source', async () => {
+  oublierEvents();
+  const { demandes, fetchImpl } = fauxReseau(
+    iclosedParEvent({
+      74: [appel(1, '2026-11-03T09:10:00.000Z', '2026-11-05T17:00:00.000Z'), appel(2, '2026-11-04T10:00:00.000Z', '2026-11-06T09:00:00.000Z', { cancelledBy: 'INVITEE' })],
+      75: [appel(3, '2026-11-03T12:00:00.000Z', '2026-11-07T09:00:00.000Z', { task: [{ outcome: 'NO_SALE', noSaleReason: 'NO_SHOW' }] })],
+    }),
+  );
+  const sources = [
+    { event: 'candidature-dm', nom: 'Setting DM' },
+    { event: 'candidature-yt', nom: 'YouTube' },
+  ];
+  const env = { ICLOSED_API_KEY: 'iclosed_cle-de-test' };
+  const lu = await lireIclosed({ env, mois: MOIS, fetchImpl, maintenant: APRES, events: sources });
+  assert.equal(lu.etat, 'ok', lu.detail);
+  assert.deepEqual(lu.jours['2026-11-03'], { appels: 2, annules: 0, absentes: 0 });
+  assert.deepEqual(lu.jours['2026-11-04'], { appels: 1, annules: 0, absentes: 0 });
+  assert.equal(lu.jours['2026-11-06'].annules, 1);
+  assert.equal(lu.jours['2026-11-07'].absentes, 1);
+  assert.deepEqual(lu.parEvent, [
+    { event: 'candidature-dm', nom: 'Setting DM', appels: 2, annules: 1, absentes: 0 },
+    { event: 'candidature-yt', nom: 'YouTube', appels: 1, annules: 0, absentes: 1 },
+  ]);
+  // La liste des events une fois, puis deux demandes par event (réservés, prévus) ; jamais l'event du tunnel VSL.
+  const appels = demandes.filter((d) => d.url.pathname === '/v1/eventCalls');
+  assert.equal(demandes.filter((d) => d.url.pathname === '/v1/events').length, 1);
+  assert.deepEqual(appels.map((d) => d.url.searchParams.get('eventIds')).sort(), ['74', '74', '75', '75']);
+  assert.equal(JSON.stringify(lu).includes('camille'), false);
+
+  // Un event introuvable : l'onglet le dit, plutôt que d'afficher des chiffres incomplets.
+  oublierEvents();
+  const manque = await lireIclosed({ env, mois: MOIS, fetchImpl, maintenant: APRES, events: [...sources, { event: 'evenement-disparu', nom: 'Disparu' }] });
+  assert.deepEqual([manque.etat, manque.detail], ['erreur', 'event « evenement-disparu » introuvable dans iClosed']);
+  oublierEvents();
+});
+
+test('assemblage, onglets Webinaire et Organique : leurs sources seulement, et les ventes de leur tunnel', async () => {
+  oublierEvents();
+  oublierConversions();
+  const vente = (montant, tunnel) => ({
+    date: '2026-11-02',
+    formule: 'independant',
+    montant,
+    commission: montant / 10,
+    closer: 'c-1',
+    closerNom: 'Camille',
+    ...(tunnel ? { tunnel } : {}),
+    paiements: [{ methode: 'virement', montant, mensualites: 1, debut: '2026-11-02' }],
+  });
+  const iclosed = iclosedParEvent({
+    71: [appel(1, '2026-11-02T09:00:00.000Z', '2026-11-04T17:00:00.000Z')],
+    74: [appel(2, '2026-11-02T10:00:00.000Z', '2026-11-05T17:00:00.000Z')],
+    73: [appel(3, '2026-11-01T10:00:00.000Z', '2026-11-02T17:00:00.000Z', { cancelledBy: 'INVITEE' })],
+    12: [appel(4, '2026-11-02T11:00:00.000Z', '2026-11-06T17:00:00.000Z')],
+  });
+  const { demandes, fetchImpl } = fauxReseau((url, options) => {
+    if (url.hostname === 'base.test') {
+      const commandes = JSON.parse(options.body);
+      return commandes[0][0] === 'HGETALL'
+        ? [
+            // La première vente date d'avant les onglets : sans tunnel, elle vient du tunnel VSL.
+            { result: ['v-00000001', JSON.stringify(vente(3000)), 'v-00000002', JSON.stringify(vente(1800, 'webinaire')), 'v-00000003', JSON.stringify(vente(4000, 'organique'))] },
+            { result: ['c-1', JSON.stringify({ nom: 'Camille' })] },
+          ]
+        : commandes.map(() => ({ result: null }));
+    }
+    if (url.hostname === 'graph.facebook.com') {
+      if (url.pathname.endsWith('/customconversions')) return { data: [] };
+      return { data: [{ date_start: '2026-11-02', spend: '500', impressions: '40000', inline_link_clicks: '700', actions: [{ action_type: 'lead', value: '60' }] }] };
+    }
+    if (url.hostname === 'public.api.iclosed.io') return iclosed(url);
+    return new Response('{}', { status: 500 });
+  });
+  const env = { META_ACCESS_TOKEN: 'x', META_AD_ACCOUNT_ID: '123456789', ICLOSED_API_KEY: 'y', KV_REST_API_URL: 'https://base.test', KV_REST_API_TOKEN: 'z', VERCEL_ENV: 'production' };
+  const maintenant = new Date('2026-11-03T12:00:00Z');
+
+  const webinaire = await assemblerMois({ mois: MOIS, tunnel: 'webinaire', env, fetchImpl, maintenant });
+  assert.deepEqual([webinaire.tunnel, webinaire.enLigne], ['webinaire', true]);
+  assert.deepEqual(Object.keys(webinaire.sources), ['meta', 'iclosed', 'ventes']);
+  assert.deepEqual(Object.values(webinaire.sources).map((source) => source.etat), ['ok', 'ok', 'ok']);
+  const [, leDeux, leTrois, leQuatre] = webinaire.jours;
+  assert.deepEqual([leDeux.depense, leDeux.clics, leDeux.inscrits, leDeux.appels, leDeux.ventes, leDeux.contracte], [500, 700, 60, 1, 1, 1800]);
+  // Ni landing ni vidéo sur ce site pour le webinaire : des tirets, pas des zéros.
+  assert.deepEqual([leDeux.vues, leDeux.chargements, leDeux.lectures], [null, null, null]);
+  assert.deepEqual([leTrois.depense, leTrois.inscrits, leTrois.appels], [0, 0, 0]);
+  assert.equal(leQuatre.depense, null); // demain
+  assert.deepEqual([webinaire.campagnes, webinaire.mesureInscrits, webinaire.resultat], ['nuit des fleuristes', 'prospects', 'Lead_NuitFleuristes']);
+  assert.deepEqual(webinaire.ventes.map((v) => [v.id, v.tunnel]), [['v-00000002', 'webinaire']]);
+  // Les commissions et la caisse : toutes les ventes, quel que soit le tunnel.
+  assert.deepEqual(webinaire.commissions, [{ closer: 'c-1', nom: 'Camille', ventes: 3, contracte: 8800, commission: 880 }]);
+  assert.equal(webinaire.encaissements[0].total, 8800);
+  assert.deepEqual([webinaire.suivi, webinaire.notes, webinaire.variantes], [undefined, {}, []]);
+  const insights = demandes.find((d) => d.url.pathname.endsWith('/insights'));
+  assert.deepEqual(JSON.parse(insights.url.searchParams.get('filtering')), [{ field: 'campaign.name', operator: 'CONTAIN', value: 'nuit des fleuristes' }]);
+
+  const avant = demandes.length;
+  const organique = await assemblerMois({ mois: MOIS, tunnel: 'organique', env, fetchImpl, maintenant });
+  assert.deepEqual(Object.keys(organique.sources), ['iclosed', 'ventes']);
+  const [premier, second] = organique.jours;
+  // Le 1er : un appel réservé sur le site ; le 2 : un appel par messages privés, et l'annulation de celui du site.
+  assert.deepEqual([premier.appels, second.appels, second.annules, second.ventes, second.contracte], [1, 1, 1, 1, 4000]);
+  assert.deepEqual([second.depense, second.inscrits], [null, null]);
+  assert.deepEqual(organique.parSource, [
+    { event: 'candidature-dm', nom: 'Setting DM', appels: 1, annules: 0, absentes: 0 },
+    { event: 'candidature-yt', nom: 'YouTube', appels: 0, annules: 0, absentes: 0 },
+    { event: 'setting', nom: 'Setting call', appels: 0, annules: 0, absentes: 0 },
+    { event: 'candidature-site', nom: 'Site internet', appels: 1, annules: 1, absentes: 0 },
+  ]);
+  assert.deepEqual(organique.ventes.map((v) => v.id), ['v-00000003']);
+  // Sans publicité, Meta n'est pas interrogé.
+  assert.equal(demandes.slice(avant).some((d) => d.url.hostname === 'graph.facebook.com'), false);
+
+  // Un onglet inconnu : celui du tunnel VSL, avec la vente d'avant les onglets.
+  const defaut = await assemblerMois({ mois: MOIS, tunnel: 'salon', env, fetchImpl, maintenant });
+  assert.equal(defaut.tunnel, 'vsl');
+  assert.deepEqual(Object.keys(defaut.sources), ['meta', 'compteurs', 'wistia', 'iclosed', 'ventes']);
+  assert.deepEqual(defaut.ventes.map((v) => [v.id, v.tunnel]), [['v-00000001', 'vsl']]);
+  assert.equal(defaut.jours[1].appels, 1);
+  // Aucun secret dans ce qui part vers la page.
+  assert.equal(/"x"|"y"|"z"/.test(JSON.stringify([webinaire, organique, defaut])), false);
+  oublierEvents();
+  oublierConversions();
 });

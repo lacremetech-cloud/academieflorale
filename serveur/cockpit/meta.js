@@ -1,16 +1,20 @@
 // @ts-check
 /**
  * Cockpit, source « Meta Ads » : dépense, impressions et clics sur le lien, jour
- * par jour, pour le compte publicitaire.
+ * par jour, pour le compte publicitaire. Pour le webinaire, aussi les inscriptions
+ * que Meta attribue à ses campagnes.
  *
  * Variables d'environnement (saisies dans Vercel, jamais dans le repo) :
  * - META_ACCESS_TOKEN : jeton d'accès avec le droit « ads_read » (utilisateur système) ;
  * - META_AD_ACCOUNT_ID : identifiant du compte publicitaire, avec ou sans « act_ » ;
  * - META_CAMPAGNES (facultatif) : remplace le texte que doit contenir le nom d'une
  *   campagne pour être comptée (« VSL » sans cette variable). Vide : tout le compte ;
+ * - META_CAMPAGNES_WEBINAIRE (facultatif) : la même chose pour l'onglet Webinaire
+ *   (« nuit des fleuristes » sans cette variable) ;
  * - META_API_VERSION (facultatif) : version de l'API, si celle par défaut expire.
  */
 import { joursEcoules } from '../../partage/cockpit.js';
+import { TUNNELS } from '../../partage/tunnels.js';
 import { versionMeta } from '../meta-conversions.js';
 
 const PAGES_MAX = 6;
@@ -28,14 +32,82 @@ export function filtreCampagnes(env) {
 }
 
 /**
+ * Le texte que doit contenir le nom d'une campagne du webinaire. Jamais vide : cet
+ * onglet ne doit pas compter tout le compte publicitaire.
+ * @param {Record<string, string | undefined>} env
+ */
+export function filtreWebinaire(env) {
+  return (env.META_CAMPAGNES_WEBINAIRE ?? '').trim().slice(0, 80) || TUNNELS.webinaire.campagnes;
+}
+
+/** Types d'action de Meta qui comptent une inscription, par ordre de préférence (le premier trouvé est retenu). */
+export const ACTIONS_PROSPECTS = Object.freeze(['lead', 'offsite_conversion.fb_pixel_lead', 'onsite_web_lead']);
+
+/**
+ * La valeur d'une action dans la liste rendue par Meta.
+ * @param {unknown} actions
+ * @param {readonly string[]} types
+ */
+export function valeurAction(actions, types) {
+  if (!Array.isArray(actions)) return 0;
+  for (const type of types) {
+    const trouvee = actions.find((a) => a?.action_type === type);
+    if (trouvee) return Number(trouvee.value) || 0;
+  }
+  return 0;
+}
+
+/** Conversions personnalisées déjà retrouvées (leur identifiant ne change pas). */
+const conversionsConnues = new Map();
+
+/**
+ * L'identifiant d'une conversion personnalisée du compte, retrouvée par son nom
+ * (celui qui s'affiche dans la colonne « Résultats » du gestionnaire de publicités).
+ * @param {object} options
+ * @param {string} options.nom
+ * @param {string} options.compte
+ * @param {string} options.jeton
+ * @param {string} options.version
+ * @param {typeof fetch} options.fetchImpl
+ * @returns {Promise<string>} '' si elle est introuvable ou si Meta ne la donne pas
+ */
+async function conversionPersonnalisee({ nom, compte, jeton, version, fetchImpl }) {
+  const cle = `${compte}:${nom.toLowerCase()}`;
+  if (conversionsConnues.has(cle)) return conversionsConnues.get(cle);
+  try {
+    const reponse = await fetchImpl(`https://graph.facebook.com/${version}/act_${compte}/customconversions?${new URLSearchParams({ fields: 'id,name', limit: '200' })}`, {
+      headers: { Authorization: `Bearer ${jeton}`, Accept: 'application/json' },
+      signal: AbortSignal.timeout(6000),
+    });
+    const corps = await reponse.json().catch(() => null);
+    if (!reponse.ok) return '';
+    const trouvee = (Array.isArray(corps?.data) ? corps.data : []).find((c) => String(c?.name ?? '').trim().toLowerCase() === nom.toLowerCase());
+    const id = /^\d{5,25}$/.test(String(trouvee?.id ?? '')) ? String(trouvee.id) : '';
+    // Seule une réponse lue en entier se garde : une panne ne doit pas faire oublier la conversion.
+    conversionsConnues.set(cle, id);
+    return id;
+  } catch {
+    return '';
+  }
+}
+
+/** Oublie les conversions déjà retrouvées (pour les tests). */
+export function oublierConversions() {
+  conversionsConnues.clear();
+}
+
+/**
  * @param {object} options
  * @param {Record<string, string | undefined>} options.env
  * @param {string} options.mois « 2026-11 »
  * @param {typeof fetch} [options.fetchImpl]
  * @param {Date} [options.maintenant]
- * @returns {Promise<{ etat: 'ok' | 'a-brancher' | 'erreur', detail?: string, jours: Record<string, Record<string, number>> }>}
+ * @param {string} [options.filtre] texte que doit contenir le nom des campagnes (sans lui : celui du tunnel VSL)
+ * @param {string} [options.resultat] avec lui, chaque jour porte aussi `inscrits` : le résultat de ce nom
+ *   (une conversion personnalisée du compte) ou, s'il est introuvable, les prospects que Meta attribue aux campagnes
+ * @returns {Promise<{ etat: 'ok' | 'a-brancher' | 'erreur', detail?: string, mesure?: 'resultat' | 'prospects', jours: Record<string, Record<string, number>> }>}
  */
-export async function lireMeta({ env, mois, fetchImpl = fetch, maintenant = new Date() }) {
+export async function lireMeta({ env, mois, fetchImpl = fetch, maintenant = new Date(), filtre: filtreVoulu, resultat: nomDuResultat }) {
   const jeton = (env.META_ACCESS_TOKEN ?? '').trim();
   const compte = (env.META_AD_ACCOUNT_ID ?? '').trim().replace(/^act_/, '');
   if (!jeton || !compte) return { etat: 'a-brancher', jours: {} };
@@ -45,14 +117,17 @@ export async function lireMeta({ env, mois, fetchImpl = fetch, maintenant = new 
   // Jusqu'à aujourd'hui seulement : aucune source n'est interrogée sur des jours à venir.
   const jours = joursEcoules(mois, maintenant);
   if (jours.length === 0) return { etat: 'ok', jours: {} };
+  // Les inscriptions du webinaire : le résultat visé par ses campagnes, tel que le gestionnaire de publicités le compte.
+  const conversion = nomDuResultat ? await conversionPersonnalisee({ nom: nomDuResultat, compte, jeton, version, fetchImpl }) : '';
+  const typesInscrits = conversion ? [`offsite_conversion.custom.${conversion}`] : ACTIONS_PROSPECTS;
   const parametres = new URLSearchParams({
     level: 'account',
-    fields: 'spend,impressions,inline_link_clicks',
+    fields: nomDuResultat ? 'spend,impressions,inline_link_clicks,actions' : 'spend,impressions,inline_link_clicks',
     time_range: JSON.stringify({ since: jours[0], until: jours[jours.length - 1] }),
     time_increment: '1',
     limit: '100',
   });
-  const filtre = filtreCampagnes(env);
+  const filtre = filtreVoulu ?? filtreCampagnes(env);
   if (filtre) {
     parametres.set('filtering', JSON.stringify([{ field: 'campaign.name', operator: 'CONTAIN', value: filtre }]));
   }
@@ -78,6 +153,7 @@ export async function lireMeta({ env, mois, fetchImpl = fetch, maintenant = new 
           depense: Number(ligne.spend) || 0,
           impressions: Number(ligne.impressions) || 0,
           clics: Number(ligne.inline_link_clicks) || 0,
+          ...(nomDuResultat ? { inscrits: valeurAction(ligne.actions, typesInscrits) } : {}),
         };
       }
       const suite = corps?.paging?.next ? corps?.paging?.cursors?.after : null;
@@ -88,5 +164,5 @@ export async function lireMeta({ env, mois, fetchImpl = fetch, maintenant = new 
     const nom = erreur instanceof Error ? erreur.name : '';
     return { etat: 'erreur', detail: nom === 'TimeoutError' ? 'Meta ne répond pas (délai dépassé)' : 'Meta est injoignable', jours: {} };
   }
-  return { etat: 'ok', jours: resultat };
+  return { etat: 'ok', jours: resultat, ...(nomDuResultat ? { mesure: /** @type {const} */ (conversion ? 'resultat' : 'prospects') } : {}) };
 }

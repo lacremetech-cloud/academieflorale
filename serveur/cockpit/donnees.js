@@ -4,15 +4,20 @@
  * sources (Meta Ads, compteurs du tunnel, Wistia, iClosed, registre des ventes),
  * et dit pour chaque source si elle est branchée. Une source absente ou en
  * panne n'empêche jamais les autres de s'afficher.
+ *
+ * Un onglet par tunnel (partage/tunnels.js) : le tunnel VSL a toutes les sources ;
+ * le webinaire a ses campagnes Meta, ses appels et ses ventes ; l'organique n'a
+ * pas de publicité : ses appels, par source, et ses ventes.
  */
 import { BRUTS, joursDuMois, jourParis, jourVide, moisCourant, moisValide } from '../../partage/cockpit.js';
 import { ecrireNote, lireCompteurs, NOTE_MAX } from '../../partage/compteurs.js';
+import { TUNNELS, tunnelValide } from '../../partage/tunnels.js';
 import { repondre } from '../reponse.js';
 import { memeOrigine } from '../requete.js';
 import { verifierAcces } from './acces.js';
 import { controlerSuivi } from './controle.js';
 import { lireIclosed } from './iclosed.js';
-import { CAMPAGNES_PAR_DEFAUT, filtreCampagnes, lireMeta } from './meta.js';
+import { CAMPAGNES_PAR_DEFAUT, filtreCampagnes, filtreWebinaire, lireMeta } from './meta.js';
 import { lireRegistre } from './registre.js';
 import { blocVentes } from './ventes.js';
 import { lireWistia } from './wistia.js';
@@ -57,6 +62,20 @@ export const SOURCES = Object.freeze({
 });
 
 /**
+ * Les sources d'un onglet. Le webinaire lit chez Meta ses inscriptions en plus
+ * (elles ne passent pas par ce site) ; l'organique n'a pas de publicité.
+ * @param {import('../../partage/tunnels.js').Tunnel} tunnel
+ * @returns {Record<string, { nom: string, chiffres: string[], variables: string[], brancher?: string, precision?: string, manuel?: boolean }>}
+ */
+function sourcesDe(tunnel) {
+  if (tunnel === 'webinaire') {
+    return { meta: { ...SOURCES.meta, chiffres: [...SOURCES.meta.chiffres, 'inscrits'] }, iclosed: SOURCES.iclosed, ventes: SOURCES.ventes };
+  }
+  if (tunnel === 'organique') return { iclosed: SOURCES.iclosed, ventes: SOURCES.ventes };
+  return SOURCES;
+}
+
+/**
  * Ce que la page reçoit pour une source : son état, sans rien de secret.
  * @param {{ nom: string, variables: string[], brancher?: string, precision?: string, manuel?: boolean }} source
  * @param {string} etat
@@ -97,13 +116,79 @@ function detailDesVentes(bloc) {
 }
 
 /**
+ * Les journées d'un mois, à partir de ce que chaque source a rendu.
+ * @param {string} mois
+ * @param {string} aujourdHui
+ * @param {Record<string, { chiffres: string[] }>} sources
+ * @param {Record<string, { etat: string, jours: Record<string, Record<string, number>> }>} lues
+ */
+function joursAssembles(mois, aujourdHui, sources, lues) {
+  return joursDuMois(mois).map((date) => {
+    /** @type {Record<string, number | null | string>} */
+    const jour = { date, ...jourVide() };
+    for (const [cle, source] of Object.entries(sources)) {
+      const lue = lues[cle];
+      // Une source branchée vaut zéro les jours sans activité ; les jours à venir restent vides.
+      if (!lue || lue.etat !== 'ok' || date > aujourdHui) continue;
+      for (const chiffre of source.chiffres) jour[chiffre] = lue.jours[date]?.[chiffre] ?? 0;
+    }
+    return jour;
+  });
+}
+
+/**
+ * Un onglet sans landing ni vidéo sur ce site : le webinaire (ses campagnes Meta,
+ * ses appels, ses ventes) ou l'organique (ses appels, par source, et ses ventes).
  * @param {object} options
  * @param {string} options.mois
+ * @param {'webinaire' | 'organique'} options.tunnel
+ * @param {Record<string, string | undefined>} options.env
+ * @param {typeof fetch} options.fetchImpl
+ * @param {Date} options.maintenant
+ */
+async function assemblerAutreTunnel({ mois, tunnel, env, fetchImpl, maintenant }) {
+  const campagnes = tunnel === 'webinaire' ? filtreWebinaire(env) : '';
+  const [meta, iclosed, registre] = await Promise.all([
+    tunnel === 'webinaire' ? lireMeta({ env, mois, fetchImpl, maintenant, filtre: campagnes, resultat: TUNNELS.webinaire.resultat }) : null,
+    lireIclosed({ env, mois, fetchImpl, maintenant, events: TUNNELS[tunnel].events }),
+    lireRegistre(env, { fetchImpl }),
+  ]);
+  const bloc = blocVentes(registre, mois, maintenant, tunnel);
+  const sources = sourcesDe(tunnel);
+  /** @type {Record<string, { etat: string, detail?: string, jours: Record<string, Record<string, number>> }>} */
+  const lues = { ...(meta ? { meta } : {}), iclosed, ventes: sourceVentes(registre, bloc, mois) };
+  const aujourdHui = jourParis(maintenant);
+  return {
+    mois,
+    tunnel,
+    aujourdHui,
+    demonstration: false,
+    enLigne: env.VERCEL_ENV === 'production',
+    jours: joursAssembles(mois, aujourdHui, sources, lues),
+    notes: {},
+    variantes: [],
+    ...detailDesVentes(bloc),
+    campagnes,
+    // D'où viennent les « inscrits » du webinaire : le résultat visé par ses campagnes, ou à défaut les prospects selon Meta.
+    mesureInscrits: meta?.mesure ?? null,
+    resultat: tunnel === 'webinaire' ? TUNNELS.webinaire.resultat : '',
+    // Les appels du mois, source par source (setting, YouTube…).
+    parSource: iclosed.etat === 'ok' ? (iclosed.parEvent ?? []) : [],
+    sources: Object.fromEntries(Object.entries(sources).map(([cle, source]) => [cle, etatDeSource(source, lues[cle]?.etat ?? 'a-brancher', lues[cle]?.detail)])),
+  };
+}
+
+/**
+ * @param {object} options
+ * @param {string} options.mois
+ * @param {unknown} [options.tunnel] l'onglet demandé (celui du tunnel VSL sans précision)
  * @param {Record<string, string | undefined>} options.env
  * @param {typeof fetch} [options.fetchImpl]
  * @param {Date} [options.maintenant]
  */
-export async function assemblerMois({ mois, env, fetchImpl = fetch, maintenant = new Date() }) {
+export async function assemblerMois({ mois, tunnel: demande, env, fetchImpl = fetch, maintenant = new Date() }) {
+  const tunnel = tunnelValide(demande);
+  if (tunnel !== 'vsl') return assemblerAutreTunnel({ mois, tunnel, env, fetchImpl, maintenant });
   const [meta, compteurs, wistia, iclosed, registre, suivi] = await Promise.all([
     lireMeta({ env, mois, fetchImpl, maintenant }),
     lireCompteurs(env, mois, { fetchImpl }),
@@ -112,26 +197,17 @@ export async function assemblerMois({ mois, env, fetchImpl = fetch, maintenant =
     lireRegistre(env, { fetchImpl }),
     controlerSuivi({ env, fetchImpl, maintenant }),
   ]);
-  const bloc = blocVentes(registre, mois, maintenant);
+  const bloc = blocVentes(registre, mois, maintenant, tunnel);
   const lues = { meta, compteurs, wistia, iclosed, ventes: sourceVentes(registre, bloc, mois) };
   const aujourdHui = jourParis(maintenant);
-
-  const jours = joursDuMois(mois).map((date) => {
-    /** @type {Record<string, number | null | string>} */
-    const jour = { date, ...jourVide() };
-    for (const [cle, source] of Object.entries(SOURCES)) {
-      const lue = lues[/** @type {keyof typeof lues} */ (cle)];
-      // Une source branchée vaut zéro les jours sans activité ; les jours à venir restent vides.
-      if (lue.etat !== 'ok' || date > aujourdHui) continue;
-      for (const chiffre of source.chiffres) jour[chiffre] = lue.jours[date]?.[chiffre] ?? 0;
-    }
-    return jour;
-  });
+  const jours = joursAssembles(mois, aujourdHui, SOURCES, lues);
 
   return {
     mois,
+    tunnel,
     aujourdHui,
     demonstration: false,
+    enLigne: env.VERCEL_ENV === 'production',
     jours,
     notes: compteurs.notes,
     variantes: compteurs.variantes,
@@ -171,10 +247,13 @@ function alea(date, rang) {
  * @param {string} mois
  * @param {Date} [maintenant]
  * @param {{ notes: Record<string, string> | null, bloc: ReturnType<typeof blocVentes> } | null} [base]
+ * @param {unknown} [onglet] l'onglet demandé (celui du tunnel VSL sans précision)
  */
-export function donneesDeDemonstration(mois, maintenant = new Date(), base = null) {
-  const bloc = base?.bloc ?? blocVentes({ ventes: [], closers: [] }, mois, maintenant);
+export function donneesDeDemonstration(mois, maintenant = new Date(), base = null, onglet = undefined) {
+  const tunnel = tunnelValide(onglet);
+  const bloc = base?.bloc ?? blocVentes({ ventes: [], closers: [] }, mois, maintenant, tunnel);
   const aujourdHui = jourParis(maintenant);
+  if (tunnel !== 'vsl') return demonstrationAutreTunnel(mois, tunnel, aujourdHui, bloc);
   const jours = joursDuMois(mois).map((date) => {
     /** @type {Record<string, number | null | string>} */
     const jour = { date, ...jourVide() };
@@ -209,6 +288,7 @@ export function donneesDeDemonstration(mois, maintenant = new Date(), base = nul
   const parts = [0.36, 0.33, 0.31];
   return {
     mois,
+    tunnel,
     aujourdHui,
     demonstration: true,
     jours,
@@ -236,7 +316,68 @@ export function donneesDeDemonstration(mois, maintenant = new Date(), base = nul
 }
 
 /**
- * GET /api/cockpit/donnees?mois=2026-11 : les chiffres du mois, pour une session ouverte.
+ * Démonstration des onglets Webinaire et Organique : mêmes règles que ci-dessus.
+ * @param {string} mois
+ * @param {'webinaire' | 'organique'} tunnel
+ * @param {string} aujourdHui
+ * @param {ReturnType<typeof blocVentes>} bloc
+ */
+function demonstrationAutreTunnel(mois, tunnel, aujourdHui, bloc) {
+  const events = TUNNELS[tunnel].events;
+  const parSource = events.map(({ event, nom }) => ({ event, nom, appels: 0, annules: 0, absentes: 0 }));
+  const sources = sourcesDe(tunnel);
+  const jours = joursDuMois(mois).map((date) => {
+    /** @type {Record<string, number | null | string>} */
+    const jour = { date, ...jourVide() };
+    if (date > aujourdHui) return jour;
+    let appels = 0;
+    let annules = 0;
+    let absentes = 0;
+    if (tunnel === 'webinaire') {
+      const depense = Math.round(380 + alea(date, 21) * 260);
+      const impressions = Math.round(depense * (70 + alea(date, 22) * 40));
+      const clics = Math.round(impressions * (0.014 + alea(date, 23) * 0.008));
+      const inscrits = Math.round(depense / (7 + alea(date, 24) * 4));
+      appels = Math.round(inscrits * (0.03 + alea(date, 25) * 0.05));
+      Object.assign(jour, { depense, impressions, clics, inscrits });
+    } else {
+      appels = Math.round(alea(date, 26) * 3.2);
+    }
+    annules = alea(date, 27) > 0.8 ? Math.min(appels, 1) : 0;
+    absentes = alea(date, 28) > 0.78 ? Math.min(Math.max(0, appels - annules), 1) : 0;
+    Object.assign(jour, { appels, annules, absentes, ...(bloc.jours[date] ?? { ventes: 0, contracte: 0, encaisse: 0 }) });
+    // Chaque appel inventé est rangé dans une source, toujours la même pour un jour donné.
+    const range = (/** @type {number} */ nombre, /** @type {'appels' | 'annules' | 'absentes'} */ chiffre, /** @type {number} */ graine) => {
+      for (let i = 0; i < nombre; i += 1) {
+        const source = parSource[Math.min(parSource.length - 1, Math.floor(alea(date, graine + i) * parSource.length))];
+        if (source) source[chiffre] += 1;
+      }
+    };
+    range(appels, 'appels', 40);
+    range(annules, 'annules', 60);
+    range(absentes, 'absentes', 80);
+    return jour;
+  });
+  return {
+    mois,
+    tunnel,
+    aujourdHui,
+    demonstration: true,
+    jours,
+    notes: {},
+    variantes: [],
+    ...detailDesVentes(bloc),
+    campagnes: tunnel === 'webinaire' ? TUNNELS.webinaire.campagnes : '',
+    mesureInscrits: tunnel === 'webinaire' ? 'resultat' : null,
+    resultat: tunnel === 'webinaire' ? TUNNELS.webinaire.resultat : '',
+    parSource,
+    sources: Object.fromEntries(Object.entries(sources).map(([cle, source]) => [cle, etatDeSource(source, 'ok')])),
+  };
+}
+
+/**
+ * GET /api/cockpit/donnees?mois=2026-11&tunnel=webinaire : les chiffres du mois pour
+ * un onglet (celui du tunnel VSL sans précision), pour une session ouverte.
  * @param {Request} request
  * @param {object} [contexte]
  * @param {Record<string, string | undefined>} [contexte.env]
@@ -250,26 +391,33 @@ export async function traiterDonnees(request, contexte = {}) {
   const acces = verifierAcces(request, env);
   if (!acces.ok) return acces.reponse;
 
-  const demande = new URL(request.url).searchParams.get('mois');
+  const parametres = new URL(request.url).searchParams;
+  const demande = parametres.get('mois');
   const mois = moisValide(demande) ? String(demande) : moisCourant(maintenant);
+  const tunnel = tunnelValide(parametres.get('tunnel'));
   // En local seulement : COCKPIT_DEMO=1 sert des chiffres de démonstration.
   let donnees;
   if (env.COCKPIT_DEMO === '1' && !env.VERCEL) {
     const [base, registre, suivi] = await Promise.all([
       lireCompteurs(env, mois, { fetchImpl }),
       lireRegistre(env, { fetchImpl }),
-      controlerSuivi({ env, fetchImpl, maintenant }),
+      tunnel === 'vsl' ? controlerSuivi({ env, fetchImpl, maintenant }) : null,
     ]);
     donnees = {
-      ...donneesDeDemonstration(mois, maintenant, {
-        notes: base.etat === 'ok' ? base.notes : null,
-        bloc: blocVentes(registre, mois, maintenant),
-      }),
+      ...donneesDeDemonstration(
+        mois,
+        maintenant,
+        {
+          notes: base.etat === 'ok' ? base.notes : null,
+          bloc: blocVentes(registre, mois, maintenant, tunnel),
+        },
+        tunnel,
+      ),
       // Le suivi n'est jamais inventé : c'est l'état réel des branchements de l'aperçu.
-      suivi,
+      ...(suivi ? { suivi } : {}),
     };
   } else {
-    donnees = await assemblerMois({ mois, env, fetchImpl, maintenant });
+    donnees = await assemblerMois({ mois, tunnel, env, fetchImpl, maintenant });
   }
   return repondre(200, { ok: true, chiffres: BRUTS, ...donnees }, { 'Cache-Control': 'private, no-store' });
 }
