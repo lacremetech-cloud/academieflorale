@@ -618,6 +618,10 @@ import { CHEMINS } from '../../reglages';
   const message = $('[data-message]');
   const erreur = $('[data-erreur]');
   const choixMois = $<HTMLSelectElement>('[data-mois]');
+  const textePorte = $('[data-porte-texte]');
+  const connexion = $<HTMLFormElement>('[data-connexion]');
+  /** L'invitation d'origine de la porte, remise dès que le cockpit peut s'ouvrir. */
+  const invitation = textePorte?.textContent ?? '';
   let mois = new URLSearchParams(window.location.search).get('mois') ?? '';
   if (!moisValide(mois)) mois = moisCourant();
   let donnees: Donnees | null = null;
@@ -870,12 +874,16 @@ import { CHEMINS } from '../../reglages';
     }
     donnees = null;
     montrer('porte');
-    const texte = $('[data-porte-texte]');
-    if (statut === 503 && corps?.erreur === 'non-regle') {
-      if (texte) texte.textContent = 'Le cockpit est fermé : son mot de passe n’est pas encore réglé (variable COCKPIT_MOT_DE_PASSE dans Vercel).';
-    } else if (statut !== 401 && message) {
-      message.textContent = 'Le cockpit ne répond pas. Réessaie dans un instant.';
+    // Sans mot de passe réglé dans Vercel, il n'y a rien à saisir : la porte le dit
+    // et ne propose pas de champ.
+    const ferme = statut === 503 && corps?.erreur === 'non-regle';
+    if (connexion) connexion.hidden = ferme;
+    if (textePorte) {
+      textePorte.textContent = ferme
+        ? 'Le cockpit est fermé : son mot de passe n’est pas encore réglé (variable COCKPIT_MOT_DE_PASSE dans Vercel).'
+        : invitation;
     }
+    if (message) message.textContent = !ferme && statut !== 401 ? 'Le cockpit ne répond pas. Réessaie dans un instant.' : '';
   }
 
   function changerDeMois(nouveau: string) {
@@ -888,7 +896,7 @@ import { CHEMINS } from '../../reglages';
   $('[data-mois-suivant]')?.addEventListener('click', () => changerDeMois(moisDecale(mois, 1)));
   choixMois?.addEventListener('change', () => changerDeMois(choixMois.value));
 
-  $<HTMLFormElement>('[data-connexion]')?.addEventListener('submit', async (evenement) => {
+  connexion?.addEventListener('submit', async (evenement) => {
     evenement.preventDefault();
     const formulaire = evenement.currentTarget as HTMLFormElement;
     const champ = formulaire.elements.namedItem('motDePasse') as HTMLInputElement;
