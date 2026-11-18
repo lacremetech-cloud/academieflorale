@@ -283,7 +283,9 @@ test('rapport : une publicité illisible n’empêche pas de lire le texte des a
   const rapport = await assemblerPubs({ mois: '2026-11', periode: 'mois', env: PROD, fetchImpl: m.fetchImpl, maintenant: APRES });
   const par = Object.fromEntries(rapport.pubs.map((ligne) => [ligne.nom, ligne]));
   assert.deepEqual([par['P01 H1'].texte, par['P01 H1'].statut, par['P03 H1'].texte, par['P03 H1'].depense], ['Texte de P01', 'ARCHIVED', '', 5]);
-  assert.deepEqual(vues.map((ids) => ids.length), [2, 1, 1]);
+  // Trois essais groupés (du plus complet au plus simple), puis une publicité à la fois.
+  assert.deepEqual(vues.map((ids) => ids.length), [2, 2, 2, 1, 1]);
+  assert.deepEqual(rapport.lectures.fiches, { demandees: 2, lues: 1, refus: 'Meta a répondu 400 : Unsupported get request' });
 });
 
 test('rapport : chaque source peut manquer sans empêcher les autres', async () => {

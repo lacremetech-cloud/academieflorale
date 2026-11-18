@@ -135,57 +135,74 @@ async function statistiques({ env, parametres, fetchImpl, tousLesEtats = false }
   return { etat: 'ok', lignes };
 }
 
+/** Ce que l'on demande d'une publicité : d'abord tout, puis l'essentiel si Meta refuse le détail de sa création. */
+const CHAMPS_FICHE = [
+  'name,effective_status,created_time,creative{title,body,thumbnail_url,object_story_spec,asset_feed_spec}',
+  'name,effective_status,created_time,creative{title,body,thumbnail_url}',
+  'name,effective_status,created_time',
+];
+
 /**
  * Le nom, l'état et le texte de quelques publicités.
  * @param {object} options
  * @param {Record<string, string | undefined>} options.env
  * @param {string[]} options.ids
  * @param {typeof fetch} options.fetchImpl
- * @returns {Promise<Record<string, import('../../partage/pubs.js').FichePub>>}
+ * @returns {Promise<{ fiches: Record<string, import('../../partage/pubs.js').FichePub>, diagnostic: { demandees: number, lues: number, refus: string } }>}
  */
 async function fichesDesPubs({ env, ids, fetchImpl }) {
   const jeton = (env.META_ACCESS_TOKEN ?? '').trim();
   /** @type {Record<string, import('../../partage/pubs.js').FichePub>} */
   const fiches = {};
-  if (!jeton || ids.length === 0) return fiches;
-  const champs = 'name,effective_status,created_time,creative{title,body,thumbnail_url,object_story_spec,asset_feed_spec}';
-  /** @param {string[]} groupe @returns {Promise<Record<string, unknown> | null>} */
-  const demander = async (groupe) => {
-    const reponse = await fetchImpl(`https://graph.facebook.com/${versionMeta(env)}/?${new URLSearchParams({ ids: groupe.join(','), fields: champs })}`, {
-      headers: { Authorization: `Bearer ${jeton}`, Accept: 'application/json' },
-      signal: AbortSignal.timeout(12000),
-    });
-    const corps = await reponse.json().catch(() => null);
-    return reponse.ok && corps && typeof corps === 'object' ? corps : null;
+  const voulus = ids.slice(0, 50);
+  const diagnostic = { demandees: voulus.length, lues: 0, refus: '' };
+  if (!jeton || voulus.length === 0) return { fiches, diagnostic };
+
+  /** @param {string[]} groupe @param {string} champs @returns {Promise<Record<string, unknown> | null>} */
+  const demander = async (groupe, champs) => {
+    try {
+      const reponse = await fetchImpl(`https://graph.facebook.com/${versionMeta(env)}/?${new URLSearchParams({ ids: groupe.join(','), fields: champs })}`, {
+        headers: { Authorization: `Bearer ${jeton}`, Accept: 'application/json' },
+        signal: AbortSignal.timeout(12000),
+      });
+      const corps = await reponse.json().catch(() => null);
+      if (reponse.ok && corps && typeof corps === 'object') return corps;
+      // Le message de Meta dit ce qui manque (droit, publicité supprimée) : il ne contient pas le jeton.
+      diagnostic.refus ||= `Meta a répondu ${reponse.status} : ${String(corps?.error?.message ?? 'erreur').slice(0, 160)}`;
+    } catch {
+      diagnostic.refus ||= 'Meta ne répond pas';
+    }
+    return null;
   };
-  try {
-    const voulus = ids.slice(0, 50);
-    let corps = await demander(voulus);
-    if (!corps && voulus.length > 1) {
-      // Une seule publicité illisible (supprimée depuis longtemps) fait échouer toute la demande : on les prend une par une.
-      const une = await Promise.all(voulus.map((id) => demander([id]).catch(() => null)));
-      corps = Object.assign({}, ...une.filter(Boolean));
-    }
-    if (!corps) return fiches;
-    for (const [id, pub] of Object.entries(corps)) {
-      if (!/^\d{6,25}$/.test(id) || !pub || typeof pub !== 'object') continue;
-      const creation = /** @type {any} */ (pub).creative ?? {};
-      const recit = creation.object_story_spec ?? {};
-      const flux = creation.asset_feed_spec ?? {};
-      const vignette = typeof creation.thumbnail_url === 'string' && creation.thumbnail_url.startsWith('https://') ? creation.thumbnail_url.slice(0, 1000) : '';
-      fiches[id] = {
-        nom: court(/** @type {any} */ (pub).name, 200),
-        statut: court(/** @type {any} */ (pub).effective_status, 40),
-        creeLe: court(/** @type {any} */ (pub).created_time, 10),
-        titre: court(creation.title || recit.video_data?.title || recit.link_data?.name || flux.titles?.[0]?.text, 300),
-        texte: court(creation.body || recit.video_data?.message || recit.link_data?.message || flux.bodies?.[0]?.text, 3000),
-        vignette,
-      };
-    }
-  } catch {
-    /* sans les textes, le rapport garde ses chiffres */
+
+  /** @type {Record<string, unknown> | null} */
+  let corps = null;
+  for (const champs of CHAMPS_FICHE) {
+    corps = await demander(voulus, champs);
+    if (corps) break;
   }
-  return fiches;
+  if (!corps && voulus.length > 1) {
+    // Une seule publicité illisible (supprimée depuis longtemps) fait échouer toute la demande : on les prend une par une.
+    const une = await Promise.all(voulus.map((id) => demander([id], CHAMPS_FICHE[1] ?? '')));
+    corps = Object.assign({}, ...une.filter(Boolean));
+  }
+  for (const [id, pub] of Object.entries(corps ?? {})) {
+    if (!/^\d{6,25}$/.test(id) || !pub || typeof pub !== 'object') continue;
+    const creation = /** @type {any} */ (pub).creative ?? {};
+    const recit = creation.object_story_spec ?? {};
+    const flux = creation.asset_feed_spec ?? {};
+    const vignette = typeof creation.thumbnail_url === 'string' && creation.thumbnail_url.startsWith('https://') ? creation.thumbnail_url.slice(0, 1000) : '';
+    fiches[id] = {
+      nom: court(/** @type {any} */ (pub).name, 200),
+      statut: court(/** @type {any} */ (pub).effective_status, 40),
+      creeLe: court(/** @type {any} */ (pub).created_time, 10),
+      titre: court(creation.title || recit.video_data?.title || recit.link_data?.name || flux.titles?.[0]?.text, 300),
+      texte: court(creation.body || recit.video_data?.message || recit.link_data?.message || flux.bodies?.[0]?.text, 3000),
+      vignette,
+    };
+  }
+  diagnostic.lues = Object.keys(fiches).length;
+  return { fiches, diagnostic };
 }
 
 /**
@@ -307,7 +324,7 @@ export async function assemblerPubs({ mois, periode, env, fetchImpl = fetch, mai
     .filter((pub) => pub.startsWith('id:') && !connues.has(pub.slice(3)))
     .map((pub) => pub.slice(3))
     .slice(0, 10);
-  const fiches = await fichesDesPubs({ env, ids: [...representantes, ...horsPeriode].filter(Boolean), fetchImpl });
+  const { fiches, diagnostic } = await fichesDesPubs({ env, ids: [...representantes, ...horsPeriode].filter(Boolean), fetchImpl });
 
   const { lignes, sansPub } = rattacherTunnel(regrouperPubs(pubsMeta, fiches), {
     inscrites: inscrites.parPub,
@@ -356,8 +373,8 @@ export async function assemblerPubs({ mois, periode, env, fetchImpl = fetch, mai
     creneaux,
     delais: { rdv: delaisRdv, vente: delaisVente, tranches: TRANCHES_DELAI },
     typesVus: [...typesVus].sort(),
-    // Pour le diagnostic : combien de lignes Meta a rendues à chaque lecture, et les champs de la première publicité.
-    lectures: { parPub: parPub.lignes.length, parJour: parJour.lignes.length, parHeure: parHeure.lignes.length, champs: Object.keys(parPub.lignes[0] ?? {}) },
+    // Pour le diagnostic : combien de lignes Meta a rendues à chaque lecture, et ce qu'il a dit des fiches des publicités.
+    lectures: { parPub: parPub.lignes.length, parJour: parJour.lignes.length, parHeure: parHeure.lignes.length, fiches: diagnostic },
   };
 }
 
