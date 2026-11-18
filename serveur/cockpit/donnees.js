@@ -11,7 +11,7 @@ import { repondre } from '../reponse.js';
 import { memeOrigine } from '../requete.js';
 import { verifierAcces } from './acces.js';
 import { lireIclosed } from './iclosed.js';
-import { lireMeta } from './meta.js';
+import { CAMPAGNES_PAR_DEFAUT, filtreCampagnes, lireMeta } from './meta.js';
 import { lireWistia } from './wistia.js';
 
 /** Ce que chaque source apporte, et ce qu'il faut pour la brancher. */
@@ -74,7 +74,7 @@ export async function assemblerMois({ mois, env, fetchImpl = fetch, maintenant =
     jours,
     notes: compteurs.notes,
     variantes: compteurs.variantes,
-    campagnes: (env.META_CAMPAGNES ?? '').trim(),
+    campagnes: filtreCampagnes(env),
     sources: Object.fromEntries(
       Object.entries(SOURCES).map(([cle, source]) => {
         const lue = lues[/** @type {keyof typeof lues} */ (cle)];
@@ -164,7 +164,7 @@ export function donneesDeDemonstration(mois, maintenant = new Date()) {
       vues: Math.round(total('vues') * (parts[rang] ?? 0)),
       inscrits: Math.round(total('inscrits') * ((parts[rang] ?? 0) + (rang === 1 ? 0.03 : -0.015))),
     })),
-    campagnes: 'VSL',
+    campagnes: CAMPAGNES_PAR_DEFAUT,
     sources: Object.fromEntries(
       Object.entries(SOURCES).map(([cle, source]) => [cle, { nom: source.nom, etat: 'ok', detail: '', variables: source.variables }]),
     ),

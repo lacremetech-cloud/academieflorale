@@ -4,7 +4,7 @@ import { compter, lireCompteurs, nomDeVariante } from '../partage/compteurs.js';
 import { visiteACompter } from '../partage/visites.js';
 import { assemblerMois } from '../serveur/cockpit/donnees.js';
 import { lireIclosed } from '../serveur/cockpit/iclosed.js';
-import { lireMeta } from '../serveur/cockpit/meta.js';
+import { filtreCampagnes, lireMeta } from '../serveur/cockpit/meta.js';
 import { lireWistia } from '../serveur/cockpit/wistia.js';
 import { creerLimiteur, traiterLead } from '../serveur/lead.js';
 
@@ -35,7 +35,8 @@ test('Meta : dépense, impressions et clics par jour, jeton hors de l’adresse'
           paging: { cursors: { after: 'A' }, next: 'https://graph.facebook.com/suite' },
         },
   );
-  const env = { META_ACCESS_TOKEN: 'jeton-meta-de-test', META_AD_ACCOUNT_ID: 'act_123456789', META_CAMPAGNES: 'VSL' };
+  // Sans réglage particulier, seules les campagnes dont le nom contient « VSL » sont comptées.
+  const env = { META_ACCESS_TOKEN: 'jeton-meta-de-test', META_AD_ACCOUNT_ID: 'act_123456789' };
   const lu = await lireMeta({ env, mois: MOIS, fetchImpl });
   assert.equal(lu.etat, 'ok');
   assert.deepEqual(lu.jours['2026-11-01'], { depense: 197.4, impressions: 29186, clics: 430 });
@@ -53,6 +54,20 @@ test('Meta : dépense, impressions et clics par jour, jeton hors de l’adresse'
   assert.equal(demandes.length, 2);
 });
 
+test('Meta : campagnes « VSL » par défaut, autre texte ou tout le compte sur réglage', async () => {
+  const filtreDemande = async (reglage) => {
+    const { demandes, fetchImpl } = fauxReseau(() => ({ data: [] }));
+    await lireMeta({ env: { META_ACCESS_TOKEN: 'jeton', META_AD_ACCOUNT_ID: '123456789', ...reglage }, mois: MOIS, fetchImpl });
+    const filtre = demandes[0].url.searchParams.get('filtering');
+    return filtre ? JSON.parse(filtre)[0].value : null;
+  };
+  assert.equal(await filtreDemande({}), 'VSL');
+  assert.equal(await filtreDemande({ META_CAMPAGNES: ' Webinaire ' }), 'Webinaire');
+  assert.equal(await filtreDemande({ META_CAMPAGNES: '' }), null);
+  assert.equal(filtreCampagnes({}), 'VSL');
+  assert.equal(filtreCampagnes({ META_CAMPAGNES: '' }), '');
+});
+
 test('Meta : non branché sans variables, erreur lisible si Meta refuse', async () => {
   assert.equal((await lireMeta({ env: {}, mois: MOIS })).etat, 'a-brancher');
   assert.equal((await lireMeta({ env: { META_ACCESS_TOKEN: 'x', META_AD_ACCOUNT_ID: 'compte' }, mois: MOIS })).etat, 'erreur');
@@ -62,7 +77,6 @@ test('Meta : non branché sans variables, erreur lisible si Meta refuse', async 
   assert.equal(lu.etat, 'erreur');
   assert.match(lu.detail, /Meta a répondu 400 : Error validating access token/);
   assert.equal(lu.detail.includes('jeton-secret'), false);
-  assert.equal(refus.demandes[0].url.searchParams.has('filtering'), false);
 
   const panne = await lireMeta({
     env: { META_ACCESS_TOKEN: 'x', META_AD_ACCOUNT_ID: '123456789' },

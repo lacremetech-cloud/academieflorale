@@ -6,8 +6,8 @@
  * Variables d'environnement (saisies dans Vercel, jamais dans le repo) :
  * - META_ACCESS_TOKEN : jeton d'accès avec le droit « ads_read » (utilisateur système) ;
  * - META_AD_ACCOUNT_ID : identifiant du compte publicitaire, avec ou sans « act_ » ;
- * - META_CAMPAGNES (facultatif) : texte que doit contenir le nom d'une campagne
- *   pour être comptée (« VSL », par exemple). Vide : tout le compte ;
+ * - META_CAMPAGNES (facultatif) : remplace le texte que doit contenir le nom d'une
+ *   campagne pour être comptée (« VSL » sans cette variable). Vide : tout le compte ;
  * - META_API_VERSION (facultatif) : version de l'API, si celle par défaut expire.
  */
 import { joursDuMois } from '../../partage/cockpit.js';
@@ -15,6 +15,18 @@ import { joursDuMois } from '../../partage/cockpit.js';
 /** Version de l'API Marketing en cours le 18/11/2026. */
 const VERSION_PAR_DEFAUT = 'v27.0';
 const PAGES_MAX = 6;
+
+/** Seules comptent les campagnes dont le nom contient ce texte (règle de nommage des campagnes du tunnel). */
+export const CAMPAGNES_PAR_DEFAUT = 'VSL';
+
+/**
+ * Le texte que doit contenir le nom d'une campagne pour être comptée. Une chaîne
+ * vide veut dire « tout le compte publicitaire ».
+ * @param {Record<string, string | undefined>} env
+ */
+export function filtreCampagnes(env) {
+  return (env.META_CAMPAGNES ?? CAMPAGNES_PAR_DEFAUT).trim().slice(0, 80);
+}
 
 /**
  * @param {object} options
@@ -38,7 +50,7 @@ export async function lireMeta({ env, mois, fetchImpl = fetch }) {
     time_increment: '1',
     limit: '100',
   });
-  const filtre = (env.META_CAMPAGNES ?? '').trim();
+  const filtre = filtreCampagnes(env);
   if (filtre) {
     parametres.set('filtering', JSON.stringify([{ field: 'campaign.name', operator: 'CONTAIN', value: filtre }]));
   }
