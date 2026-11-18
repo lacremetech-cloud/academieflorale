@@ -2104,7 +2104,8 @@ import { FORMULES } from '../../../partage/ventes.js';
         carte('Inscrites', ecrire(ensemble.inscrites, 'entier'), `Coût par inscrite : ${ecrire(indic.coutInscrite, 'centimes')}`),
         carte('Rendez-vous', ecrire(ensemble.rdv, 'entier'), `Coût par rendez-vous : ${ecrire(indic.coutRdv, 'euros')}`),
         carte('Ventes', ecrire(ensemble.ventes, 'entier'), `Commandé : ${ecrire(ensemble.commande, 'euros')}`),
-        carte('ROAS', ecrire(indic.roas, 'ratio'), 'Commandé ÷ dépense'),
+        // Sans vente, pas de ROAS : un tiret, jamais un zéro trompeur.
+        carte('ROAS', ensemble.ventes > 0 ? ecrire(indic.roas, 'ratio') : '—', 'Commandé ÷ dépense'),
       );
     }
 
