@@ -6,6 +6,7 @@
  * ne sort d'ici.
  */
 import { accesCompteurs } from '../../partage/compteurs.js';
+import { ICLOSED_AUTRES } from '../../partage/iclosed.js';
 import { lireReglage } from '../activecampaign.js';
 import { accesConversions, regleConsentement } from '../meta-conversions.js';
 import { AUTOMATISATIONS, CHAMPS, LISTES } from '../reglages.js';
@@ -128,7 +129,11 @@ export async function controlerSuivi({ env, fetchImpl = fetch, maintenant = new 
         `iClosed relu ${ilYA(String(dernier.t), maintenant)} (toutes les 10 minutes).`,
         Number(dernier.echecs) > 0 ? 'Le dernier passage n’a pas pu tout écrire : il réessaie au suivant.' : 'Chaque appel réservé pose le tag « vsl-rdv » et « Prise de RDV » = VSL.',
         // Les autres events de candidature renvoient vers la même page merci : le serveur prévient Meta pour eux aussi.
-        ...(dernier.autres !== undefined ? ['Les réservations des autres events de candidature (webinaire, site, setting, DM, YouTube) sont signalées à Meta.'] : []),
+        ...(dernier.autresEvents === undefined
+          ? []
+          : Number(dernier.autresEvents) >= ICLOSED_AUTRES.length
+            ? ['Les réservations des autres events de candidature (webinaire, site, setting, DM, YouTube) sont signalées à Meta.']
+            : [`Attention : iClosed ne connaît que ${Number(dernier.autresEvents)} des ${ICLOSED_AUTRES.length} autres events de candidature. Les réservations des events introuvables ne sont pas signalées à Meta.`]),
       ],
     };
   } else {

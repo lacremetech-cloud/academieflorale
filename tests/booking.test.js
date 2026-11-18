@@ -4,7 +4,7 @@ import fonction from '../api/booking.js';
 import { construireContactRdv, synchroniserRdv, traiterRdv } from '../serveur/booking.js';
 import { empreinteEmail } from '../serveur/empreinte.js';
 import { enregistrerInscription } from '../serveur/suivi.js';
-import { AC, fauxIclosed, fauxJournal, fauxMonde, PROD } from './faux.js';
+import { AC, AUTRES_EVENTS, fauxIclosed, fauxJournal, fauxMonde, PROD } from './faux.js';
 
 const MAINTENANT = new Date('2026-11-18T19:30:00Z');
 const PLUS_TARD = new Date('2026-11-18T19:40:00Z');
@@ -76,9 +76,10 @@ test('nouvelle réservation : ActiveCampaign, puis Meta, puis la base ; jamais d
   assert.deepEqual(resultat, { etat: 'ok', vus: 1, nouveaux: 1, annules: 0, echecs: 0, simulation: false });
 
   // iClosed : l'event du tunnel, ses appels récents et ses appels modifiés, avec la clé en en-tête ;
-  // puis la liste des events, pour les autres events de candidature (ce compte de test n'en a pas).
+  // puis la liste des events et une demande pour chacun des cinq autres events de candidature.
   const versIclosed = m.vers('iclosed');
-  assert.deepEqual(versIclosed.map((d) => d.url.pathname), ['/v1/events', '/v1/eventCalls', '/v1/eventCalls', '/v1/events']);
+  assert.deepEqual(versIclosed.slice(0, 4).map((d) => d.url.pathname), ['/v1/events', '/v1/eventCalls', '/v1/eventCalls', '/v1/events']);
+  assert.deepEqual(versIclosed.slice(4).map((d) => [d.url.pathname, d.url.searchParams.get('eventIds')]).sort(), ['71', '72', '73', '74', '75'].map((id) => ['/v1/eventCalls', id]));
   assert.equal(versIclosed[1].url.searchParams.get('eventIds'), '77');
   assert.equal(versIclosed[1].url.searchParams.get('createdAtStart'), '2026-11-15T19:30:00.000Z');
   assert.equal(versIclosed[1].options.headers.Authorization, 'Bearer cle-iclosed-de-test');
@@ -255,15 +256,6 @@ test('/api/booking : un simple signal, dont le contenu est ignoré et la répons
   assert.equal((await traiterRdv(signal('GET'), { env: PROD, fetchImpl: panne.fetchImpl, journal: fauxJournal().journal })).status, 502);
 });
 
-/** Les autres events du compte, tels qu'iClosed les liste : cinq events de candidature, et un appel de suivi d'élève. */
-const AUTRES_EVENTS = [
-  { id: 71, linkPrefix: 'academie-florale/candidature' },
-  { id: 72, linkPrefix: 'academie-florale/setting' },
-  { id: 73, linkPrefix: 'academie-florale/candidature-site' },
-  { id: 74, linkPrefix: 'academie-florale/candidature-dm' },
-  { id: 75, linkPrefix: 'academie-florale/candidature-yt' },
-  { id: 80, linkPrefix: 'academie-florale/appel-de-suivi-marina' },
-];
 const IDS_AUTRES = ['71', '72', '73', '74', '75'];
 
 /** Un monde où iClosed connaît aussi les autres events de candidature. */
@@ -323,7 +315,8 @@ test('autres events de candidature : Meta seulement, une seule fois, avec ce que
   );
   assert.deepEqual(JSON.parse(fiche), { t: Date.parse('2026-11-18T18:20:00Z'), h: empreinteEmail('ines@exemple.fr'), tunnel: 'webinaire', meta: 1 });
   assert.deepEqual([dansLeTunnel, suivi], [null, null]);
-  assert.equal(JSON.parse(etat).autres, 2);
+  // Pour la carte du cockpit : deux réservations signalées, les cinq events retrouvés.
+  assert.deepEqual([JSON.parse(etat).autres, JSON.parse(etat).autresEvents], [2, 5]);
 
   // Dix minutes plus tard : rien n'est renvoyé.
   await m.commandes(['DEL', VERROU]);
@@ -390,4 +383,26 @@ test('autres events : un refus de Meta se note et l’envoi est repris ; le tunn
   assert.deepEqual({ etat: resultat.etat, nouveaux: resultat.nouveaux, echecs: resultat.echecs }, { etat: 'ok', nouveaux: 1, echecs: 1 });
   assert.deepEqual(lignes, [['booking : autres events de candidature non relus', { motif: 'refus' }]]);
   assert.equal(JSON.parse((await panne.commandes(['HGET', 'af:c1:rdv:2026-11', '505']))[0]).meta, 1);
+});
+
+
+test('autres events : un event introuvable dans iClosed se voit, les autres sont signalés quand même', async () => {
+  // Le compte ne connaît plus l'event YouTube (renommé ou supprimé).
+  const connus = AUTRES_EVENTS.filter((event) => event.id !== 75);
+  const m = fauxMonde({
+    iclosed: fauxIclosed([ailleurs(641, 71, 'ines@exemple.fr'), ailleurs(642, 75, 'zoe@exemple.fr')], connus),
+    activecampaign: () => ({}),
+    meta: () => ({ events_received: 1 }),
+  });
+  const { journal, lignes } = fauxJournal();
+  // Un autre processus aurait gardé en mémoire l'identifiant de l'event : on repart d'une mémoire vide.
+  const { oublierEvents } = await import('../serveur/iclosed.js');
+  oublierEvents();
+  const resultat = await synchroniserRdv({ env: PROD, fetchImpl: m.fetchImpl, journal, attente: async () => {}, maintenant: MAINTENANT });
+  assert.equal(resultat.echecs, 1);
+  assert.deepEqual(lignes, [['booking : events de candidature introuvables dans iClosed', { manquants: ['candidature-yt'] }]]);
+  assert.deepEqual(m.vers('meta').map((d) => d.corps.data[0].event_id), ['rdv-641']);
+  const etat = JSON.parse((await m.commandes(['HGET', 'af:c1:etat', 'rdv']))[0]);
+  assert.deepEqual([etat.autres, etat.autresEvents, etat.echecs], [1, 4, 1]);
+  oublierEvents();
 });

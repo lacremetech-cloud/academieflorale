@@ -21,6 +21,11 @@ const eventsConnus = new Map();
 
 export class ErreurIclosed extends Error {}
 
+/** Oublie les events déjà retrouvés (pour les tests, qui changent de compte d'un essai à l'autre). */
+export function oublierEvents() {
+  eventsConnus.clear();
+}
+
 /**
  * @param {string} chemin
  * @param {Record<string, string>} parametres

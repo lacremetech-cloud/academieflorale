@@ -69,11 +69,21 @@ export function fauxJournal() {
   return { lignes, journal: { warn: (...a) => lignes.push(a), error: (...a) => lignes.push(a) } };
 }
 
+/** Les autres events du compte, tels qu'iClosed les liste : cinq events de candidature, et un appel de suivi d'élève. */
+export const AUTRES_EVENTS = Object.freeze([
+  { id: 71, linkPrefix: 'academie-florale/candidature' },
+  { id: 72, linkPrefix: 'academie-florale/setting' },
+  { id: 73, linkPrefix: 'academie-florale/candidature-site' },
+  { id: 74, linkPrefix: 'academie-florale/candidature-dm' },
+  { id: 75, linkPrefix: 'academie-florale/candidature-yt' },
+  { id: 80, linkPrefix: 'academie-florale/appel-de-suivi-marina' },
+]);
+
 /**
- * iClosed de test : l'event du tunnel (n° 77), d'autres events si on les donne, et les appels donnés.
+ * iClosed de test : l'event du tunnel (n° 77), les autres events du compte, et les appels donnés.
  * Comme le vrai, il ne rend que les appels des events demandés (un appel sans « eventId » est toujours rendu).
  */
-export function fauxIclosed(appels, autresEvents = []) {
+export function fauxIclosed(appels, autresEvents = AUTRES_EVENTS) {
   return (url) => {
     if (url.pathname === '/v1/events') return { data: [{ id: 77, linkPrefix: 'academie-florale/candidature-vsl' }, ...autresEvents] };
     if (url.pathname === '/v1/eventCalls') {

@@ -286,18 +286,20 @@ export async function synchroniserRdv(contexte = {}) {
       echecs += 1;
     }
     // Les autres events de candidature : Meta seulement. Une panne ici ne défait rien de ce qui précède.
-    let autres = 0;
+    /** @type {{ autres?: number, autresEvents?: number }} */
+    const ailleurs = {};
     if (metaRegle) {
       try {
         const bilan = await signalerAutresRdv({ env, cle, base, fetchImpl, maintenant, journal });
-        autres = bilan.envoyes;
+        ailleurs.autres = bilan.envoyes;
+        ailleurs.autresEvents = bilan.events;
         echecs += bilan.echecs;
       } catch (erreur) {
         journal.error('booking : autres events de candidature non relus', { motif: erreur instanceof ErreurIclosed ? 'refus' : 'reseau' });
         echecs += 1;
       }
     }
-    await noterEtat(env, 'rdv', { t: maintenant.toISOString(), vus: appels.length, nouveaux, annules, echecs, autres }, { fetchImpl });
+    await noterEtat(env, 'rdv', { t: maintenant.toISOString(), vus: appels.length, nouveaux, annules, echecs, ...ailleurs }, { fetchImpl });
   }
   return { etat: 'ok', vus: appels.length, nouveaux, annules, echecs, simulation: !production };
 }
@@ -313,15 +315,18 @@ export async function synchroniserRdv(contexte = {}) {
  * @param {typeof fetch} contexte.fetchImpl
  * @param {Date} contexte.maintenant
  * @param {Pick<Console, 'warn' | 'error'>} contexte.journal
- * @returns {Promise<{ envoyes: number, echecs: number }>}
+ * @returns {Promise<{ envoyes: number, echecs: number, events: number }>} « events » : ceux qu'iClosed connaît, sur les cinq attendus
  */
 async function signalerAutresRdv({ env, cle, base, fetchImpl, maintenant, journal }) {
-  const rien = { envoyes: 0, echecs: 0 };
   const instant = maintenant.getTime();
   // Jamais avant le changement de la page merci de l'event : l'ancienne page l'a déjà dit à Meta.
   /** @param {(typeof ICLOSED_AUTRES)[number]} autre */
   const depuisDe = (autre) => Math.max(Date.parse(autre.depuis), instant - RDV_RECUL_MS);
   const ids = await trouverEvents(cle, fetchImpl, ICLOSED_AUTRES.map((autre) => autre.event));
+  // Un event renommé ou supprimé dans iClosed ne serait plus signalé à Meta : on le dit (une fin d'adresse n'a rien de personnel).
+  const manquants = ICLOSED_AUTRES.filter((autre) => !ids.has(autre.event)).map((autre) => autre.event);
+  if (manquants.length > 0) journal.error('booking : events de candidature introuvables dans iClosed', { manquants });
+  const rien = { envoyes: 0, echecs: manquants.length > 0 ? 1 : 0, events: ids.size };
   const suivis = ICLOSED_AUTRES.filter((autre) => ids.has(autre.event) && depuisDe(autre) < instant);
   if (suivis.length === 0) return rien;
   const fin = new Date(instant + 86400000).toISOString();
@@ -371,7 +376,7 @@ async function signalerAutresRdv({ env, cle, base, fetchImpl, maintenant, journa
 
   const inscriptions = await lireInscriptions(env, reservations.map((reservation) => reservation.email), { fetchImpl, avecContexte: true });
   let envoyes = 0;
-  let echecs = 0;
+  let echecs = rien.echecs;
   /** @type {(string | number)[][]} */
   const ecritures = [];
   for (const reservation of reservations) {
@@ -424,7 +429,7 @@ async function signalerAutresRdv({ env, cle, base, fetchImpl, maintenant, journa
       echecs += 1;
     }
   }
-  return { envoyes, echecs };
+  return { envoyes, echecs, events: ids.size };
 }
 
 /**
