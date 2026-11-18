@@ -46,45 +46,44 @@ test('montants : saisie à la française, partage au centime près', () => {
 
 test('formules et moyens de paiement de l’Académie', () => {
   assert.deepEqual(Object.values(FORMULES), ['Fleuriste Essentiel', 'Fleuriste Indépendant', 'Fleuriste Business']);
-  assert.deepEqual(Object.values(METHODES).map((m) => m.nom), ['GoCardless', 'Virement bancaire', 'Secura', 'CPF']);
+  assert.deepEqual(Object.values(METHODES).map((m) => m.nom), ['GoCardless', 'Virement bancaire', 'seQura', 'CPF']);
 });
 
-test('échéancier : l’exemple de la vente à 3 000 € (dépôt GoCardless, le reste en Secura sur 6 mois)', () => {
+test('échéancier : l’exemple de la vente à 3 000 € (dépôt GoCardless, le reste en seQura sur 6 mois)', () => {
   const vente = {
     date: AUJOURD_HUI,
     paiements: [
       { methode: 'gocardless', montant: 1000, mensualites: 1, debut: AUJOURD_HUI },
-      { methode: 'secura', montant: 2000, mensualites: 6, debut: AUJOURD_HUI },
+      { methode: 'sequra', montant: 2000, mensualites: 6, debut: AUJOURD_HUI },
     ],
   };
-  // Dépôt le jour même ; Secura : 70 % le lendemain, 15 % à 3 mois, 15 % à la fin des 6 mensualités.
+  // Dépôt le jour même ; seQura : 70 % le lendemain, 15 % à 3 mois, 15 % à la fin des 6 mensualités.
   assert.deepEqual(lignes(vente), [
     ['2026-11-18', 1000, 'gocardless'],
-    ['2026-11-19', 1400, 'secura'],
-    ['2027-02-18', 300, 'secura'],
-    ['2027-05-18', 300, 'secura'],
+    ['2026-11-19', 1400, 'sequra'],
+    ['2027-02-18', 300, 'sequra'],
+    ['2027-05-18', 300, 'sequra'],
   ]);
   assert.equal(echeancier(vente).reduce((s, e) => s + e.montant, 0), 3000);
-  assert.equal(echeancier(vente).some((e) => e.recurrent), false);
   assert.equal(encaisseAu(vente, '2026-11-18'), 1000);
   assert.equal(encaisseAu(vente, '2026-11-19'), 2400);
   assert.equal(encaisseAu(vente, '2027-02-18'), 2700);
   assert.equal(encaisseAu(vente, '2027-05-18'), 3000);
 });
 
-test('échéancier : mensualités GoCardless, virement, CPF à 60 jours, Secura au centime près', () => {
+test('échéancier : mensualités GoCardless, virement, CPF à 60 jours, seQura au centime près', () => {
   const mensualites = echeancier({ date: '2026-11-18', paiements: [{ methode: 'gocardless', montant: 3000, mensualites: 6, debut: '2026-11-18' }] });
   assert.deepEqual(mensualites.map((e) => e.date), ['2026-11-18', '2026-12-18', '2027-01-18', '2027-02-18', '2027-03-18', '2027-04-18']);
-  assert.ok(mensualites.every((e) => e.montant === 500 && e.recurrent));
+  assert.ok(mensualites.every((e) => e.montant === 500));
   assert.equal(mensualites[1].etape, 'mensualité 2 sur 6');
 
   assert.deepEqual(lignes({ date: '2026-11-18', paiements: [{ methode: 'virement', montant: 2500, mensualites: 1, debut: '2026-11-20' }] }), [['2026-11-20', 2500, 'virement']]);
   // Le CPF ne se paie qu'en une fois, 60 jours après : le nombre de mensualités est ignoré.
   assert.deepEqual(lignes({ date: '2026-11-18', paiements: [{ methode: 'cpf', montant: 1800, mensualites: 4, debut: '2026-11-18' }] }), [['2027-01-17', 1800, 'cpf']]);
-  // Secura sur une somme qui ne tombe pas juste : le total reste exact.
-  const secura = echeancier({ date: '2026-11-18', paiements: [{ methode: 'secura', montant: 1999.99, mensualites: 10, debut: '2026-11-18' }] });
-  assert.deepEqual(secura.map((e) => e.montant), [1399.99, 300, 300]);
-  assert.equal(secura.at(-1).date, '2027-09-18');
+  // seQura sur une somme qui ne tombe pas juste : le total reste exact.
+  const sequra = echeancier({ date: '2026-11-18', paiements: [{ methode: 'sequra', montant: 1999.99, mensualites: 10, debut: '2026-11-18' }] });
+  assert.deepEqual(sequra.map((e) => e.montant), [1399.99, 300, 300]);
+  assert.equal(sequra.at(-1).date, '2027-09-18');
   // Sans date propre, un paiement part de la date de la vente.
   assert.deepEqual(lignes({ date: '2026-11-18', paiements: [{ methode: 'gocardless', montant: 100, mensualites: 1 }] }), [['2026-11-18', 100, 'gocardless']]);
 });
@@ -97,7 +96,7 @@ test('vente saisie : mise au propre, et refus de ce qui ne tient pas', () => {
     commission: '300',
     paiements: [
       { methode: 'gocardless', montant: '1000', mensualites: 1, debut: '' },
-      { methode: 'secura', montant: 2000, mensualites: 6 },
+      { methode: 'sequra', montant: 2000, mensualites: 6 },
     ],
     note: '  <b>appel\ndu soir</b> ',
   };
@@ -110,7 +109,7 @@ test('vente saisie : mise au propre, et refus de ce qui ne tient pas', () => {
     commission: 300,
     paiements: [
       { methode: 'gocardless', montant: 1000, mensualites: 1, debut: AUJOURD_HUI },
-      { methode: 'secura', montant: 2000, mensualites: 6, debut: AUJOURD_HUI },
+      { methode: 'sequra', montant: 2000, mensualites: 6, debut: AUJOURD_HUI },
     ],
     note: 'b appel du soir /b',
   });
@@ -127,17 +126,17 @@ test('vente saisie : mise au propre, et refus de ce qui ne tient pas', () => {
   assert.equal(refus({ paiements: [{ methode: 'gocardless', montant: 3000, mensualites: 2.5 }] }), 'paiements');
   assert.equal(refus({ paiements: [{ methode: 'gocardless', montant: 3000, debut: '2031-01-01' }] }), 'paiements');
   // La somme des paiements doit égaler le montant de la vente.
-  assert.equal(refus({ paiements: [{ methode: 'gocardless', montant: 1000 }, { methode: 'secura', montant: 1500, mensualites: 6 }] }), 'repartition');
+  assert.equal(refus({ paiements: [{ methode: 'gocardless', montant: 1000 }, { methode: 'sequra', montant: 1500, mensualites: 6 }] }), 'repartition');
   assert.equal(normaliserVente(null, { aujourdHui: AUJOURD_HUI }).erreur, 'vente');
   // Sans commission : zéro.
   assert.equal(normaliserVente({ ...brute, commission: '' }, { aujourdHui: AUJOURD_HUI }).vente.commission, 0);
 });
 
-test('cockpit : ventes par jour, encaissements par mois, MRR, reste à encaisser et commissions', () => {
+test('cockpit : ventes par jour, encaissements par mois (MRR), reste à encaisser et commissions', () => {
   const ventes = [
-    // 18/11 : 3 000 €, dépôt GoCardless 1 000 € + Secura 2 000 € sur 6 mois.
+    // 18/11 : 3 000 €, dépôt GoCardless 1 000 € + seQura 2 000 € sur 6 mois.
     { id: 'a', date: '2026-11-18', formule: 'independant', montant: 3000, commission: 300, closer: 'c1', closerNom: 'Camille', creeLe: '2026-11-18T09:00:00Z',
-      paiements: [{ methode: 'gocardless', montant: 1000, mensualites: 1, debut: '2026-11-18' }, { methode: 'secura', montant: 2000, mensualites: 6, debut: '2026-11-18' }] },
+      paiements: [{ methode: 'gocardless', montant: 1000, mensualites: 1, debut: '2026-11-18' }, { methode: 'sequra', montant: 2000, mensualites: 6, debut: '2026-11-18' }] },
     // 18/11 aussi : 1 800 € en CPF (payé à 60 jours).
     { id: 'b', date: '2026-11-18', formule: 'essentiel', montant: 1800, commission: 180, closer: 'c2', closerNom: 'Albane', creeLe: '2026-11-18T10:00:00Z',
       paiements: [{ methode: 'cpf', montant: 1800, mensualites: 1, debut: '2026-11-18' }] },
@@ -148,15 +147,16 @@ test('cockpit : ventes par jour, encaissements par mois, MRR, reste à encaisser
   const novembre = calculerVentes(ventes, { mois: '2026-11', aujourdHui: AUJOURD_HUI });
   assert.deepEqual(novembre.jours, { '2026-11-18': { ventes: 2, contracte: 4800, encaisse: 1000 } });
   assert.deepEqual(novembre.ventes.map((v) => [v.id, v.encaisse, v.reste]), [['a', 1000, 2000], ['b', 0, 1800]]);
-  // Novembre : dépôt 1 000 + Secura 1 400 + la mensualité d'octobre (500) ; seule la mensualité est du MRR.
+  // Novembre : dépôt 1 000 + seQura 1 400 + la mensualité de la vente d'octobre (500).
   const [mois0, mois1, mois2, mois3] = novembre.encaissements;
   assert.equal(novembre.encaissements.length, 12);
-  assert.deepEqual([mois0.mois, mois0.total, mois0.mensualites, mois0.encaisse], ['2026-11', 2900, 500, 1500]);
-  assert.deepEqual(mois0.parMethode, { gocardless: 1500, virement: 0, secura: 1400, cpf: 0 });
-  assert.deepEqual([mois1.mois, mois1.total, mois1.mensualites], ['2026-12', 500, 500]);
+  assert.deepEqual([mois0.mois, mois0.total, mois0.encaisse], ['2026-11', 2900, 1500]);
+  assert.deepEqual(mois0.parMethode, { gocardless: 1500, virement: 0, sequra: 1400, cpf: 0 });
+  // Décembre : la mensualité GoCardless seule ; janvier : la mensualité et le CPF (payé à 60 jours).
+  assert.deepEqual([mois1.mois, mois1.total, mois1.parMethode.gocardless], ['2026-12', 500, 500]);
   assert.deepEqual([mois2.mois, mois2.total, mois2.parMethode.cpf], ['2027-01', 2300, 1800]);
-  assert.deepEqual([mois3.mois, mois3.total, mois3.parMethode.secura], ['2027-02', 800, 300]);
-  // Reste à venir après le 18/11 : 2 000 (Secura) + 1 800 (CPF) + 4 mensualités de 500.
+  assert.deepEqual([mois3.mois, mois3.total, mois3.parMethode.sequra], ['2027-02', 800, 300]);
+  // Reste à venir après le 18/11 : 2 000 (seQura) + 1 800 (CPF) + 4 mensualités de 500.
   assert.equal(novembre.aEncaisser, 5800);
   assert.deepEqual(novembre.commissions, [
     { closer: 'c2', nom: 'Albane', ventes: 1, contracte: 1800, commission: 180 },
@@ -166,7 +166,7 @@ test('cockpit : ventes par jour, encaissements par mois, MRR, reste à encaisser
   const octobre = calculerVentes(ventes, { mois: '2026-10', aujourdHui: AUJOURD_HUI });
   // La vente d'octobre : deux mensualités déjà passées (05/10 et 05/11).
   assert.deepEqual(octobre.jours, { '2026-10-05': { ventes: 1, contracte: 3000, encaisse: 1000 } });
-  assert.deepEqual([octobre.encaissements[0].total, octobre.encaissements[0].mensualites], [500, 500]);
+  assert.deepEqual([octobre.encaissements[0].total, octobre.encaissements[0].encaisse], [500, 500]);
   assert.deepEqual(calculerVentes([], { mois: '2026-11', aujourdHui: AUJOURD_HUI }).jours, {});
 });
 
@@ -214,7 +214,7 @@ const VENTE = {
   commission: 300,
   paiements: [
     { methode: 'gocardless', montant: 1000, mensualites: 1 },
-    { methode: 'secura', montant: 2000, mensualites: 6 },
+    { methode: 'sequra', montant: 2000, mensualites: 6 },
   ],
 };
 

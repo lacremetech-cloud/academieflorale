@@ -2,8 +2,8 @@
 /**
  * Ventes de l'Académie Florale : les formules, les moyens de paiement, et le
  * calcul de ce que l'Académie encaisse et quand (l'échéancier de chaque vente).
- * Le cockpit en tire les ventes du jour, l'encaissé, le reste à encaisser, les
- * mensualités attendues chaque mois (MRR) et les commissions.
+ * Le cockpit en tire les ventes du jour, le commandé, l'encaissé, le reste à
+ * encaisser, ce qui doit entrer en caisse chaque mois (MRR) et les commissions.
  *
  * Fonctions pures, communes au serveur et à la page : aucune dépendance,
  * aucun secret. Les montants sont en euros, calculés en centimes.
@@ -20,23 +20,24 @@ export const FORMULES = Object.freeze({
  * Les moyens de paiement, et ce que chacun fait entrer en caisse.
  * - GoCardless, virement : la somme arrive à chaque échéance (une fois, ou une
  *   mensualité par mois).
- * - Secura : l'Académie reçoit 70 % le lendemain, 15 % trois mois plus tard et
- *   15 % à la fin des mensualités de l'élève.
+ * - seQura (paiement en plusieurs fois financé par seQura) : l'Académie reçoit
+ *   70 % le lendemain, 15 % trois mois plus tard et 15 % à la fin des
+ *   mensualités de l'élève. Règle donnée par l'Académie (18/11/2026).
  * - CPF : la somme arrive 60 jours après.
  */
 export const METHODES = Object.freeze({
   gocardless: { nom: 'GoCardless', enPlusieursFois: true },
   virement: { nom: 'Virement bancaire', enPlusieursFois: true },
-  secura: { nom: 'Secura', enPlusieursFois: true },
+  sequra: { nom: 'seQura', enPlusieursFois: true },
   cpf: { nom: 'CPF', enPlusieursFois: false },
 });
 
-/** Secura : part reçue d'abord, et son délai en jours. */
-export const SECURA_ACOMPTE = 0.7;
-export const SECURA_ACOMPTE_JOURS = 1;
-/** Secura : part reçue ensuite, et son délai en mois. Le solde arrive à la fin des mensualités. */
-export const SECURA_SECONDE_PART = 0.15;
-export const SECURA_SECONDE_MOIS = 3;
+/** seQura : part reçue d'abord, et son délai en jours. */
+export const SEQURA_ACOMPTE = 0.7;
+export const SEQURA_ACOMPTE_JOURS = 1;
+/** seQura : part reçue ensuite, et son délai en mois. Le solde arrive à la fin des mensualités. */
+export const SEQURA_SECONDE_PART = 0.15;
+export const SEQURA_SECONDE_MOIS = 3;
 /** CPF : délai de paiement, en jours. */
 export const CPF_JOURS = 60;
 
@@ -52,7 +53,7 @@ const PREMIER_JOUR = '2024-01-01';
  * @typedef {{ methode: string, montant: number, mensualites: number, debut: string }} Paiement
  * @typedef {{ id?: string, date: string, formule: string, montant: number, commission: number,
  *   closer?: string, closerNom?: string, paiements: Paiement[], note?: string, creeLe?: string }} Vente
- * @typedef {{ date: string, montant: number, methode: string, recurrent: boolean, etape: string }} Echeance
+ * @typedef {{ date: string, montant: number, methode: string, etape: string }} Echeance
  */
 
 /* ---------- Dates (jours « AAAA-MM-JJ », sans fuseau) ---------- */
@@ -131,8 +132,6 @@ export function partager(montant, nombre) {
 
 /**
  * Ce que l'Académie encaisse pour une vente, et quand, dans l'ordre des dates.
- * `recurrent` marque les mensualités d'un paiement en plusieurs fois (GoCardless
- * ou virement) : c'est ce que le cockpit appelle le MRR.
  * @param {Pick<Vente, 'date' | 'paiements'>} vente
  * @returns {Echeance[]}
  */
@@ -144,24 +143,23 @@ export function echeancier(vente) {
     const fois = METHODES[/** @type {keyof typeof METHODES} */ (paiement.methode)]?.enPlusieursFois
       ? Math.max(1, Math.round(paiement.mensualites ?? 1))
       : 1;
-    if (paiement.methode === 'secura') {
+    if (paiement.methode === 'sequra') {
       const total = centimes(paiement.montant);
-      const acompte = Math.round(total * SECURA_ACOMPTE);
-      const seconde = Math.round(total * SECURA_SECONDE_PART);
+      const acompte = Math.round(total * SEQURA_ACOMPTE);
+      const seconde = Math.round(total * SEQURA_SECONDE_PART);
       echeances.push(
-        { date: ajouterJours(debut, SECURA_ACOMPTE_JOURS), montant: acompte / 100, methode: 'secura', recurrent: false, etape: '70 % le lendemain' },
-        { date: ajouterMois(debut, SECURA_SECONDE_MOIS), montant: seconde / 100, methode: 'secura', recurrent: false, etape: '15 % à 3 mois' },
-        { date: ajouterMois(debut, fois), montant: (total - acompte - seconde) / 100, methode: 'secura', recurrent: false, etape: '15 % à la fin des mensualités' },
+        { date: ajouterJours(debut, SEQURA_ACOMPTE_JOURS), montant: acompte / 100, methode: 'sequra', etape: '70 % le lendemain' },
+        { date: ajouterMois(debut, SEQURA_SECONDE_MOIS), montant: seconde / 100, methode: 'sequra', etape: '15 % à 3 mois' },
+        { date: ajouterMois(debut, fois), montant: (total - acompte - seconde) / 100, methode: 'sequra', etape: '15 % à la fin des mensualités' },
       );
     } else if (paiement.methode === 'cpf') {
-      echeances.push({ date: ajouterJours(debut, CPF_JOURS), montant: paiement.montant, methode: 'cpf', recurrent: false, etape: 'payé à 60 jours' });
+      echeances.push({ date: ajouterJours(debut, CPF_JOURS), montant: paiement.montant, methode: 'cpf', etape: 'payé à 60 jours' });
     } else {
       partager(paiement.montant, fois).forEach((part, rang) =>
         echeances.push({
           date: ajouterMois(debut, rang),
           montant: part,
           methode: paiement.methode,
-          recurrent: fois > 1,
           etape: fois > 1 ? `mensualité ${rang + 1} sur ${fois}` : 'en une fois',
         }),
       );
@@ -250,11 +248,11 @@ function moisPlus(mois, ecart) {
 
 /**
  * À partir de toutes les ventes, ce que le cockpit affiche pour un mois :
- * - `jours` : par jour de vente, le nombre de ventes, le contracté et ce qui en
- *   est déjà encaissé aujourd'hui ;
+ * - `jours` : par jour de vente, le nombre de ventes, le commandé (`contracte`)
+ *   et ce qui en est déjà encaissé aujourd'hui ;
  * - `ventes` : les ventes du mois, avec leur encaissé et leur reste ;
  * - `encaissements` : ce qui entre en caisse mois par mois (toutes ventes
- *   confondues), par moyen de paiement, dont les mensualités (MRR) ;
+ *   confondues), par moyen de paiement : pour les mois à venir, c'est le MRR ;
  * - `aEncaisser` : tout ce qui reste à venir, toutes ventes confondues ;
  * - `commissions` : par closer, pour les ventes du mois.
  * @param {Vente[]} toutes
@@ -263,11 +261,11 @@ function moisPlus(mois, ecart) {
 export function calculerVentes(toutes, { mois, aujourdHui, horizon = 12 }) {
   /** @type {Record<string, { ventes: number, contracte: number, encaisse: number }>} */
   const jours = {};
-  /** @type {Record<string, { mois: string, total: number, mensualites: number, encaisse: number, parMethode: Record<string, number> }>} */
+  /** @type {Record<string, { mois: string, total: number, encaisse: number, parMethode: Record<string, number> }>} */
   const parMois = {};
   for (let rang = 0; rang < horizon; rang += 1) {
     const cle = moisPlus(mois, rang);
-    parMois[cle] = { mois: cle, total: 0, mensualites: 0, encaisse: 0, parMethode: Object.fromEntries(Object.keys(METHODES).map((methode) => [methode, 0])) };
+    parMois[cle] = { mois: cle, total: 0, encaisse: 0, parMethode: Object.fromEntries(Object.keys(METHODES).map((methode) => [methode, 0])) };
   }
   /** @type {Record<string, { closer: string, nom: string, ventes: number, contracte: number, commission: number }>} */
   const parCloser = {};
@@ -285,7 +283,6 @@ export function calculerVentes(toutes, { mois, aujourdHui, horizon = 12 }) {
       if (!ligne) continue;
       ligne.total += valeur;
       ligne.parMethode[echeance.methode] = (ligne.parMethode[echeance.methode] ?? 0) + valeur;
-      if (echeance.recurrent) ligne.mensualites += valeur;
       if (echeance.date <= aujourdHui) ligne.encaisse += valeur;
     }
     if (vente.date.slice(0, 7) !== mois) continue;
@@ -311,7 +308,6 @@ export function calculerVentes(toutes, { mois, aujourdHui, horizon = 12 }) {
     encaissements: Object.values(parMois).map((ligne) => ({
       mois: ligne.mois,
       total: ligne.total / 100,
-      mensualites: ligne.mensualites / 100,
       encaisse: ligne.encaisse / 100,
       parMethode: Object.fromEntries(Object.entries(ligne.parMethode).map(([methode, valeur]) => [methode, valeur / 100])),
     })),

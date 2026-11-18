@@ -4,8 +4,8 @@
  * en trois parties (Acquisition, VSL, Closing). Modèle : le tableau publicitaire
  * d'origine, sans second appel (R1 closing). Les ventes s'enregistrent ici
  * (« Ajouter une vente ») : formule, montant, closer et commission, moyens de
- * paiement. Le cockpit en tire l'encaissé, le reste à encaisser, les
- * mensualités attendues (MRR) et les commissions.
+ * paiement. Le cockpit en tire le commandé, l'encaissé, le reste à encaisser,
+ * ce qui doit entrer en caisse les mois suivants (MRR) et les commissions.
  *
  * Accès privé : cette page ne contient aucun chiffre. Elle demande le mot de
  * passe, puis lit les chiffres auprès de /api/cockpit/donnees, qui exige une
@@ -127,13 +127,13 @@ import { FORMULES } from '../../../partage/ventes.js';
         </div>
 
         <div class="bloc" data-bloc-encaissements hidden>
-          <h3>Encaissements prévus</h3>
+          <h3>MRR : ce qui doit être encaissé, mois par mois</h3>
           <p class="texte-secondaire">
-            Ce qui entre en caisse mois par mois, toutes ventes confondues, d’après l’échéancier de chaque vente. Une échéance
-            passée est comptée comme encaissée : le cockpit ne connaît pas les impayés.
+            Toutes ventes confondues, d’après l’échéancier de chaque vente. Une échéance passée est comptée comme encaissée : le
+            cockpit ne connaît pas les impayés.
           </p>
           <ul class="cartes" data-cartes="encaissements" role="list"></ul>
-          <div class="defilement" tabindex="0" role="region" aria-label="Encaissements prévus, mois par mois">
+          <div class="defilement" tabindex="0" role="region" aria-label="MRR, mois par mois">
             <table data-table="encaissements"></table>
           </div>
         </div>
@@ -186,7 +186,7 @@ import { FORMULES } from '../../../partage/ventes.js';
         <fieldset class="paiement">
           <legend>Comment la vente est payée</legend>
           <p class="texte-secondaire">
-            Une ligne par moyen de paiement. Par exemple : un dépôt en GoCardless, puis le reste en Secura en 6 fois.
+            Une ligne par moyen de paiement. Par exemple : un dépôt en GoCardless, puis le reste en seQura en 6 fois.
           </p>
           <div data-paiements></div>
           <div class="pied-paiement">
@@ -961,7 +961,7 @@ import { FORMULES } from '../../../partage/ventes.js';
     jours: Record<string, { ventes: number; contracte: number; encaisse: number }>;
     ventes: Vente[];
     closers: Closer[];
-    encaissements: { mois: string; total: number; mensualites: number; encaisse: number; parMethode: Record<string, number> }[];
+    encaissements: { mois: string; total: number; encaisse: number; parMethode: Record<string, number> }[];
     aEncaisser: number;
     commissions: { closer: string; nom: string; ventes: number; contracte: number; commission: number }[];
   };
@@ -1027,11 +1027,11 @@ import { FORMULES } from '../../../partage/ventes.js';
       { cle: 'absentes', titre: 'Absentes', aide: 'Appels où la prospecte ne s’est pas présentée, au jour prévu', format: 'entier', lire: brut('absentes') },
       { cle: 'ventes', titre: 'Ventes', aide: 'Ventes enregistrées', format: 'entier', lire: brut('ventes'), vente: true },
       { cle: 'tauxClosing', titre: '% Close', aide: 'Ventes ÷ appels maintenus', format: 'pourcent', lire: calcule('tauxClosing') },
-      { cle: 'encaisse', titre: 'Cash', aide: 'Déjà encaissé sur ces ventes, d’après leur échéancier', format: 'euros', lire: brut('encaisse') },
-      { cle: 'reste', titre: 'Recu.', aide: 'Reste à encaisser sur ces ventes', format: 'euros', lire: calcule('reste') },
-      { cle: 'contracte', titre: 'Cum.', aide: 'Montant des ventes (contracté)', format: 'euros', lire: brut('contracte') },
+      { cle: 'contracte', titre: 'Commandé', aide: 'Montant des ventes', format: 'euros', lire: brut('contracte') },
+      { cle: 'encaisse', titre: 'Encaissé', aide: 'Déjà encaissé sur ces ventes, d’après leur échéancier', format: 'euros', lire: brut('encaisse') },
+      { cle: 'reste', titre: 'Reste', aide: 'Reste à encaisser sur ces ventes : commandé moins encaissé', format: 'euros', lire: calcule('reste') },
       { cle: 'cpv', titre: 'CPV', aide: 'Coût par vente : dépense ÷ ventes', format: 'euros', lire: calcule('cpv') },
-      { cle: 'roas', titre: 'ROAS', aide: 'Contracté ÷ dépense', format: 'ratio', lire: calcule('roas') },
+      { cle: 'roas', titre: 'ROAS', aide: 'Commandé ÷ dépense', format: 'ratio', lire: calcule('roas') },
       { cle: 'roasDirect', titre: 'D. ROAS', aide: 'Encaissé ÷ dépense', format: 'ratio', lire: calcule('roasDirect') },
     ],
   };
@@ -1276,7 +1276,7 @@ import { FORMULES } from '../../../partage/ventes.js';
   const nomMethode = (id: string) => (METHODES as Record<string, { nom: string }>)[id]?.nom ?? id;
   const nomFormule = (id: string) => (FORMULES as Record<string, string>)[id] ?? id;
 
-  /** « GoCardless 1 000 € + Secura 2 000 € en 6 fois ». */
+  /** « GoCardless 1 000 € + seQura 2 000 € en 6 fois ». */
   const resumePaiements = (vente: Vente) =>
     vente.paiements
       .map((paiement) => `${nomMethode(paiement.methode)} ${argent(paiement.montant)}${paiement.mensualites > 1 ? ` en ${paiement.mensualites} fois` : ''}`)
@@ -1383,7 +1383,7 @@ import { FORMULES } from '../../../partage/ventes.js';
       [
         ['Closer', ''],
         ['Ventes', 'Ventes du mois'],
-        ['Contracté', 'Montant de ses ventes du mois'],
+        ['Commandé', 'Montant de ses ventes du mois'],
         ['Commissions', 'Total de ses commissions du mois'],
       ],
       d.commissions.map((ligne) => ({
@@ -1399,8 +1399,9 @@ import { FORMULES } from '../../../partage/ventes.js';
         : undefined,
     );
 
-    // Les encaissements : le mois affiché en cartes, puis douze mois en table.
+    // Le MRR : ce qui doit être encaissé, le mois affiché et les onze suivants.
     const duMois = d.encaissements[0];
+    const suivant = d.encaissements[1];
     const cartes = $('[data-cartes="encaissements"]');
     if (cartes && duMois) {
       const carte = (libelle: string, valeur: string, precision: string) => {
@@ -1410,16 +1411,16 @@ import { FORMULES } from '../../../partage/ventes.js';
       };
       cartes.replaceChildren(
         carte(`Encaissements de ${libelleMois(d.mois)}`, argent(duMois.total), `Dont déjà encaissé : ${argent(duMois.encaisse)}`),
-        carte('MRR du mois', argent(duMois.mensualites), 'Mensualités attendues ce mois (paiements en plusieurs fois)'),
+        carte(`MRR de ${libelleMois(suivant?.mois ?? d.mois)}`, argent(suivant?.total ?? 0), 'Ce qui doit être encaissé le mois suivant'),
         carte('Reste à encaisser', argent(d.aEncaisser), 'Toutes ventes confondues, après aujourd’hui'),
       );
     }
     const methodes = Object.keys(METHODES);
     remplirTable(
       'encaissements',
-      [['Mois', ''], ...methodes.map((id): [string, string] => [nomMethode(id), '']), ['Total', 'Tout ce qui entre en caisse ce mois-là'], ['Dont MRR', 'Mensualités des paiements en plusieurs fois']],
+      [['Mois', ''], ...methodes.map((id): [string, string] => [nomMethode(id), '']), ['Total', 'Tout ce qui est encaissé ce mois-là (MRR)']],
       d.encaissements.map((ligne) => ({
-        cellules: [libelleMois(ligne.mois), ...methodes.map((id) => argent(ligne.parMethode[id] ?? 0)), argent(ligne.total), argent(ligne.mensualites)],
+        cellules: [libelleMois(ligne.mois), ...methodes.map((id) => argent(ligne.parMethode[id] ?? 0)), argent(ligne.total)],
         classe: ligne.mois === d.aujourdHui.slice(0, 7) ? 'en-cours' : '',
       })),
     );
@@ -1589,8 +1590,8 @@ import { FORMULES } from '../../../partage/ventes.js';
       const moyen = (METHODES as Record<string, { enPlusieursFois: boolean }>)[methode.value];
       etiquetteFois.hidden = !moyen?.enPlusieursFois;
       const libelle = etiquetteFois.querySelector('span');
-      // Avec Secura, c'est l'élève qui paie en plusieurs fois : la durée fixe la date du solde.
-      if (libelle) libelle.textContent = methode.value === 'secura' ? 'Mensualités de l’élève' : 'En combien de fois';
+      // Avec seQura, c'est l'élève qui paie en plusieurs fois : la durée fixe la date du solde.
+      if (libelle) libelle.textContent = methode.value === 'sequra' ? 'Mensualités de l’élève' : 'En combien de fois';
     };
     methode.addEventListener('change', () => {
       selonMethode();
@@ -1663,12 +1664,8 @@ import { FORMULES } from '../../../partage/ventes.js';
     }
     if (resume) {
       const deja = echeances.reduce((total, echeance) => total + (echeance.date <= aujourdHui ? echeance.montant : 0), 0);
-      const mensualites = echeances.filter((echeance) => echeance.recurrent);
       resume.textContent =
-        echeances.length === 0
-          ? ''
-          : `Déjà encaissé aujourd’hui : ${argent(Math.round(deja * 100) / 100)}. À venir : ${argent(Math.round((reparti - deja) * 100) / 100)}.` +
-            (mensualites.length > 0 ? ` MRR : ${argent(mensualites[0]?.montant ?? 0)} par mois pendant ${mensualites.length} mois.` : '');
+        echeances.length === 0 ? '' : `Déjà encaissé aujourd’hui : ${argent(Math.round(deja * 100) / 100)}. À venir : ${argent(Math.round((reparti - deja) * 100) / 100)}.`;
     }
   }
 
@@ -1754,7 +1751,7 @@ import { FORMULES } from '../../../partage/ventes.js';
     const reparti = paiementsSaisis().reduce((total, paiement) => total + (lireMontant(paiement.montant) ?? 0), 0);
     const reste = Math.round((montant - reparti) * 100) / 100;
     paiementSuitLeMontant = false;
-    ajouterLignePaiement({ methode: 'secura', montant: reste > 0 ? reste : undefined });
+    ajouterLignePaiement({ methode: 'sequra', montant: reste > 0 ? reste : undefined });
     rafraichirVente();
   });
 

@@ -17,7 +17,7 @@ export const DUREE_VSL_MINUTES = 631 / 60;
  * - Tunnel : vues (affichages de la landing), inscrits (formulaires envoyés)
  * - Wistia : chargements et lectures de la VSL, heures regardées
  * - iClosed : appels réservés ce jour-là ; annulés et absentes des appels prévus ce jour-là
- * - Registre des ventes : ventes du jour, contracté (€) et ce qui en est déjà encaissé (€)
+ * - Registre des ventes : ventes du jour, commandé (€, « contracte » dans le code) et ce qui en est déjà encaissé (€)
  */
 export const BRUTS = Object.freeze([
   'depense',
@@ -168,11 +168,11 @@ export function indicateurs(b) {
     cpaMaintenu: rapport(b.depense, maintenus),
     /** Ventes pour 100 appels maintenus. */
     tauxClosing: rapport(b.ventes, maintenus),
-    /** Contracté moins encaissé (« Recu. »). */
+    /** Commandé moins encaissé (« Reste »). */
     reste,
     /** Coût par vente (« CPV »). */
     cpv: rapport(b.depense, b.ventes),
-    /** Contracté pour 1 € dépensé (« ROAS »). */
+    /** Commandé pour 1 € dépensé (« ROAS »). */
     roas: rapport(b.contracte, b.depense),
     /** Encaissé pour 1 € dépensé (« D. ROAS »). */
     roasDirect: rapport(b.encaisse, b.depense),

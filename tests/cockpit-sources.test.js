@@ -319,7 +319,7 @@ test('assemblage : zéro les jours passés d’une source branchée, vide pour l
 
 test('assemblage : les ventes du registre, zéro les jours sans vente', async () => {
   const jours = 30;
-  // Vente du 2 novembre : 3 000 €, dont 1 000 € en GoCardless le jour même et 2 000 € en Secura sur 6 mois.
+  // Vente du 2 novembre : 3 000 €, dont 1 000 € en GoCardless le jour même et 2 000 € en seQura sur 6 mois.
   const vente = {
     date: '2026-11-02',
     formule: 'independant',
@@ -329,7 +329,7 @@ test('assemblage : les ventes du registre, zéro les jours sans vente', async ()
     closerNom: 'Camille',
     paiements: [
       { methode: 'gocardless', montant: 1000, mensualites: 1, debut: '2026-11-02' },
-      { methode: 'secura', montant: 2000, mensualites: 6, debut: '2026-11-02' },
+      { methode: 'sequra', montant: 2000, mensualites: 6, debut: '2026-11-02' },
     ],
   };
   const { demandes, fetchImpl } = fauxReseau((url, options) => {
@@ -347,7 +347,7 @@ test('assemblage : les ventes du registre, zéro les jours sans vente', async ()
   });
   const [premier, deuxieme, , quatrieme] = donnees.jours;
   assert.deepEqual([premier.ventes, premier.encaisse, premier.contracte], [0, 0, 0]);
-  // Le 3 novembre : le dépôt (1 000 €) et les 70 % de Secura (1 400 €) sont encaissés.
+  // Le 3 novembre : le dépôt (1 000 €) et les 70 % de seQura (1 400 €) sont encaissés.
   assert.deepEqual([deuxieme.ventes, deuxieme.encaisse, deuxieme.contracte], [1, 2400, 3000]);
   assert.equal(quatrieme.ventes, null); // demain
   assert.equal(deuxieme.appels, null); // iClosed non branché : les ventes s'enregistrent quand même
