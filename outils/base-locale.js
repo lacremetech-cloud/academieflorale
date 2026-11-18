@@ -1,6 +1,6 @@
 // Base de compteurs locale, en mémoire : elle imite l'API REST d'Upstash Redis
 // (une suite de commandes envoyée à /pipeline) pour l'aperçu local. Elle sert à
-// essayer les notes, la saisie des ventes et les compteurs sans toucher à la
+// essayer les notes, le registre des ventes et les compteurs sans toucher à la
 // vraie base. Tout est perdu à l'arrêt du serveur local.
 
 /** Adresse fictive de la base locale : aucune requête ne part réellement vers elle. */
@@ -40,6 +40,9 @@ export function creerBaseLocale() {
         return table(cle)?.delete(String(reste[0])) ? 1 : 0;
       case 'HMGET':
         return reste.map((champ) => table(cle)?.get(champ) ?? null);
+      case 'HGETALL':
+        // Comme Upstash : « champ, valeur, champ, valeur… ».
+        return [...(table(cle) ?? [])].flat();
       default:
         throw new Error(`commande inconnue : ${nom}`);
     }

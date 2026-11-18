@@ -14,8 +14,9 @@ import { fileURLToPath } from 'node:url';
 import booking from '../api/booking.js';
 import cockpitConnexion from '../api/cockpit/connexion.js';
 import cockpitDonnees from '../api/cockpit/donnees.js';
+import cockpitCloser from '../api/cockpit/closer.js';
 import cockpitNote from '../api/cockpit/note.js';
-import cockpitSaisie from '../api/cockpit/saisie.js';
+import cockpitVente from '../api/cockpit/vente.js';
 import lead from '../api/lead.js';
 import pays from '../api/pays.js';
 import { choisirVariante } from '../partage/repartition.js';
@@ -23,7 +24,7 @@ import { ADRESSE_BASE_LOCALE, creerBaseLocale } from './base-locale.js';
 
 // Réglages locaux, s'il y en a : le fichier .env.local (jamais dans le repo) peut porter
 // un mot de passe de test pour le cockpit, COCKPIT_DEMO=1 pour ses chiffres de démonstration
-// et BASE_LOCALE=1 pour une base de compteurs en mémoire (notes, ventes saisies, compteurs).
+// et BASE_LOCALE=1 pour une base en mémoire (notes, ventes, closers, compteurs).
 // Une variable déjà définie au lancement l'emporte sur ce fichier.
 try {
   process.loadEnvFile(fileURLToPath(new URL('../.env.local', import.meta.url)));
@@ -51,8 +52,9 @@ const FONCTIONS = {
   '/api/booking': booking,
   '/api/cockpit/connexion': cockpitConnexion,
   '/api/cockpit/donnees': cockpitDonnees,
+  '/api/cockpit/closer': cockpitCloser,
   '/api/cockpit/note': cockpitNote,
-  '/api/cockpit/saisie': cockpitSaisie,
+  '/api/cockpit/vente': cockpitVente,
   '/api/lead': lead,
   '/api/pays': pays,
 };

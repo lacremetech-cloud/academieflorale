@@ -1,10 +1,10 @@
 // @ts-check
 /**
  * Compteurs du tunnel : affichages de la landing et inscriptions, par jour et par
- * formulation, plus ce qui se saisit à la main dans le cockpit (notes et ventes
- * du jour). Ils donnent au cockpit ses inscrites par jour et permettent de lire
- * le test des formulations.
+ * formulation, plus les notes du cockpit. Ils donnent au cockpit ses inscrites
+ * par jour et permettent de lire le test des formulations.
  * Aucune donnée personnelle : seulement des nombres et de courtes notes.
+ * (Le registre des ventes vit dans la même base : serveur/cockpit/registre.js.)
  *
  * Stockage : une base Redis (Upstash, depuis le Marketplace de Vercel), par son
  * API REST. Vercel pose lui-même les variables quand la base est reliée au projet :
@@ -14,7 +14,7 @@
  * Ce module n'utilise que fetch : il sert aux fonctions serveur comme au
  * middleware de la landing.
  */
-import { CHAMPS_SAISIE, joursDuMois, jourParis } from './cockpit.js';
+import { joursDuMois, jourParis } from './cockpit.js';
 import { VARIANTES_EN_TEST } from './repartition.js';
 
 /** Ce qui se compte. */
@@ -22,29 +22,6 @@ export const EVENEMENTS = Object.freeze(['vues', 'inscrits']);
 const PREFIXE = 'af:c1';
 const CLE_VARIANTES = `${PREFIXE}:variantes`;
 const CLE_NOTES = `${PREFIXE}:notes`;
-/** Ventes saisies à la main : un champ par jour et par chiffre (« 2026-11-18:ventes »). */
-const CLE_SAISIES = `${PREFIXE}:saisies`;
-/** @param {string} jour */
-const champsDuJour = (jour) => CHAMPS_SAISIE.map((champ) => `${jour}:${champ}`);
-
-/**
- * Range les valeurs lues dans la base par jour : { '2026-11-18': { ventes: 1 } }.
- * @param {string[]} jours
- * @param {unknown} valeurs une valeur par jour et par champ, dans l'ordre
- */
-function rangerSaisies(jours, valeurs) {
-  /** @type {Record<string, Record<string, number>>} */
-  const saisies = {};
-  if (!Array.isArray(valeurs)) return saisies;
-  jours.forEach((jour, rang) => {
-    CHAMPS_SAISIE.forEach((champ, place) => {
-      const brut = valeurs[rang * CHAMPS_SAISIE.length + place];
-      const nombre = brut == null || brut === '' ? NaN : Number(brut);
-      if (Number.isFinite(nombre) && nombre > 0) (saisies[jour] ??= {})[champ] = nombre;
-    });
-  });
-  return saisies;
-}
 /** Longueur maximale d'une note du cockpit. */
 export const NOTE_MAX = 160;
 
@@ -77,7 +54,7 @@ export function nomDeVariante(brut, connues = VARIANTES_EN_TEST) {
  * @param {number} delaiMs
  * @returns {Promise<any[]>} le résultat de chaque commande
  */
-async function executer(acces, commandes, fetchImpl, delaiMs) {
+export async function executer(acces, commandes, fetchImpl, delaiMs) {
   const reponse = await fetchImpl(`${acces.url}/pipeline`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${acces.jeton}`, 'Content-Type': 'application/json' },
@@ -125,28 +102,26 @@ export async function compter(env, evenement, variante, options = {}) {
 }
 
 /**
- * Les compteurs d'un mois : par jour, et par formulation sur le mois ; plus les
- * notes et les ventes saisies à la main.
+ * Les compteurs d'un mois : par jour, et par formulation sur le mois ; plus les notes.
  * @param {Record<string, string | undefined>} env
  * @param {string} mois « 2026-11 »
  * @param {{ fetchImpl?: typeof fetch }} [options]
- * @returns {Promise<{ etat: 'ok' | 'a-brancher' | 'erreur', detail?: string, jours: Record<string, Record<string, number>>, variantes: { nom: string, vues: number, inscrits: number }[], notes: Record<string, string>, saisies: Record<string, Record<string, number>> }>}
+ * @returns {Promise<{ etat: 'ok' | 'a-brancher' | 'erreur', detail?: string, jours: Record<string, Record<string, number>>, variantes: { nom: string, vues: number, inscrits: number }[], notes: Record<string, string> }>}
  */
 export async function lireCompteurs(env, mois, options = {}) {
-  const vide = { jours: {}, variantes: [], notes: {}, saisies: {} };
+  const vide = { jours: {}, variantes: [], notes: {} };
   const acces = accesCompteurs(env);
   if (!acces) return { etat: 'a-brancher', ...vide };
   const fetchImpl = options.fetchImpl ?? fetch;
   const jours = joursDuMois(mois);
   try {
-    const [vues, inscrits, notes, variantes, saisies] = await executer(
+    const [vues, inscrits, notes, variantes] = await executer(
       acces,
       [
         ['MGET', ...jours.map((jour) => `${PREFIXE}:vues:j:${jour}`)],
         ['MGET', ...jours.map((jour) => `${PREFIXE}:inscrits:j:${jour}`)],
         ['HMGET', CLE_NOTES, ...jours],
         ['SMEMBERS', CLE_VARIANTES],
-        ['HMGET', CLE_SAISIES, ...jours.flatMap(champsDuJour)],
       ],
       fetchImpl,
       6000,
@@ -177,7 +152,7 @@ export async function lireCompteurs(env, mois, options = {}) {
         .map((nom, rang) => ({ nom, vues: Number(vuesParNom?.[rang]) || 0, inscrits: Number(inscritsParNom?.[rang]) || 0 }))
         .filter((variante) => variante.vues > 0 || variante.inscrits > 0);
     }
-    return { etat: 'ok', jours: parJour, variantes: parVariante, notes: notesDuMois, saisies: rangerSaisies(jours, saisies) };
+    return { etat: 'ok', jours: parJour, variantes: parVariante, notes: notesDuMois };
   } catch (erreur) {
     const nom = erreur instanceof Error ? erreur.name : '';
     return {
@@ -204,32 +179,5 @@ export async function ecrireNote(env, jour, note, options = {}) {
     return 'ok';
   } catch {
     return 'erreur';
-  }
-}
-
-/**
- * Enregistre (ou efface) un chiffre de vente saisi à la main pour une journée,
- * puis relit ce qui est saisi ce jour-là.
- * @param {Record<string, string | undefined>} env
- * @param {string} jour « 2026-11-18 »
- * @param {string} champ l'un des CHAMPS_SAISIE
- * @param {number | null} valeur null pour effacer
- * @param {{ fetchImpl?: typeof fetch }} [options]
- * @returns {Promise<{ etat: 'ok' | 'a-brancher' | 'erreur', saisie: Record<string, number> }>}
- */
-export async function ecrireSaisie(env, jour, champ, valeur, options = {}) {
-  const acces = accesCompteurs(env);
-  if (!acces || !CHAMPS_SAISIE.includes(champ)) return { etat: acces ? 'erreur' : 'a-brancher', saisie: {} };
-  const cle = `${jour}:${champ}`;
-  try {
-    const [, relu] = await executer(
-      acces,
-      [valeur ? ['HSET', CLE_SAISIES, cle, String(valeur)] : ['HDEL', CLE_SAISIES, cle], ['HMGET', CLE_SAISIES, ...champsDuJour(jour)]],
-      options.fetchImpl ?? fetch,
-      4000,
-    );
-    return { etat: 'ok', saisie: rangerSaisies([jour], relu)[jour] ?? {} };
-  } catch {
-    return { etat: 'erreur', saisie: {} };
   }
 }

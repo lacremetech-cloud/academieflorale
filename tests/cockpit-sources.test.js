@@ -253,7 +253,7 @@ test('compteurs : une vue ou une inscription se compte par jour et par formulati
   for (const douteux of ['inscription', '', null, '../secret', 'mariages', 'A B', 'x'.repeat(60)]) assert.equal(nomDeVariante(douteux), 'autre');
 });
 
-test('compteurs : lecture d’un mois, par jour et par formulation, avec les notes et les ventes saisies', async () => {
+test('compteurs : lecture d’un mois, par jour et par formulation, avec les notes', async () => {
   const { demandes, fetchImpl } = fauxReseau((url, options, rang) => {
     if (rang === 1) {
       const jours = 30;
@@ -262,8 +262,6 @@ test('compteurs : lecture d’un mois, par jour et par formulation, avec les not
         { result: ['12', null, ...Array(jours - 2).fill(null)] },
         { result: [null, 'scaling cbo', ...Array(jours - 2).fill(null)] },
         { result: ['90-jours-plan', '90-jours', 'ancienne'] },
-        // Ventes saisies : trois valeurs par jour (ventes, encaissé, reste). Le 1er : rien ; le 2 : une vente.
-        { result: [null, null, null, '1', '1000', '2000.5', ...Array((jours - 2) * 3).fill(null)] },
       ];
     }
     return [{ result: ['110', '105', null] }, { result: ['7', '5', null] }];
@@ -274,9 +272,7 @@ test('compteurs : lecture d’un mois, par jour et par formulation, avec les not
   assert.deepEqual(lu.jours['2026-11-02'], { vues: 95, inscrits: 0 });
   assert.deepEqual(lu.jours['2026-11-30'], { vues: 0, inscrits: 0 });
   assert.deepEqual(lu.notes, { '2026-11-02': 'scaling cbo' });
-  assert.deepEqual(lu.saisies, { '2026-11-02': { ventes: 1, encaisse: 1000, reste: 2000.5 } });
-  assert.deepEqual(demandes[0].corps[4].slice(0, 5), ['HMGET', 'af:c1:saisies', '2026-11-01:ventes', '2026-11-01:encaisse', '2026-11-01:reste']);
-  assert.equal(demandes[0].corps[4].length, 2 + 30 * 3);
+  assert.equal(demandes[0].corps.length, 4);
   // Formulations triées ; celle qui n'a rien ce mois-ci n'est pas listée.
   assert.deepEqual(lu.variantes, [
     { nom: '90-jours', vues: 110, inscrits: 7 },
@@ -314,26 +310,35 @@ test('assemblage : zéro les jours passés d’une source branchée, vide pour l
   assert.equal(donnees.sources.wistia.etat, 'erreur');
   assert.equal(donnees.sources.iclosed.etat, 'a-brancher');
   assert.deepEqual(donnees.sources.compteurs.variables, ['KV_REST_API_URL', 'KV_REST_API_TOKEN']);
-  // Sans base, les ventes ne peuvent pas se saisir : elles restent vides, et la source le dit.
+  // Sans base, les ventes ne peuvent pas s'enregistrer : elles restent vides, et la source le dit.
   assert.deepEqual([deuxieme.ventes, deuxieme.encaisse, deuxieme.contracte], [null, null, null]);
   assert.deepEqual([donnees.sources.ventes.etat, donnees.sources.ventes.manuel], ['a-brancher', true]);
   // Aucun secret dans ce qui part vers la page.
   assert.equal(/"x"|"y"/.test(JSON.stringify(donnees)), false);
 });
 
-test('assemblage : les ventes saisies à la main, zéro les jours sans saisie', async () => {
+test('assemblage : les ventes du registre, zéro les jours sans vente', async () => {
   const jours = 30;
-  const { fetchImpl } = fauxReseau((url) =>
-    url.hostname === 'base.test'
-      ? [
-          { result: Array(jours).fill(null) },
-          { result: Array(jours).fill(null) },
-          { result: Array(jours).fill(null) },
-          { result: [] },
-          { result: [null, null, null, '1', '1000', '2000', ...Array((jours - 2) * 3).fill(null)] },
-        ]
-      : new Response('{}', { status: 500 }),
-  );
+  // Vente du 2 novembre : 3 000 €, dont 1 000 € en GoCardless le jour même et 2 000 € en Secura sur 6 mois.
+  const vente = {
+    date: '2026-11-02',
+    formule: 'independant',
+    montant: 3000,
+    commission: 300,
+    closer: 'c-1',
+    closerNom: 'Camille',
+    paiements: [
+      { methode: 'gocardless', montant: 1000, mensualites: 1, debut: '2026-11-02' },
+      { methode: 'secura', montant: 2000, mensualites: 6, debut: '2026-11-02' },
+    ],
+  };
+  const { demandes, fetchImpl } = fauxReseau((url, options) => {
+    if (url.hostname !== 'base.test') return new Response('{}', { status: 500 });
+    const commandes = JSON.parse(options.body);
+    return commandes[0][0] === 'HGETALL'
+      ? [{ result: ['v-00000001', JSON.stringify(vente), 'abimee', '{pas du json'] }, { result: ['c-1', JSON.stringify({ nom: 'Camille' })] }]
+      : [{ result: Array(jours).fill(null) }, { result: Array(jours).fill(null) }, { result: Array(jours).fill(null) }, { result: [] }];
+  });
   const donnees = await assemblerMois({
     mois: MOIS,
     env: { KV_REST_API_URL: 'https://base.test', KV_REST_API_TOKEN: 'jeton' },
@@ -342,10 +347,17 @@ test('assemblage : les ventes saisies à la main, zéro les jours sans saisie', 
   });
   const [premier, deuxieme, , quatrieme] = donnees.jours;
   assert.deepEqual([premier.ventes, premier.encaisse, premier.contracte], [0, 0, 0]);
-  assert.deepEqual([deuxieme.ventes, deuxieme.encaisse, deuxieme.contracte], [1, 1000, 3000]);
+  // Le 3 novembre : le dépôt (1 000 €) et les 70 % de Secura (1 400 €) sont encaissés.
+  assert.deepEqual([deuxieme.ventes, deuxieme.encaisse, deuxieme.contracte], [1, 2400, 3000]);
   assert.equal(quatrieme.ventes, null); // demain
-  assert.equal(deuxieme.appels, null); // iClosed non branché : les ventes se saisissent quand même
+  assert.equal(deuxieme.appels, null); // iClosed non branché : les ventes s'enregistrent quand même
   assert.deepEqual([donnees.sources.ventes.etat, donnees.sources.compteurs.etat, donnees.sources.iclosed.etat], ['ok', 'ok', 'a-brancher']);
+  assert.deepEqual(donnees.ventes.map((v) => [v.id, v.encaisse, v.reste]), [['v-00000001', 2400, 600]]);
+  assert.equal(donnees.aEncaisser, 600);
+  assert.deepEqual(donnees.closers, [{ id: 'c-1', nom: 'Camille' }]);
+  assert.deepEqual(donnees.commissions, [{ closer: 'c-1', nom: 'Camille', ventes: 1, contracte: 3000, commission: 300 }]);
+  assert.deepEqual(donnees.encaissements.filter((e) => e.total > 0).map((e) => [e.mois, e.total]), [['2026-11', 2400], ['2027-02', 300], ['2027-05', 300]]);
+  assert.ok(demandes.some((d) => d.corps?.[0]?.[0] === 'HGETALL' && d.corps[0][1] === 'af:c1:ventes'));
 });
 
 test('landing : seules les vraies visites sont comptées', () => {

@@ -17,7 +17,7 @@ export const DUREE_VSL_MINUTES = 631 / 60;
  * - Tunnel : vues (affichages de la landing), inscrits (formulaires envoyés)
  * - Wistia : chargements et lectures de la VSL, heures regardées
  * - iClosed : appels réservés ce jour-là ; annulés et absentes des appels prévus ce jour-là
- * - Saisie à la main : ventes du jour, encaissé (€) et contracté (encaissé + reste à encaisser)
+ * - Registre des ventes : ventes du jour, contracté (€) et ce qui en est déjà encaissé (€)
  */
 export const BRUTS = Object.freeze([
   'depense',
@@ -37,48 +37,6 @@ export const BRUTS = Object.freeze([
 ]);
 
 /** @typedef {Record<string, number | null>} Chiffres */
-
-/**
- * Ce qui se saisit à la main dans le cockpit, pour chaque journée : le nombre de
- * ventes, l'encaissé (« Cash ») et le reste à encaisser (« Recu. »).
- */
-export const CHAMPS_SAISIE = Object.freeze(['ventes', 'encaisse', 'reste']);
-/** @type {Record<string, number>} */
-const SAISIE_MAX = { ventes: 999, encaisse: 9999999, reste: 9999999 };
-
-/**
- * Lit une valeur saisie à la main : 3, « 1 500,50 », « 1000 € », ''…
- * @param {string} champ l'un des CHAMPS_SAISIE
- * @param {unknown} brut
- * @returns {number | null | undefined} le nombre ; null pour « rien » (case vidée ou
- *   zéro) ; undefined si la saisie est illisible
- */
-export function lireSaisie(champ, brut) {
-  if (!CHAMPS_SAISIE.includes(champ)) return undefined;
-  if (brut == null) return null;
-  let nombre;
-  if (typeof brut === 'number') nombre = brut;
-  else if (typeof brut === 'string') {
-    const texte = brut.replace(/[\s€]/g, '').replace(',', '.');
-    if (texte === '') return null;
-    if (!/^\d+(\.\d{1,2})?$/.test(texte)) return undefined;
-    nombre = Number(texte);
-  } else return undefined;
-  if (!Number.isFinite(nombre) || nombre < 0 || nombre > (SAISIE_MAX[champ] ?? 0)) return undefined;
-  if (champ === 'ventes' && !Number.isInteger(nombre)) return undefined;
-  const arrondi = Math.round(nombre * 100) / 100;
-  return arrondi === 0 ? null : arrondi;
-}
-
-/**
- * Les chiffres de vente d'une journée, d'après ce qui a été saisi : rien de saisi
- * vaut zéro, et le contracté est l'encaissé plus le reste à encaisser.
- * @param {Record<string, number> | undefined} [saisie]
- */
-export function chiffresDeVente(saisie) {
-  const encaisse = saisie?.encaisse ?? 0;
-  return { ventes: saisie?.ventes ?? 0, encaisse, contracte: Math.round((encaisse + (saisie?.reste ?? 0)) * 100) / 100 };
-}
 
 /** @param {unknown} texte « 2026-11 » */
 export function moisValide(texte) {

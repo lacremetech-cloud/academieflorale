@@ -1,27 +1,19 @@
 // @ts-check
 /**
  * Cockpit : assemble, pour un mois, les chiffres de chaque journée à partir des
- * sources (Meta Ads, compteurs du tunnel, Wistia, iClosed, ventes saisies à la
- * main), et dit pour chaque source si elle est branchée. Une source absente ou
- * en panne n'empêche jamais les autres de s'afficher.
+ * sources (Meta Ads, compteurs du tunnel, Wistia, iClosed, registre des ventes),
+ * et dit pour chaque source si elle est branchée. Une source absente ou en
+ * panne n'empêche jamais les autres de s'afficher.
  */
-import {
-  BRUTS,
-  CHAMPS_SAISIE,
-  chiffresDeVente,
-  joursDuMois,
-  jourParis,
-  jourVide,
-  lireSaisie,
-  moisCourant,
-  moisValide,
-} from '../../partage/cockpit.js';
-import { ecrireNote, ecrireSaisie, lireCompteurs, NOTE_MAX } from '../../partage/compteurs.js';
+import { BRUTS, joursDuMois, jourParis, jourVide, moisCourant, moisValide } from '../../partage/cockpit.js';
+import { ecrireNote, lireCompteurs, NOTE_MAX } from '../../partage/compteurs.js';
 import { repondre } from '../reponse.js';
 import { memeOrigine } from '../requete.js';
 import { verifierAcces } from './acces.js';
 import { lireIclosed } from './iclosed.js';
 import { CAMPAGNES_PAR_DEFAUT, filtreCampagnes, lireMeta } from './meta.js';
+import { lireRegistre } from './registre.js';
+import { blocVentes } from './ventes.js';
 import { lireWistia } from './wistia.js';
 
 /** Ce qu'il faut faire pour relier la base des compteurs (Vercel pose ses variables tout seul). */
@@ -52,8 +44,8 @@ export const SOURCES = Object.freeze({
     chiffres: ['appels', 'annules', 'absentes'],
     variables: ['ICLOSED_API_KEY'],
   },
-  // Les ventes ne viennent d'aucun outil : elles se saisissent à la main dans le
-  // cockpit, jour par jour, et se rangent dans la même base que les compteurs.
+  // Les ventes ne viennent d'aucun outil : elles s'enregistrent dans le cockpit
+  // (« Ajouter une vente ») et se rangent dans la même base que les compteurs.
   ventes: {
     nom: 'Ventes',
     chiffres: ['ventes', 'encaisse', 'contracte'],
@@ -82,16 +74,25 @@ function etatDeSource(source, etat, detail = '') {
 }
 
 /**
- * Les ventes saisies à la main, présentées comme une source : zéro les jours sans saisie.
- * @param {Awaited<ReturnType<typeof lireCompteurs>>} base
+ * Le registre des ventes, présenté comme une source : zéro les jours sans vente.
+ * @param {Awaited<ReturnType<typeof lireRegistre>>} registre
+ * @param {ReturnType<typeof blocVentes>} bloc
  * @param {string} mois
  */
-function ventesSaisies(base, mois) {
+function sourceVentes(registre, bloc, mois) {
   return {
-    etat: base.etat,
-    detail: base.detail,
-    jours: Object.fromEntries(joursDuMois(mois).map((date) => [date, chiffresDeVente(base.saisies[date])])),
+    etat: registre.etat,
+    detail: registre.detail,
+    jours: Object.fromEntries(joursDuMois(mois).map((date) => [date, bloc.jours[date] ?? { ventes: 0, contracte: 0, encaisse: 0 }])),
   };
+}
+
+/**
+ * Ce que la page reçoit du registre des ventes, en plus des chiffres par jour.
+ * @param {ReturnType<typeof blocVentes>} bloc
+ */
+function detailDesVentes(bloc) {
+  return { ventes: bloc.ventes, closers: bloc.closers, encaissements: bloc.encaissements, aEncaisser: bloc.aEncaisser, commissions: bloc.commissions };
 }
 
 /**
@@ -102,13 +103,15 @@ function ventesSaisies(base, mois) {
  * @param {Date} [options.maintenant]
  */
 export async function assemblerMois({ mois, env, fetchImpl = fetch, maintenant = new Date() }) {
-  const [meta, compteurs, wistia, iclosed] = await Promise.all([
+  const [meta, compteurs, wistia, iclosed, registre] = await Promise.all([
     lireMeta({ env, mois, fetchImpl, maintenant }),
     lireCompteurs(env, mois, { fetchImpl }),
     lireWistia({ env, mois, fetchImpl, maintenant }),
     lireIclosed({ env, mois, fetchImpl, maintenant }),
+    lireRegistre(env, { fetchImpl }),
   ]);
-  const lues = { meta, compteurs, wistia, iclosed, ventes: ventesSaisies(compteurs, mois) };
+  const bloc = blocVentes(registre, mois, maintenant);
+  const lues = { meta, compteurs, wistia, iclosed, ventes: sourceVentes(registre, bloc, mois) };
   const aujourdHui = jourParis(maintenant);
 
   const jours = joursDuMois(mois).map((date) => {
@@ -130,6 +133,7 @@ export async function assemblerMois({ mois, env, fetchImpl = fetch, maintenant =
     jours,
     notes: compteurs.notes,
     variantes: compteurs.variantes,
+    ...detailDesVentes(bloc),
     campagnes: filtreCampagnes(env),
     sources: Object.fromEntries(
       Object.entries(SOURCES).map(([cle, source]) => {
@@ -158,13 +162,15 @@ function alea(date, rang) {
  * Données de démonstration, pour mettre au point l'affichage en local : des
  * chiffres inventés mais plausibles, toujours signalés comme tels à l'écran.
  * Jamais servies sur Vercel.
- * Quand une base est reliée (en local : la base en mémoire de l'aperçu), les
- * ventes et les notes sont celles qui y ont été saisies, comme en vrai.
+ * Les ventes ne sont jamais inventées : ce sont celles du registre (en local, la
+ * base en mémoire de l'aperçu), comme en vrai. Les notes aussi quand une base
+ * est reliée.
  * @param {string} mois
  * @param {Date} [maintenant]
- * @param {{ saisies: Record<string, Record<string, number>>, notes: Record<string, string> } | null} [base]
+ * @param {{ notes: Record<string, string> | null, bloc: ReturnType<typeof blocVentes> } | null} [base]
  */
 export function donneesDeDemonstration(mois, maintenant = new Date(), base = null) {
+  const bloc = base?.bloc ?? blocVentes({ ventes: [], closers: [] }, mois, maintenant);
   const aujourdHui = jourParis(maintenant);
   const jours = joursDuMois(mois).map((date) => {
     /** @type {Record<string, number | null | string>} */
@@ -180,8 +186,6 @@ export function donneesDeDemonstration(mois, maintenant = new Date(), base = nul
     const appels = Math.round(inscrits * (0.05 + alea(date, 8) * 0.18));
     const annules = alea(date, 9) > 0.8 ? Math.min(appels, 1 + Math.round(alea(date, 10))) : 0;
     const absentes = alea(date, 11) > 0.75 ? Math.min(Math.max(0, appels - annules), 1) : 0;
-    const ventes = alea(date, 12) > 0.86 && appels - annules > 0 ? 1 : 0;
-    const contracte = ventes * [3000, 3800, 3800, 4500][Math.floor(alea(date, 13) * 4)];
     Object.assign(jour, {
       depense,
       impressions,
@@ -194,12 +198,8 @@ export function donneesDeDemonstration(mois, maintenant = new Date(), base = nul
       appels,
       annules,
       absentes,
-      ventes,
-      contracte,
-      encaisse: ventes ? [750, 1000, 3000, 3800][Math.floor(alea(date, 15) * 4)] : 0,
+      ...(bloc.jours[date] ?? { ventes: 0, contracte: 0, encaisse: 0 }),
     });
-    if (typeof jour.encaisse === 'number' && typeof jour.contracte === 'number') jour.encaisse = Math.min(jour.encaisse, jour.contracte);
-    if (base) Object.assign(jour, chiffresDeVente(base.saisies[date]));
     return jour;
   });
   const total = (/** @type {string} */ cle) => jours.reduce((somme, jour) => somme + (Number(jour[cle]) || 0), 0);
@@ -209,7 +209,9 @@ export function donneesDeDemonstration(mois, maintenant = new Date(), base = nul
     aujourdHui,
     demonstration: true,
     jours,
-    notes: base?.notes ?? Object.fromEntries(
+    notes:
+      base?.notes ??
+      Object.fromEntries(
       [
         [3, 'pubs coupées le matin'],
         [10, 'nouvelles créas'],
@@ -224,6 +226,7 @@ export function donneesDeDemonstration(mois, maintenant = new Date(), base = nul
       vues: Math.round(total('vues') * (parts[rang] ?? 0)),
       inscrits: Math.round(total('inscrits') * ((parts[rang] ?? 0) + (rang === 1 ? 0.03 : -0.015))),
     })),
+    ...detailDesVentes(bloc),
     campagnes: CAMPAGNES_PAR_DEFAUT,
     sources: Object.fromEntries(Object.entries(SOURCES).map(([cle, source]) => [cle, etatDeSource(source, 'ok')])),
   };
@@ -249,12 +252,15 @@ export async function traiterDonnees(request, contexte = {}) {
   // En local seulement : COCKPIT_DEMO=1 sert des chiffres de démonstration.
   let donnees;
   if (env.COCKPIT_DEMO === '1' && !env.VERCEL) {
-    const base = await lireCompteurs(env, mois, { fetchImpl });
-    donnees = donneesDeDemonstration(mois, maintenant, base.etat === 'ok' ? base : null);
+    const [base, registre] = await Promise.all([lireCompteurs(env, mois, { fetchImpl }), lireRegistre(env, { fetchImpl })]);
+    donnees = donneesDeDemonstration(mois, maintenant, {
+      notes: base.etat === 'ok' ? base.notes : null,
+      bloc: blocVentes(registre, mois, maintenant),
+    });
   } else {
     donnees = await assemblerMois({ mois, env, fetchImpl, maintenant });
   }
-  return repondre(200, { ok: true, chiffres: BRUTS, saisie: CHAMPS_SAISIE, ...donnees }, { 'Cache-Control': 'private, no-store' });
+  return repondre(200, { ok: true, chiffres: BRUTS, ...donnees }, { 'Cache-Control': 'private, no-store' });
 }
 
 /**
@@ -303,36 +309,4 @@ export async function traiterNote(request, contexte = {}) {
   if (resultat === 'a-brancher') return repondre(503, { ok: false, erreur: 'a-brancher' });
   if (resultat !== 'ok') return repondre(502, { ok: false, erreur: 'indisponible' });
   return repondre(200, { ok: true, date, note });
-}
-
-/**
- * POST /api/cockpit/saisie : enregistre un chiffre de vente saisi à la main pour
- * une journée ({ date, champ, valeur }), et rend les chiffres de vente de ce jour.
- * @param {Request} request
- * @param {object} [contexte]
- * @param {Record<string, string | undefined>} [contexte.env]
- * @param {typeof fetch} [contexte.fetchImpl]
- * @param {Date} [contexte.maintenant]
- * @returns {Promise<Response>}
- */
-export async function traiterSaisie(request, contexte = {}) {
-  const { env = {}, fetchImpl = fetch, maintenant = new Date() } = contexte;
-  if (request.method !== 'POST') return repondre(405, { ok: false, erreur: 'methode' }, { Allow: 'POST' });
-  if (!memeOrigine(request)) return repondre(403, { ok: false, erreur: 'origine' });
-  const acces = verifierAcces(request, env);
-  if (!acces.ok) return acces.reponse;
-
-  const demande = await lireDemandeDatee(request);
-  // Une vente ne se saisit pas pour un jour à venir.
-  if (!demande || demande.date > jourParis(maintenant)) return repondre(400, { ok: false, erreur: 'date' });
-  const { donnees, date } = demande;
-  const champ = typeof donnees?.champ === 'string' ? donnees.champ : '';
-  if (!CHAMPS_SAISIE.includes(champ)) return repondre(400, { ok: false, erreur: 'champ' });
-  const valeur = lireSaisie(champ, donnees?.valeur);
-  if (valeur === undefined) return repondre(400, { ok: false, erreur: 'valeur' });
-
-  const resultat = await ecrireSaisie(env, date, champ, valeur, { fetchImpl });
-  if (resultat.etat === 'a-brancher') return repondre(503, { ok: false, erreur: 'a-brancher' });
-  if (resultat.etat !== 'ok') return repondre(502, { ok: false, erreur: 'indisponible' });
-  return repondre(200, { ok: true, date, chiffres: chiffresDeVente(resultat.saisie) });
 }

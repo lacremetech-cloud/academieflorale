@@ -2,8 +2,10 @@
 /**
  * Cockpit : les chiffres du tunnel, mois par mois, avec le détail jour par jour,
  * en trois parties (Acquisition, VSL, Closing). Modèle : le tableau publicitaire
- * d'origine, sans second appel (R1 closing). Les ventes (nombre, encaissé, reste
- * à encaisser) se saisissent à la main, dans le tableau du Closing.
+ * d'origine, sans second appel (R1 closing). Les ventes s'enregistrent ici
+ * (« Ajouter une vente ») : formule, montant, closer et commission, moyens de
+ * paiement. Le cockpit en tire l'encaissé, le reste à encaisser, les
+ * mensualités attendues (MRR) et les commissions.
  *
  * Accès privé : cette page ne contient aucun chiffre. Elle demande le mot de
  * passe, puis lit les chiffres auprès de /api/cockpit/donnees, qui exige une
@@ -11,6 +13,7 @@
  */
 import Tunnel from '../../layouts/Tunnel.astro';
 import { CHEMINS } from '../../reglages';
+import { FORMULES } from '../../../partage/ventes.js';
 ---
 
 <Tunnel titre="Cockpit · Académie Florale" pied="compact">
@@ -93,19 +96,125 @@ import { CHEMINS } from '../../reglages';
       </section>
 
       <section class="partie" id="closing" aria-labelledby="titre-closing">
-        <div class="tete-partie">
-          <h2 id="titre-closing"><span class="numero" aria-hidden="true">3</span>Closing</h2>
-          <p class="texte-secondaire">
-            De l’appel à la vente, en un seul appel (R1). Annulations et absences au jour prévu de l’appel : iClosed.
-            <span data-aide-saisie hidden>Ventes, Cash et Recu. se saisissent à la main : clique sur une case du tableau.</span>
-          </p>
+        <div class="tete-partie avec-action">
+          <div>
+            <h2 id="titre-closing"><span class="numero" aria-hidden="true">3</span>Closing</h2>
+            <p class="texte-secondaire">
+              De l’appel à la vente, en un seul appel (R1). Annulations et absences au jour prévu de l’appel : iClosed. Ventes :
+              celles que tu enregistres ici.
+            </p>
+          </div>
+          <button type="button" class="bouton" data-ajouter-vente hidden>＋ Ajouter une vente</button>
         </div>
         <ul class="cartes" data-cartes="closing" role="list"></ul>
         <div class="defilement" tabindex="0" role="region" aria-label="Closing, jour par jour">
           <table data-table="closing"></table>
         </div>
+
+        <div class="bloc" data-bloc-ventes hidden>
+          <h3>Ventes du mois</h3>
+          <p class="texte-secondaire" data-aucune-vente>Aucune vente enregistrée ce mois-ci.</p>
+          <div class="defilement" tabindex="0" role="region" aria-label="Ventes du mois" data-cadre-ventes>
+            <table data-table="ventes"></table>
+          </div>
+        </div>
+
+        <div class="bloc" data-bloc-commissions hidden>
+          <h3>Commissions du mois</h3>
+          <div class="defilement" tabindex="0" role="region" aria-label="Commissions du mois">
+            <table data-table="commissions"></table>
+          </div>
+        </div>
+
+        <div class="bloc" data-bloc-encaissements hidden>
+          <h3>Encaissements prévus</h3>
+          <p class="texte-secondaire">
+            Ce qui entre en caisse mois par mois, toutes ventes confondues, d’après l’échéancier de chaque vente. Une échéance
+            passée est comptée comme encaissée : le cockpit ne connaît pas les impayés.
+          </p>
+          <ul class="cartes" data-cartes="encaissements" role="list"></ul>
+          <div class="defilement" tabindex="0" role="region" aria-label="Encaissements prévus, mois par mois">
+            <table data-table="encaissements"></table>
+          </div>
+        </div>
+
+        <div class="bloc" data-bloc-closers hidden>
+          <h3>Closers enregistrés</h3>
+          <ul class="closers" data-closers role="list"></ul>
+        </div>
       </section>
     </div>
+
+    <!-- La fenêtre « Ajouter une vente » -->
+    <dialog class="vente" data-dialogue-vente aria-labelledby="titre-vente">
+      <form data-formulaire-vente novalidate>
+        <header>
+          <h2 id="titre-vente" data-titre-vente>Ajouter une vente</h2>
+          <button type="button" class="fermer" data-fermer-vente aria-label="Fermer sans enregistrer">✕</button>
+        </header>
+
+        <div class="champs">
+          <label>
+            Date de la vente
+            <input type="date" name="date" required />
+          </label>
+          <label>
+            Formule
+            <select name="formule" required>
+              <option value="">Choisir…</option>
+              {Object.entries(FORMULES).map(([id, nom]) => <option value={id}>{nom}</option>)}
+            </select>
+          </label>
+          <label>
+            Montant de la vente (€)
+            <input type="text" name="montant" inputmode="decimal" autocomplete="off" placeholder="3 000" required />
+          </label>
+          <label>
+            Closer
+            <select name="closer" required></select>
+          </label>
+          <label data-nouveau-closer hidden>
+            Nom du nouveau closer
+            <input type="text" name="closerNom" maxlength="60" autocomplete="off" />
+          </label>
+          <label>
+            Commission du closer (€)
+            <input type="text" name="commission" inputmode="decimal" autocomplete="off" placeholder="0" />
+          </label>
+        </div>
+
+        <fieldset class="paiement">
+          <legend>Comment la vente est payée</legend>
+          <p class="texte-secondaire">
+            Une ligne par moyen de paiement. Par exemple : un dépôt en GoCardless, puis le reste en Secura en 6 fois.
+          </p>
+          <div data-paiements></div>
+          <div class="pied-paiement">
+            <button type="button" class="lien" data-ajouter-paiement>＋ Ajouter un moyen de paiement</button>
+            <p data-reste-a-repartir role="status"></p>
+          </div>
+        </fieldset>
+
+        <section class="echeancier" aria-live="polite">
+          <h3>Ce que l’Académie encaisse, et quand</h3>
+          <ul data-echeancier role="list"></ul>
+          <p class="texte-secondaire" data-resume-echeancier></p>
+        </section>
+
+        <label class="note-vente">
+          Note (facultative)
+          <input type="text" name="note" maxlength="200" autocomplete="off" />
+        </label>
+
+        <p class="message" data-message-vente role="alert"></p>
+        <footer>
+          <button type="button" class="lien danger" data-supprimer-vente hidden>Supprimer cette vente</button>
+          <span class="espace"></span>
+          <button type="button" class="lien" data-fermer-vente>Annuler</button>
+          <button type="submit" class="bouton">Enregistrer la vente</button>
+        </footer>
+      </form>
+    </dialog>
   </div>
 </Tunnel>
 
@@ -187,7 +296,7 @@ import { CHEMINS } from '../../reglages';
     font-size: clamp(1.7rem, 1.2rem + 2.2vw, 2.4rem);
   }
 
-  .lien {
+  .cockpit :global(.lien) {
     padding: 0;
     border: 0;
     background: none;
@@ -502,52 +611,320 @@ import { CHEMINS } from '../../reglages';
     font: inherit;
   }
 
-  /* Les cases saisies à la main (ventes, encaissé, reste à encaisser) */
-  table :global(td.saisie) {
-    padding: 2px 4px;
+  /* Le Closing : bouton d'action, listes des ventes, des commissions et des encaissements */
+  .avec-action {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    justify-content: space-between;
+    gap: 12px 24px;
   }
 
-  table :global(td.saisie button) {
-    width: 100%;
-    min-width: 3.4rem;
-    min-height: 30px;
-    padding: 3px 6px;
-    border: 1px dashed var(--trait);
-    border-radius: 6px;
-    background: none;
-    color: inherit;
+  .avec-action > div {
+    display: grid;
+    flex: 1 1 26rem;
+    gap: 4px;
+  }
+
+  .bloc {
+    display: grid;
+    gap: 8px;
+  }
+
+  table :global(td.texte) {
+    max-width: 22rem;
+    text-align: left;
+    white-space: normal;
+  }
+
+  table :global(td .lien) {
+    font-weight: 600;
+  }
+
+  table :global(tr.en-cours td) {
+    background: var(--creme);
+  }
+
+  .closers {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .closers :global(li) {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 8px 6px 14px;
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon-bouton);
+    background: var(--blanc);
+    font-size: var(--corps-petit);
+    font-weight: 600;
+  }
+
+  .closers :global(button) {
+    padding: 4px 10px;
+    border: 0;
+    border-radius: var(--rayon-bouton);
+    background: var(--creme);
+    color: var(--encre-douce);
     font: inherit;
-    font-variant-numeric: tabular-nums;
-    text-align: right;
-    cursor: text;
+    font-weight: 500;
+    cursor: pointer;
   }
 
-  table :global(td.saisie button:hover),
-  table :global(td.saisie button:focus-visible) {
-    border-color: var(--encre);
+  .closers :global(button[data-confirme]) {
+    background: var(--erreur);
+    color: var(--blanc);
   }
 
-  table :global(td.saisie.vente button) {
-    border-color: transparent;
+  /* La fenêtre « Ajouter une vente » */
+  dialog.vente {
+    width: min(46rem, calc(100vw - 20px));
+    max-height: calc(100dvh - 20px);
+    padding: 0;
+    border: 0;
+    border-radius: var(--rayon);
+    background: var(--creme);
+    color: var(--encre);
+    box-shadow: 0 30px 80px -30px var(--encre);
+    overflow: auto;
   }
 
-  table :global(td.saisie input) {
-    width: 100%;
-    min-width: 5.5rem;
-    min-height: 30px;
-    padding: 3px 6px;
-    border: 1.5px solid var(--encre);
-    border-radius: 6px;
+  dialog.vente::backdrop {
+    background: color-mix(in srgb, var(--encre) 45%, transparent);
+  }
+
+  dialog.vente form {
+    display: grid;
+    gap: 16px;
+    padding: clamp(16px, 3vw, 26px);
+  }
+
+  dialog.vente header,
+  dialog.vente footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 16px;
+  }
+
+  dialog.vente header {
+    justify-content: space-between;
+  }
+
+  dialog.vente h2 {
+    font-size: var(--titre-3);
+  }
+
+  dialog.vente h3 {
+    font-size: 1rem;
+  }
+
+  .fermer {
+    width: 40px;
+    height: 40px;
+    border: 0;
+    border-radius: 50%;
     background: var(--blanc);
     color: var(--encre);
-    font: inherit;
+    font-size: 1.1rem;
+    cursor: pointer;
+  }
+
+  .espace {
+    flex: 1 1 auto;
+  }
+
+  .danger {
+    color: var(--erreur);
+  }
+
+  dialog.vente :global(label) {
+    display: grid;
+    align-content: end;
+    gap: 5px;
+    min-width: 0;
+    font-size: var(--corps-petit);
+    font-weight: 600;
+  }
+
+  dialog.vente :global(input),
+  dialog.vente :global(select) {
+    width: 100%;
+    min-width: 0;
+    min-height: 46px;
+    padding: 0.45em 0.8em;
+    border: 1.5px solid var(--trait);
+    border-radius: 10px;
+    background: var(--blanc);
+    color: var(--encre);
+    font-family: var(--police-texte);
+    font-size: var(--corps-champ);
+    font-weight: 400;
+  }
+
+  dialog.vente :global(input:focus-visible),
+  dialog.vente :global(select:focus-visible) {
+    border-color: var(--encre);
+    outline: 2px solid var(--jaune);
+    outline-offset: 1px;
+  }
+
+  .champs {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+    gap: 12px 14px;
+  }
+
+  .paiement {
+    display: grid;
+    gap: 10px;
+    min-width: 0;
+    margin: 0;
+    padding: 14px;
+    border: 1.5px solid var(--encre);
+    border-radius: var(--rayon);
+    background: var(--blanc);
+  }
+
+  .paiement legend {
+    padding-inline: 8px;
+    font-weight: 700;
+  }
+
+  /* Une ligne de paiement : deux champs par rangée sur téléphone, tout sur une rangée au-delà */
+  .paiement :global(.ligne-paiement) {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: end;
+    gap: 8px 10px;
+    padding: 10px;
+    border-radius: 10px;
+    background: var(--creme);
+  }
+
+  .paiement :global(.ligne-paiement + .ligne-paiement) {
+    margin-top: 8px;
+  }
+
+  .paiement :global(.retirer) {
+    grid-column: 1 / -1;
+    justify-self: end;
+    min-width: 44px;
+    height: 36px;
+    border: 0;
+    border-radius: 10px;
+    background: none;
+    color: var(--encre-douce);
+    font-size: 1.05rem;
+    cursor: pointer;
+  }
+
+  .paiement :global(.retirer:disabled) {
+    display: none;
+  }
+
+  @media (min-width: 720px) {
+    .paiement :global(.ligne-paiement) {
+      grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, 0.9fr) minmax(0, 1.15fr) 44px;
+    }
+
+    .paiement :global(.retirer) {
+      grid-column: auto;
+      height: 46px;
+    }
+
+    .paiement :global(.retirer:disabled) {
+      display: block;
+      visibility: hidden;
+    }
+  }
+
+  .pied-paiement {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px 16px;
+  }
+
+  .pied-paiement p {
+    font-size: var(--corps-petit);
+    font-weight: 600;
+  }
+
+  .pied-paiement :global(p[data-etat='a-revoir']) {
+    color: var(--erreur);
+  }
+
+  .pied-paiement :global(p[data-etat='bon']) {
+    color: var(--vert-trustpilot);
+  }
+
+  .echeancier {
+    display: grid;
+    gap: 6px;
+  }
+
+  .echeancier ul {
+    display: grid;
+    gap: 4px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  /* Une échéance : date et montant, puis le détail (sur la même rangée dès qu'il y a la place) */
+  .echeancier :global(li) {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 2px 10px;
+    padding: 7px 10px;
+    border-radius: 8px;
+    background: var(--blanc);
+    font-size: var(--corps-petit);
     font-variant-numeric: tabular-nums;
-    text-align: right;
+  }
+
+  .echeancier :global(li span:last-child) {
+    grid-column: 1 / -1;
+    color: var(--encre-douce);
+  }
+
+  .echeancier :global(li.vide) {
+    grid-template-columns: 1fr;
+    color: var(--encre-douce);
+  }
+
+  @media (min-width: 720px) {
+    .echeancier :global(li) {
+      grid-template-columns: 6.6rem 6.2rem 1fr;
+    }
+
+    .echeancier :global(li strong) {
+      text-align: right;
+    }
+
+    .echeancier :global(li span:last-child) {
+      grid-column: auto;
+    }
+  }
+
+  .echeancier :global(li.encaisse span:last-child)::after {
+    content: ' · encaissé';
+    color: var(--vert-trustpilot);
+    font-weight: 600;
   }
 </style>
 
 <script>
-  import { indicateurs, lireSaisie, moisCourant, moisDecale, moisValide, totaliser } from '../../../partage/cockpit.js';
+  import { indicateurs, moisCourant, moisDecale, moisValide, totaliser } from '../../../partage/cockpit.js';
+  import { echeancier, FORMULES, lireMontant, METHODES, normaliserVente } from '../../../partage/ventes.js';
 
   type Chiffres = Record<string, number | null>;
   type Jour = Chiffres & { date: string };
@@ -560,7 +937,31 @@ import { CHEMINS } from '../../reglages';
     precision?: string;
     manuel?: boolean;
   };
-  type Donnees = {
+  type Paiement = { methode: string; montant: number; mensualites: number; debut: string };
+  type Vente = {
+    id: string;
+    date: string;
+    formule: string;
+    montant: number;
+    commission: number;
+    closer: string;
+    closerNom: string;
+    paiements: Paiement[];
+    note?: string;
+    encaisse: number;
+    reste: number;
+  };
+  type Closer = { id: string; nom: string };
+  /** Ce que le serveur rend après chaque changement dans les ventes. */
+  type BlocVentes = {
+    jours: Record<string, { ventes: number; contracte: number; encaisse: number }>;
+    ventes: Vente[];
+    closers: Closer[];
+    encaissements: { mois: string; total: number; mensualites: number; encaisse: number; parMethode: Record<string, number> }[];
+    aEncaisser: number;
+    commissions: { closer: string; nom: string; ventes: number; contracte: number; commission: number }[];
+  };
+  type Donnees = Omit<BlocVentes, 'jours'> & {
     mois: string;
     aujourdHui: string;
     demonstration: boolean;
@@ -579,8 +980,6 @@ import { CHEMINS } from '../../reglages';
     /** Lit la valeur dans les chiffres bruts et les indicateurs d'une ligne. */
     lire?: (bruts: Chiffres, calcules: ReturnType<typeof indicateurs>) => number | null;
     vente?: boolean;
-    /** Chiffre saisi à la main : le nom sous lequel le serveur l'enregistre. */
-    saisie?: 'ventes' | 'encaisse' | 'reste';
   };
 
   const API = '/api/cockpit';
@@ -622,11 +1021,11 @@ import { CHEMINS } from '../../reglages';
       { cle: 'maintenus', titre: 'Q. Calls', aide: 'Appels maintenus : réservés moins annulés', format: 'entier', lire: calcule('maintenus') },
       { cle: 'cpaMaintenu', titre: 'Q. CPA', aide: 'Dépense ÷ appels maintenus', format: 'euros', lire: calcule('cpaMaintenu') },
       { cle: 'absentes', titre: 'Absentes', aide: 'Appels où la prospecte ne s’est pas présentée, au jour prévu', format: 'entier', lire: brut('absentes') },
-      { cle: 'ventes', titre: 'Ventes', aide: 'Ventes du jour, saisies à la main', format: 'entier', lire: brut('ventes'), vente: true, saisie: 'ventes' },
+      { cle: 'ventes', titre: 'Ventes', aide: 'Ventes enregistrées ce jour-là', format: 'entier', lire: brut('ventes'), vente: true },
       { cle: 'tauxClosing', titre: '% Close', aide: 'Ventes ÷ appels maintenus', format: 'pourcent', lire: calcule('tauxClosing') },
-      { cle: 'encaisse', titre: 'Cash', aide: 'Encaissé le jour de la vente, saisi à la main', format: 'euros', lire: brut('encaisse'), saisie: 'encaisse' },
-      { cle: 'reste', titre: 'Recu.', aide: 'Reste à encaisser (échéances à venir), saisi à la main', format: 'euros', lire: calcule('reste'), saisie: 'reste' },
-      { cle: 'contracte', titre: 'Cum.', aide: 'Montant des ventes (contracté) : Cash + Recu.', format: 'euros', lire: brut('contracte') },
+      { cle: 'encaisse', titre: 'Cash', aide: 'Déjà encaissé sur les ventes de ce jour, d’après leur échéancier', format: 'euros', lire: brut('encaisse') },
+      { cle: 'reste', titre: 'Recu.', aide: 'Reste à encaisser sur les ventes de ce jour', format: 'euros', lire: calcule('reste') },
+      { cle: 'contracte', titre: 'Cum.', aide: 'Montant des ventes de ce jour (contracté)', format: 'euros', lire: brut('contracte') },
       { cle: 'cpv', titre: 'CPV', aide: 'Coût par vente : dépense ÷ ventes', format: 'euros', lire: calcule('cpv') },
       { cle: 'roas', titre: 'ROAS', aide: 'Contracté ÷ dépense', format: 'ratio', lire: calcule('roas') },
       { cle: 'roasDirect', titre: 'D. ROAS', aide: 'Encaissé ÷ dépense', format: 'ratio', lire: calcule('roasDirect') },
@@ -698,10 +1097,10 @@ import { CHEMINS } from '../../reglages';
       ...Object.entries(sources).map(([cle, source]) => {
         const ligne = creer('li', '', source.etat === 'ok' ? 'ok' : source.etat === 'erreur' ? 'erreur-source' : 'a-brancher');
         ligne.append(creer('strong', source.nom));
-        const pret = source.manuel ? '✓ Saisie à la main' : '✓ Branché';
+        const pret = source.manuel ? '✓ Enregistrées ici' : '✓ Branché';
         ligne.append(creer('span', source.etat === 'ok' ? pret : source.etat === 'erreur' ? '✕ En erreur' : '○ À brancher', 'etat'));
         if (source.etat === 'erreur' && source.detail) ligne.append(creer('span', source.detail, 'detail'));
-        if (source.etat === 'ok' && source.manuel) ligne.append(creer('span', 'Dans le tableau du Closing, jour par jour', 'detail'));
+        if (source.etat === 'ok' && source.manuel) ligne.append(creer('span', 'Bouton « Ajouter une vente », dans le Closing', 'detail'));
         if (source.etat === 'ok' && source.precision) ligne.append(creer('span', source.precision, 'detail'));
         if (source.etat === 'a-brancher' && source.brancher) {
           ligne.append(creer('span', source.brancher, 'detail'));
@@ -745,8 +1144,6 @@ import { CHEMINS } from '../../reglages';
     const colonnes = COLONNES[partie];
     if (!table || !colonnes) return;
     const avecNotes = partie === 'acquisition';
-    // Les ventes se saisissent ici dès que leur base est reliée.
-    const saisieOuverte = d.sources.ventes?.etat === 'ok';
 
     const enTete = creer('tr');
     enTete.append(creer('th', 'Jour'));
@@ -772,10 +1169,7 @@ import { CHEMINS } from '../../reglages';
       const calcules = indicateurs(jour);
       for (const colonne of colonnes) {
         const valeur = colonne.lire?.(jour, calcules) ?? null;
-        const cellule =
-          colonne.saisie && saisieOuverte
-            ? celluleSaisie(jour, colonne, d)
-            : creer('td', ecrire(valeur, colonne.format), valeur == null ? 'vide' : '');
+        const cellule = creer('td', ecrire(valeur, colonne.format), valeur == null ? 'vide' : '');
         if (colonne.vente && valeur != null && valeur > 0) cellule.classList.add('vente');
         ligne.append(cellule);
       }
@@ -792,86 +1186,6 @@ import { CHEMINS } from '../../reglages';
     pied.append(ligneTotal);
 
     table.replaceChildren(tete, corps, pied);
-  }
-
-  /** Vrai quand une vente a été enregistrée sans que les totaux aient encore été recalculés. */
-  let recalculEnAttente = false;
-
-  /**
-   * Une case saisie à la main (ventes, encaissé, reste à encaisser) : un clic
-   * l'ouvre, Entrée ou un clic ailleurs l'enregistre, Échap annule.
-   */
-  function celluleSaisie(jour: Jour, colonne: Colonne, d: Donnees) {
-    const champ = colonne.saisie ?? 'ventes';
-    const valeur = colonne.lire?.(jour, indicateurs(jour)) ?? 0;
-    const cellule = creer('td', '', 'saisie');
-    if (colonne.vente && valeur > 0) cellule.classList.add('vente');
-    const bouton = creer('button', ecrire(valeur, colonne.format));
-    bouton.type = 'button';
-    bouton.dataset.saisie = `${jour.date}:${champ}`;
-    bouton.setAttribute('aria-label', `${colonne.titre} du ${libelleJour(jour.date)} : ${ecrire(valeur, colonne.format)}. Modifier`);
-    bouton.addEventListener('click', () => {
-      const saisie = creer('input');
-      saisie.type = 'text';
-      saisie.inputMode = colonne.format === 'entier' ? 'numeric' : 'decimal';
-      saisie.maxLength = 12;
-      saisie.value = valeur ? String(valeur).replace('.', ',') : '';
-      saisie.setAttribute('aria-label', `${colonne.titre} du ${libelleJour(jour.date)}`);
-      let termine = false;
-      const terminer = async (enregistrer: boolean, reprendre: boolean) => {
-        if (termine) return;
-        termine = true;
-        const nouvelle = lireSaisie(champ, saisie.value);
-        if (enregistrer && nouvelle === undefined) {
-          signaler(colonne.format === 'entier' ? 'Saisis un nombre entier de ventes.' : 'Saisis un montant en euros, par exemple 1500 ou 1500,50.');
-        } else if (enregistrer && (nouvelle ?? 0) !== valeur) {
-          const resultat = await appeler('/saisie', { method: 'POST', body: JSON.stringify({ date: jour.date, champ, valeur: nouvelle }) });
-          if (resultat.statut === 200 && resultat.corps?.chiffres) {
-            signaler('');
-            Object.assign(jour, resultat.corps.chiffres);
-            recalculEnAttente = true;
-          } else {
-            signaler(
-              resultat.corps?.erreur === 'a-brancher'
-                ? 'La saisie n’est pas enregistrée : la base des compteurs n’est pas encore reliée.'
-                : resultat.statut === 401
-                  ? 'La session est terminée : recharge la page et reconnecte-toi.'
-                  : 'La saisie n’a pas pu être enregistrée. Réessaie dans un instant.',
-            );
-          }
-        }
-        // Le mois affiché a changé pendant l'enregistrement : il n'y a plus rien à refermer ici.
-        if (d !== donnees) return;
-        const actif = document.activeElement;
-        const autreSaisie = actif instanceof HTMLInputElement && actif !== saisie && actif.closest('td.saisie, td.note') !== null;
-        if (!recalculEnAttente || autreSaisie) {
-          // Rien à recalculer, ou une autre case est en cours de saisie : seule cette case se referme.
-          const refermee = celluleSaisie(jour, colonne, d);
-          cellule.replaceWith(refermee);
-          if (reprendre) refermee.querySelector('button')?.focus();
-          return;
-        }
-        // Tout se recalcule : la ligne, le total et les cartes du mois.
-        const cible = reprendre ? `${jour.date}:${champ}` : actif instanceof HTMLElement ? actif.dataset.saisie : undefined;
-        recalculEnAttente = false;
-        afficher(d);
-        if (cible) $<HTMLButtonElement>(`[data-saisie="${cible}"]`)?.focus();
-      };
-      saisie.addEventListener('keydown', (evenement) => {
-        if (evenement.key === 'Enter') {
-          // Sans cela, la même frappe « cliquerait » aussitôt sur la case refermée et la rouvrirait.
-          evenement.preventDefault();
-          void terminer(true, true);
-        }
-        if (evenement.key === 'Escape') void terminer(false, true);
-      });
-      saisie.addEventListener('blur', () => void terminer(true, false));
-      cellule.replaceChildren(saisie);
-      saisie.focus();
-      saisie.select();
-    });
-    cellule.append(bouton);
-    return cellule;
   }
 
   /** Une note par jour (« scaling cbo », « nouvelles pubs »…), modifiable d'un clic. */
@@ -905,10 +1219,6 @@ import { CHEMINS } from '../../reglages';
           }
         }
         cellule.replaceWith(celluleNote(date, d));
-        if (recalculEnAttente) {
-          recalculEnAttente = false;
-          afficher(d);
-        }
       };
       champ.addEventListener('keydown', (evenement) => {
         if (evenement.key === 'Enter') void terminer(true);
@@ -953,19 +1263,217 @@ import { CHEMINS } from '../../reglages';
     table.replaceChildren(tete, corps);
   }
 
+  /* ---------- Les ventes : liste, commissions, encaissements, closers ---------- */
+
+  const FORMAT_EXACT = nombre({ style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  /** Un montant : sans centimes quand il tombe juste. */
+  const argent = (valeur: number) => (Number.isInteger(valeur) ? FORMATS.euros : FORMAT_EXACT).format(valeur);
+  const libelleDate = (date: string) => `${date.slice(8)}/${date.slice(5, 7)}/${date.slice(0, 4)}`;
+  const nomMethode = (id: string) => (METHODES as Record<string, { nom: string }>)[id]?.nom ?? id;
+  const nomFormule = (id: string) => (FORMULES as Record<string, string>)[id] ?? id;
+
+  /** « GoCardless 1 000 € + Secura 2 000 € en 6 fois ». */
+  const resumePaiements = (vente: Vente) =>
+    vente.paiements
+      .map((paiement) => `${nomMethode(paiement.methode)} ${argent(paiement.montant)}${paiement.mensualites > 1 ? ` en ${paiement.mensualites} fois` : ''}`)
+      .join(' + ');
+
+  /** Remplit une table simple : ses titres, ses lignes, et sa ligne de total s'il y en a une. */
+  function remplirTable(nom: string, titres: [string, string][], lignes: { cellules: (string | HTMLElement)[]; classe?: string }[], total?: string[]) {
+    const table = $(`[data-table="${nom}"]`);
+    if (!table) return;
+    const enTete = creer('tr');
+    for (const [titre, aide] of titres) {
+      const cellule = creer('th', titre);
+      if (aide) cellule.title = aide;
+      cellule.scope = 'col';
+      enTete.append(cellule);
+    }
+    const tete = creer('thead');
+    tete.append(enTete);
+    const corps = creer('tbody');
+    for (const { cellules, classe } of lignes) {
+      const ligne = creer('tr', '', classe ?? '');
+      for (const contenu of cellules) {
+        const cellule = creer('td');
+        if (typeof contenu === 'string') cellule.textContent = contenu;
+        else cellule.append(contenu);
+        ligne.append(cellule);
+      }
+      corps.append(ligne);
+    }
+    const parties: HTMLElement[] = [tete, corps];
+    if (total) {
+      const pied = creer('tfoot');
+      const ligne = creer('tr');
+      for (const contenu of total) ligne.append(creer('td', contenu));
+      pied.append(ligne);
+      parties.push(pied);
+    }
+    table.replaceChildren(...parties);
+  }
+
+  function afficherVentes(d: Donnees) {
+    // Sans la base, rien ne peut s'enregistrer : la carte « Ventes » dit quoi relier.
+    const pret = d.sources.ventes?.etat === 'ok';
+    const ajouter = $('[data-ajouter-vente]');
+    if (ajouter) ajouter.hidden = !pret;
+    for (const nom of ['ventes', 'commissions', 'encaissements', 'closers']) {
+      const bloc = $(`[data-bloc-${nom}]`);
+      if (bloc) bloc.hidden = !pret;
+    }
+    if (!pret) return;
+
+    // Les ventes du mois : un clic sur « Modifier » rouvre la vente.
+    const aucune = $('[data-aucune-vente]');
+    const cadre = $('[data-cadre-ventes]');
+    if (aucune) aucune.hidden = d.ventes.length > 0;
+    if (cadre) cadre.hidden = d.ventes.length === 0;
+    const somme = (cle: 'montant' | 'commission' | 'encaisse' | 'reste') => d.ventes.reduce((total, vente) => total + vente[cle], 0);
+    remplirTable(
+      'ventes',
+      [
+        ['Jour', ''],
+        ['Formule', ''],
+        ['Montant', 'Montant de la vente'],
+        ['Closer', ''],
+        ['Commission', 'Commission du closer'],
+        ['Paiement', 'Moyens de paiement de la vente'],
+        ['Encaissé', 'Déjà encaissé, d’après l’échéancier'],
+        ['Reste', 'Reste à encaisser'],
+        ['', ''],
+      ],
+      d.ventes.map((vente) => {
+        const modifier = creer('button', 'Modifier', 'lien');
+        modifier.type = 'button';
+        modifier.dataset.modifierVente = vente.id;
+        modifier.setAttribute('aria-label', `Modifier la vente du ${libelleJour(vente.date)}, ${argent(vente.montant)}`);
+        modifier.addEventListener('click', () => ouvrirVente(vente));
+        const paiement = creer('span', resumePaiements(vente) + (vente.note ? ` · ${vente.note}` : ''));
+        return {
+          cellules: [
+            libelleJour(vente.date),
+            nomFormule(vente.formule),
+            argent(vente.montant),
+            d.closers.find((closer) => closer.id === vente.closer)?.nom ?? vente.closerNom,
+            argent(vente.commission),
+            paiement,
+            argent(vente.encaisse),
+            argent(vente.reste),
+            modifier,
+          ],
+        };
+      }),
+      d.ventes.length > 1 ? ['TOTAL', `${d.ventes.length} ventes`, argent(somme('montant')), '', argent(somme('commission')), '', argent(somme('encaisse')), argent(somme('reste')), ''] : undefined,
+    );
+    for (const cellule of document.querySelectorAll<HTMLElement>('[data-table="ventes"] tbody td:nth-child(2), [data-table="ventes"] tbody td:nth-child(4), [data-table="ventes"] tbody td:nth-child(6)')) {
+      cellule.classList.add('texte');
+    }
+
+    // Les commissions du mois, par closer.
+    const blocCommissions = $('[data-bloc-commissions]');
+    if (blocCommissions) blocCommissions.hidden = d.commissions.length === 0;
+    remplirTable(
+      'commissions',
+      [
+        ['Closer', ''],
+        ['Ventes', 'Ventes du mois'],
+        ['Contracté', 'Montant de ses ventes du mois'],
+        ['Commissions', 'Total de ses commissions du mois'],
+      ],
+      d.commissions.map((ligne) => ({
+        cellules: [d.closers.find((closer) => closer.id === ligne.closer)?.nom ?? ligne.nom, ecrire(ligne.ventes, 'entier'), argent(ligne.contracte), argent(ligne.commission)],
+      })),
+      d.commissions.length > 1
+        ? [
+            'TOTAL',
+            ecrire(d.commissions.reduce((total, ligne) => total + ligne.ventes, 0), 'entier'),
+            argent(d.commissions.reduce((total, ligne) => total + ligne.contracte, 0)),
+            argent(d.commissions.reduce((total, ligne) => total + ligne.commission, 0)),
+          ]
+        : undefined,
+    );
+
+    // Les encaissements : le mois affiché en cartes, puis douze mois en table.
+    const duMois = d.encaissements[0];
+    const cartes = $('[data-cartes="encaissements"]');
+    if (cartes && duMois) {
+      const carte = (libelle: string, valeur: string, precision: string) => {
+        const element = creer('li');
+        element.append(creer('span', libelle, 'libelle'), creer('span', valeur, 'valeur'), creer('span', precision, 'precision'));
+        return element;
+      };
+      cartes.replaceChildren(
+        carte(`Encaissements de ${libelleMois(d.mois)}`, argent(duMois.total), `Dont déjà encaissé : ${argent(duMois.encaisse)}`),
+        carte('MRR du mois', argent(duMois.mensualites), 'Mensualités attendues ce mois (paiements en plusieurs fois)'),
+        carte('Reste à encaisser', argent(d.aEncaisser), 'Toutes ventes confondues, après aujourd’hui'),
+      );
+    }
+    const methodes = Object.keys(METHODES);
+    remplirTable(
+      'encaissements',
+      [['Mois', ''], ...methodes.map((id): [string, string] => [nomMethode(id), '']), ['Total', 'Tout ce qui entre en caisse ce mois-là'], ['Dont MRR', 'Mensualités des paiements en plusieurs fois']],
+      d.encaissements.map((ligne) => ({
+        cellules: [libelleMois(ligne.mois), ...methodes.map((id) => argent(ligne.parMethode[id] ?? 0)), argent(ligne.total), argent(ligne.mensualites)],
+        classe: ligne.mois === d.aujourdHui.slice(0, 7) ? 'en-cours' : '',
+      })),
+    );
+
+    // Les closers enregistrés : ils se choisissent dans la liste de la vente.
+    const blocClosers = $('[data-bloc-closers]');
+    const listeClosers = $('[data-closers]');
+    if (blocClosers) blocClosers.hidden = d.closers.length === 0;
+    listeClosers?.replaceChildren(
+      ...d.closers.map((closer) => {
+        const element = creer('li', closer.nom);
+        const retirer = creer('button', 'Retirer');
+        retirer.type = 'button';
+        retirer.setAttribute('aria-label', `Retirer ${closer.nom} de la liste des closers`);
+        retirer.addEventListener('click', async () => {
+          // Un premier clic demande confirmation, le second retire.
+          if (!retirer.dataset.confirme) {
+            retirer.dataset.confirme = 'oui';
+            retirer.textContent = 'Confirmer';
+            return;
+          }
+          const resultat = await appeler(`/closer?id=${encodeURIComponent(closer.id)}`, { method: 'DELETE' });
+          if (resultat.statut === 200 && Array.isArray(resultat.corps?.closers)) {
+            d.closers = resultat.corps.closers;
+            afficherVentes(d);
+          } else {
+            signaler('Le closer n’a pas pu être retiré. Réessaie dans un instant.');
+          }
+        });
+        element.append(retirer);
+        return element;
+      }),
+    );
+  }
+
+  /** Reporte dans la page ce que le serveur rend après un changement dans les ventes. */
+  function appliquerVentes(bloc: BlocVentes) {
+    const d = donnees;
+    if (!d) return;
+    for (const jour of d.jours) {
+      if (jour.date > d.aujourdHui) continue;
+      Object.assign(jour, bloc.jours[jour.date] ?? { ventes: 0, contracte: 0, encaisse: 0 });
+    }
+    Object.assign(d, { ventes: bloc.ventes, closers: bloc.closers, encaissements: bloc.encaissements, aEncaisser: bloc.aEncaisser, commissions: bloc.commissions });
+    afficher(d);
+  }
+
   function afficher(d: Donnees) {
     donnees = d;
     const total = totaliser(d.jours);
     const demonstration = $('[data-demonstration]');
     if (demonstration) demonstration.hidden = !d.demonstration;
-    const aideSaisie = $('[data-aide-saisie]');
-    if (aideSaisie) aideSaisie.hidden = d.sources.ventes?.etat !== 'ok';
     afficherSources(d.sources, d.campagnes);
     for (const partie of Object.keys(COLONNES)) {
       afficherCartes(partie, total);
       afficherTable(partie, d, total);
     }
     afficherFormulations(d);
+    afficherVentes(d);
   }
 
   function signaler(texte: string) {
@@ -989,6 +1497,321 @@ import { CHEMINS } from '../../reglages';
       return { statut: 0, corps: null };
     }
   }
+
+  /* ---------- La fenêtre « Ajouter une vente » ---------- */
+
+  const dialogue = $<HTMLDialogElement>('[data-dialogue-vente]');
+  const formulaireVente = $<HTMLFormElement>('[data-formulaire-vente]');
+  const lignesPaiement = $('[data-paiements]');
+  const messageVente = $('[data-message-vente]');
+  const supprimerVente = $<HTMLButtonElement>('[data-supprimer-vente]');
+  /** Valeur de la liste des closers qui ouvre le champ « nouveau closer ». */
+  const NOUVEAU_CLOSER = '__nouveau';
+  /** La vente en cours de modification ; null pour une nouvelle vente. */
+  let venteOuverte: Vente | null = null;
+  /** Vrai tant que l'unique ligne de paiement suit le montant de la vente. */
+  let paiementSuitLeMontant = true;
+  let dateDeVente = '';
+
+  const champVente = (nom: string) => formulaireVente?.elements.namedItem(nom) as HTMLInputElement | HTMLSelectElement;
+  const dire = (texte: string) => {
+    if (messageVente) messageVente.textContent = texte;
+  };
+
+  const REFUS: Record<string, string> = {
+    date: 'Choisis la date de la vente : aujourd’hui ou un jour passé.',
+    formule: 'Choisis la formule vendue.',
+    montant: 'Indique le montant de la vente, par exemple 3000.',
+    commission: 'La commission doit être un montant, au plus égal à celui de la vente.',
+    paiements: 'Vérifie les moyens de paiement : chaque ligne a besoin d’un montant et d’un nombre de fois.',
+    repartition: 'La somme des paiements doit être égale au montant de la vente.',
+    closer: 'Choisis le closer de la vente, ou donne le nom du nouveau.',
+    vente: 'Cette vente n’existe plus : recharge la page.',
+    'a-brancher': 'La vente n’est pas enregistrée : la base n’est pas encore reliée.',
+  };
+
+  /** Une ligne de l'encadré de paiement : moyen, montant, nombre de fois, premier paiement. */
+  function ajouterLignePaiement(paiement?: Partial<Paiement>) {
+    if (!lignesPaiement) return;
+    const ligne = creer('div', '', 'ligne-paiement');
+    ligne.dataset.ligne = '';
+    const champ = (libelle: string, element: HTMLElement) => {
+      const etiquette = creer('label');
+      etiquette.append(creer('span', libelle), element);
+      return etiquette;
+    };
+
+    const methode = creer('select');
+    methode.dataset.methode = '';
+    for (const [id, moyen] of Object.entries(METHODES)) {
+      const option = creer('option', moyen.nom);
+      option.value = id;
+      methode.append(option);
+    }
+    methode.value = paiement?.methode ?? 'gocardless';
+
+    const montant = creer('input');
+    montant.type = 'text';
+    montant.inputMode = 'decimal';
+    montant.autocomplete = 'off';
+    montant.dataset.montant = '';
+    montant.value = paiement?.montant ? String(paiement.montant).replace('.', ',') : '';
+
+    const fois = creer('input');
+    fois.type = 'number';
+    fois.min = '1';
+    fois.max = '48';
+    fois.step = '1';
+    fois.inputMode = 'numeric';
+    fois.dataset.mensualites = '';
+    fois.value = String(paiement?.mensualites ?? 1);
+    const etiquetteFois = champ('En combien de fois', fois);
+
+    const debut = creer('input');
+    debut.type = 'date';
+    debut.dataset.debut = '';
+    debut.value = paiement?.debut ?? dateDeVente;
+
+    const retirer = creer('button', '✕', 'retirer');
+    retirer.type = 'button';
+    retirer.setAttribute('aria-label', 'Retirer ce moyen de paiement');
+    retirer.addEventListener('click', () => {
+      ligne.remove();
+      rafraichirVente();
+    });
+
+    const selonMethode = () => {
+      const moyen = (METHODES as Record<string, { enPlusieursFois: boolean }>)[methode.value];
+      etiquetteFois.hidden = !moyen?.enPlusieursFois;
+      const libelle = etiquetteFois.querySelector('span');
+      // Avec Secura, c'est l'élève qui paie en plusieurs fois : la durée fixe la date du solde.
+      if (libelle) libelle.textContent = methode.value === 'secura' ? 'Mensualités de l’élève' : 'En combien de fois';
+    };
+    methode.addEventListener('change', () => {
+      selonMethode();
+      rafraichirVente();
+    });
+    montant.addEventListener('input', () => {
+      paiementSuitLeMontant = false;
+      rafraichirVente();
+    });
+    fois.addEventListener('input', rafraichirVente);
+    debut.addEventListener('input', rafraichirVente);
+    selonMethode();
+
+    ligne.append(champ('Moyen de paiement', methode), champ('Montant (€)', montant), etiquetteFois, champ('Premier paiement le', debut), retirer);
+    lignesPaiement.append(ligne);
+  }
+
+  /** Les lignes de paiement telles qu'elles sont saisies. */
+  function paiementsSaisis() {
+    return [...(lignesPaiement?.querySelectorAll<HTMLElement>('[data-ligne]') ?? [])].map((ligne) => ({
+      methode: ligne.querySelector<HTMLSelectElement>('[data-methode]')?.value ?? '',
+      montant: ligne.querySelector<HTMLInputElement>('[data-montant]')?.value ?? '',
+      mensualites: Number(ligne.querySelector<HTMLInputElement>('[data-mensualites]')?.value || 1),
+      debut: ligne.querySelector<HTMLInputElement>('[data-debut]')?.value ?? '',
+    }));
+  }
+
+  /** Met à jour ce qui dépend de la saisie : le reste à répartir et l'échéancier. */
+  function rafraichirVente() {
+    const lignes = [...(lignesPaiement?.querySelectorAll<HTMLElement>('[data-ligne]') ?? [])];
+    for (const ligne of lignes) {
+      const retirer = ligne.querySelector<HTMLButtonElement>('.retirer');
+      if (retirer) retirer.disabled = lignes.length === 1;
+    }
+    const montant = lireMontant(champVente('montant')?.value ?? '') ?? 0;
+    const saisis = paiementsSaisis();
+    const reparti = saisis.reduce((total, paiement) => total + (lireMontant(paiement.montant) ?? 0), 0);
+    const reste = Math.round((montant - reparti) * 100) / 100;
+    const etat = $('[data-reste-a-repartir]');
+    if (etat) {
+      etat.dataset.etat = !montant ? '' : reste === 0 ? 'bon' : 'a-revoir';
+      etat.textContent = !montant
+        ? ''
+        : reste === 0
+          ? 'Le compte est bon.'
+          : reste > 0
+            ? `Reste à répartir : ${argent(reste)}`
+            : `Les paiements dépassent la vente de ${argent(-reste)}`;
+    }
+
+    // L'échéancier : ce que l'Académie encaisse, et quand.
+    const liste = $('[data-echeancier]');
+    const resume = $('[data-resume-echeancier]');
+    const date = champVente('date')?.value ?? '';
+    const aujourdHui = donnees?.aujourdHui ?? '';
+    const paiements = saisis
+      .map((paiement) => ({ ...paiement, montant: lireMontant(paiement.montant) ?? 0, debut: paiement.debut || date }))
+      .filter((paiement) => paiement.montant > 0 && paiement.debut);
+    const echeances = date ? echeancier({ date, paiements }) : [];
+    if (liste) {
+      liste.replaceChildren(
+        ...(echeances.length === 0
+          ? [creer('li', 'Indique le montant et le moyen de paiement : les encaissements s’affichent ici.', 'vide')]
+          : echeances.map((echeance) => {
+              const element = creer('li', '', echeance.date <= aujourdHui ? 'encaisse' : '');
+              element.append(creer('span', libelleDate(echeance.date)), creer('strong', argent(echeance.montant)), creer('span', `${nomMethode(echeance.methode)}, ${echeance.etape}`));
+              return element;
+            })),
+      );
+    }
+    if (resume) {
+      const deja = echeances.reduce((total, echeance) => total + (echeance.date <= aujourdHui ? echeance.montant : 0), 0);
+      const mensualites = echeances.filter((echeance) => echeance.recurrent);
+      resume.textContent =
+        echeances.length === 0
+          ? ''
+          : `Déjà encaissé aujourd’hui : ${argent(Math.round(deja * 100) / 100)}. À venir : ${argent(Math.round((reparti - deja) * 100) / 100)}.` +
+            (mensualites.length > 0 ? ` MRR : ${argent(mensualites[0]?.montant ?? 0)} par mois pendant ${mensualites.length} mois.` : '');
+    }
+  }
+
+  /** Ouvre la fenêtre : vide pour une nouvelle vente, remplie pour une vente à modifier. */
+  function ouvrirVente(vente?: Vente) {
+    const d = donnees;
+    if (!d || !dialogue || !formulaireVente || !lignesPaiement) return;
+    venteOuverte = vente ?? null;
+    formulaireVente.reset();
+    dire('');
+    const titre = $('[data-titre-vente]');
+    if (titre) titre.textContent = vente ? 'Modifier la vente' : 'Ajouter une vente';
+    if (supprimerVente) {
+      supprimerVente.hidden = !vente;
+      supprimerVente.textContent = 'Supprimer cette vente';
+      delete supprimerVente.dataset.confirme;
+    }
+
+    const date = champVente('date') as HTMLInputElement;
+    date.max = d.aujourdHui;
+    // Par défaut : aujourd'hui, ou le dernier jour du mois affiché si c'est un mois passé.
+    const dernierJour = d.jours.filter((jour) => jour.date <= d.aujourdHui).at(-1)?.date ?? d.aujourdHui;
+    date.value = vente?.date ?? (d.mois === d.aujourdHui.slice(0, 7) ? d.aujourdHui : dernierJour);
+    dateDeVente = date.value;
+    champVente('formule').value = vente?.formule ?? '';
+    champVente('montant').value = vente ? String(vente.montant).replace('.', ',') : '';
+    champVente('commission').value = vente?.commission ? String(vente.commission).replace('.', ',') : '';
+    champVente('note').value = vente?.note ?? '';
+
+    // Les closers déjà enregistrés se choisissent ; un nouveau nom s'enregistre avec la vente.
+    const closers = champVente('closer') as HTMLSelectElement;
+    const option = (valeur: string, texte: string) => {
+      const element = creer('option', texte);
+      element.value = valeur;
+      return element;
+    };
+    const connus = d.closers.map((closer) => option(closer.id, closer.nom));
+    // Le closer d'une ancienne vente, retiré de la liste depuis, reste proposé pour cette vente.
+    if (vente && !d.closers.some((closer) => closer.id === vente.closer)) connus.push(option(vente.closer, vente.closerNom));
+    closers.replaceChildren(option('', 'Choisir…'), ...connus, option(NOUVEAU_CLOSER, '＋ Nouveau closer…'));
+    closers.value = vente?.closer ?? (d.closers.length === 0 ? NOUVEAU_CLOSER : '');
+    const nouveau = $('[data-nouveau-closer]');
+    if (nouveau) nouveau.hidden = closers.value !== NOUVEAU_CLOSER;
+
+    lignesPaiement.replaceChildren();
+    paiementSuitLeMontant = !vente;
+    if (vente) for (const paiement of vente.paiements) ajouterLignePaiement(paiement);
+    else ajouterLignePaiement();
+    rafraichirVente();
+    dialogue.showModal();
+    (vente ? champVente('montant') : champVente('formule')).focus();
+  }
+
+  $('[data-ajouter-vente]')?.addEventListener('click', () => ouvrirVente());
+  for (const bouton of document.querySelectorAll('[data-fermer-vente]')) bouton.addEventListener('click', () => dialogue?.close());
+
+  champVente('closer')?.addEventListener('change', () => {
+    const nouveau = $('[data-nouveau-closer]');
+    const choisi = champVente('closer').value === NOUVEAU_CLOSER;
+    if (nouveau) nouveau.hidden = !choisi;
+    if (choisi) champVente('closerNom').focus();
+  });
+
+  champVente('montant')?.addEventListener('input', () => {
+    // Tant qu'il n'y a qu'un moyen de paiement et qu'il n'a pas été retouché, il suit le montant.
+    const lignes = lignesPaiement?.querySelectorAll<HTMLInputElement>('[data-ligne] [data-montant]');
+    if (paiementSuitLeMontant && lignes?.length === 1 && lignes[0]) lignes[0].value = champVente('montant').value;
+    rafraichirVente();
+  });
+
+  champVente('date')?.addEventListener('input', () => {
+    // Les premiers paiements calés sur la date de la vente la suivent.
+    const nouvelle = champVente('date').value;
+    for (const debut of lignesPaiement?.querySelectorAll<HTMLInputElement>('[data-debut]') ?? []) {
+      if (debut.value === dateDeVente) debut.value = nouvelle;
+    }
+    dateDeVente = nouvelle;
+    rafraichirVente();
+  });
+
+  $('[data-ajouter-paiement]')?.addEventListener('click', () => {
+    const montant = lireMontant(champVente('montant')?.value ?? '') ?? 0;
+    const reparti = paiementsSaisis().reduce((total, paiement) => total + (lireMontant(paiement.montant) ?? 0), 0);
+    const reste = Math.round((montant - reparti) * 100) / 100;
+    paiementSuitLeMontant = false;
+    ajouterLignePaiement({ methode: 'secura', montant: reste > 0 ? reste : undefined });
+    rafraichirVente();
+  });
+
+  formulaireVente?.addEventListener('submit', async (evenement) => {
+    evenement.preventDefault();
+    const d = donnees;
+    if (!d) return;
+    dire('');
+    const choix = champVente('closer').value;
+    const closerNom = (champVente('closerNom').value ?? '').trim();
+    const lue = normaliserVente(
+      {
+        date: champVente('date').value,
+        formule: champVente('formule').value,
+        montant: champVente('montant').value,
+        commission: champVente('commission').value,
+        paiements: paiementsSaisis(),
+        note: champVente('note').value,
+      },
+      { aujourdHui: d.aujourdHui },
+    );
+    if (!lue.ok) return dire(REFUS[lue.erreur] ?? 'Vérifie la saisie.');
+    if (!choix || (choix === NOUVEAU_CLOSER && !closerNom)) return dire(REFUS.closer ?? '');
+
+    const envoyer = formulaireVente.querySelector<HTMLButtonElement>('button[type="submit"]');
+    if (envoyer) envoyer.disabled = true;
+    const resultat = await appeler('/vente', {
+      method: 'POST',
+      body: JSON.stringify({
+        mois,
+        vente: { ...lue.vente, id: venteOuverte?.id, closer: choix === NOUVEAU_CLOSER ? undefined : choix },
+        closerNom: choix === NOUVEAU_CLOSER ? closerNom : venteOuverte?.closerNom,
+      }),
+    });
+    if (envoyer) envoyer.disabled = false;
+    if (resultat.statut !== 200 || !resultat.corps?.ok) {
+      return dire(
+        REFUS[String(resultat.corps?.erreur)] ??
+          (resultat.statut === 401 ? 'La session est terminée : recharge la page et reconnecte-toi.' : 'La vente n’a pas pu être enregistrée. Réessaie dans un instant.'),
+      );
+    }
+    dialogue?.close();
+    signaler('');
+    // Une vente d'un autre mois s'affiche dans son mois.
+    const moisDeVente = lue.vente.date.slice(0, 7);
+    if (moisDeVente !== mois && moisDeVente >= PREMIER_MOIS) changerDeMois(moisDeVente);
+    else appliquerVentes(resultat.corps as BlocVentes);
+  });
+
+  supprimerVente?.addEventListener('click', async () => {
+    if (!venteOuverte) return;
+    // Un premier clic demande confirmation, le second supprime.
+    if (!supprimerVente.dataset.confirme) {
+      supprimerVente.dataset.confirme = 'oui';
+      supprimerVente.textContent = 'Confirmer la suppression';
+      return;
+    }
+    const resultat = await appeler(`/vente?id=${encodeURIComponent(venteOuverte.id)}&mois=${mois}`, { method: 'DELETE' });
+    if (resultat.statut !== 200 || !resultat.corps?.ok) return dire('La vente n’a pas pu être supprimée. Réessaie dans un instant.');
+    dialogue?.close();
+    appliquerVentes(resultat.corps as BlocVentes);
+  });
 
   function remplirChoixDuMois() {
     if (!choixMois) return;
