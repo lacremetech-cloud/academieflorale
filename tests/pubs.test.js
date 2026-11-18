@@ -253,11 +253,37 @@ test('rapport : Meta, inscrites du tunnel, rendez-vous d’iClosed et ventes du 
   assert.equal(versMeta.every((d) => d.options.headers.Authorization === 'Bearer jeton-meta-de-test' && !d.url.href.includes('jeton')), true);
   const parPub = versMeta.find((d) => d.url.searchParams.get('level') === 'ad');
   assert.deepEqual(JSON.parse(parPub.url.searchParams.get('time_range')), { since: '2026-11-01', until: '2026-11-30' });
-  assert.deepEqual(JSON.parse(parPub.url.searchParams.get('filtering')), [{ field: 'campaign.name', operator: 'CONTAIN', value: 'VSL' }]);
+  // Publicité par publicité, les archivées et les supprimées sont demandées aussi : sinon leur dépense manquerait au détail.
+  const filtres = JSON.parse(parPub.url.searchParams.get('filtering'));
+  assert.deepEqual(filtres[0], { field: 'campaign.name', operator: 'CONTAIN', value: 'VSL' });
+  assert.deepEqual([filtres[1].field, filtres[1].operator, filtres[1].value.includes('ARCHIVED'), filtres[1].value.includes('DELETED'), filtres[1].value.includes('PAUSED')], ['ad.effective_status', 'IN', true, true, true]);
+  const parJour = versMeta.find((d) => d.url.searchParams.get('time_increment'));
+  assert.deepEqual(JSON.parse(parJour.url.searchParams.get('filtering')), [{ field: 'campaign.name', operator: 'CONTAIN', value: 'VSL' }]);
   const fiches = versMeta.find((d) => d.url.searchParams.get('ids'));
   assert.deepEqual(fiches.url.searchParams.get('ids').split(','), ['120211111111111111', '120222222222222222', '120299999999999999']);
   // Aucun email ne sort du serveur.
   assert.equal(/exemple|camille|lea@|zoe@/i.test(JSON.stringify(rapport)), false);
+});
+
+test('rapport : une publicité illisible n’empêche pas de lire le texte des autres', async () => {
+  const vues = [];
+  const meta = (url) => {
+    if (url.pathname.endsWith('/insights')) {
+      return url.searchParams.get('level') === 'ad'
+        ? { data: [{ ad_id: '120211111111111111', ad_name: 'P01 H1', spend: '10', impressions: '900' }, { ad_id: '120233333333333333', ad_name: 'P03 H1', spend: '5', impressions: '400' }] }
+        : { data: [] };
+    }
+    const ids = url.searchParams.get('ids').split(',');
+    vues.push(ids);
+    // La demande groupée échoue ; une par une, seule la publicité encore lisible répond.
+    if (ids.length > 1 || ids[0] === '120233333333333333') return new Response(JSON.stringify({ error: { message: 'Unsupported get request' } }), { status: 400 });
+    return { '120211111111111111': { name: 'P01 H1', effective_status: 'ARCHIVED', creative: { body: 'Texte de P01' } } };
+  };
+  const m = fauxMonde({ meta, iclosed: fauxIclosed([]) });
+  const rapport = await assemblerPubs({ mois: '2026-11', periode: 'mois', env: PROD, fetchImpl: m.fetchImpl, maintenant: APRES });
+  const par = Object.fromEntries(rapport.pubs.map((ligne) => [ligne.nom, ligne]));
+  assert.deepEqual([par['P01 H1'].texte, par['P01 H1'].statut, par['P03 H1'].texte, par['P03 H1'].depense], ['Texte de P01', 'ARCHIVED', '', 5]);
+  assert.deepEqual(vues.map((ids) => ids.length), [2, 1, 1]);
 });
 
 test('rapport : chaque source peut manquer sans empêcher les autres', async () => {

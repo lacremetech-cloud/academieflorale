@@ -40,6 +40,26 @@ const ACTIONS = {
 };
 /** Nombre de créations dont le texte est demandé à Meta. */
 const FICHES_MAX = 40;
+/**
+ * Publicité par publicité, Meta ne rend par défaut que celles qui existent encore :
+ * une publicité archivée ou supprimée disparaît du détail, alors que sa dépense reste
+ * dans le total du compte. On demande donc tous les états, pour que le détail et le
+ * total disent la même chose.
+ */
+const TOUS_LES_ETATS = [
+  'ACTIVE',
+  'PAUSED',
+  'CAMPAIGN_PAUSED',
+  'ADSET_PAUSED',
+  'ARCHIVED',
+  'DELETED',
+  'IN_PROCESS',
+  'WITH_ISSUES',
+  'DISAPPROVED',
+  'PENDING_REVIEW',
+  'PREAPPROVED',
+  'PENDING_BILLING_INFO',
+];
 
 /**
  * La valeur d'une action dans la liste rendue par Meta.
@@ -77,16 +97,20 @@ export function joursDePeriode(mois, periode, maintenant) {
  * @param {Record<string, string | undefined>} options.env
  * @param {Record<string, string>} options.parametres
  * @param {typeof fetch} options.fetchImpl
+ * @param {boolean} [options.tousLesEtats] publicités archivées et supprimées comprises
  * @returns {Promise<{ etat: 'ok' | 'a-brancher' | 'erreur', detail?: string, lignes: any[] }>}
  */
-async function statistiques({ env, parametres, fetchImpl }) {
+async function statistiques({ env, parametres, fetchImpl, tousLesEtats = false }) {
   const jeton = (env.META_ACCESS_TOKEN ?? '').trim();
   const compte = (env.META_AD_ACCOUNT_ID ?? '').trim().replace(/^act_/, '');
   if (!jeton || !compte) return { etat: 'a-brancher', lignes: [] };
   if (!/^\d{5,20}$/.test(compte)) return { etat: 'erreur', detail: 'identifiant du compte publicitaire invalide', lignes: [] };
   const demande = new URLSearchParams({ limit: '500', ...parametres });
   const filtre = filtreCampagnes(env);
-  if (filtre) demande.set('filtering', JSON.stringify([{ field: 'campaign.name', operator: 'CONTAIN', value: filtre }]));
+  /** @type {{ field: string, operator: string, value: string | string[] }[]} */
+  const filtres = filtre ? [{ field: 'campaign.name', operator: 'CONTAIN', value: filtre }] : [];
+  if (tousLesEtats) filtres.push({ field: 'ad.effective_status', operator: 'IN', value: TOUS_LES_ETATS });
+  if (filtres.length > 0) demande.set('filtering', JSON.stringify(filtres));
   const lignes = [];
   try {
     for (let page = 0; page < 12; page += 1) {
@@ -124,17 +148,25 @@ async function fichesDesPubs({ env, ids, fetchImpl }) {
   /** @type {Record<string, import('../../partage/pubs.js').FichePub>} */
   const fiches = {};
   if (!jeton || ids.length === 0) return fiches;
-  const demande = new URLSearchParams({
-    ids: ids.slice(0, 50).join(','),
-    fields: 'name,effective_status,created_time,creative{title,body,thumbnail_url,object_story_spec,asset_feed_spec}',
-  });
-  try {
-    const reponse = await fetchImpl(`https://graph.facebook.com/${versionMeta(env)}/?${demande}`, {
+  const champs = 'name,effective_status,created_time,creative{title,body,thumbnail_url,object_story_spec,asset_feed_spec}';
+  /** @param {string[]} groupe @returns {Promise<Record<string, unknown> | null>} */
+  const demander = async (groupe) => {
+    const reponse = await fetchImpl(`https://graph.facebook.com/${versionMeta(env)}/?${new URLSearchParams({ ids: groupe.join(','), fields: champs })}`, {
       headers: { Authorization: `Bearer ${jeton}`, Accept: 'application/json' },
       signal: AbortSignal.timeout(12000),
     });
     const corps = await reponse.json().catch(() => null);
-    if (!reponse.ok || !corps || typeof corps !== 'object') return fiches;
+    return reponse.ok && corps && typeof corps === 'object' ? corps : null;
+  };
+  try {
+    const voulus = ids.slice(0, 50);
+    let corps = await demander(voulus);
+    if (!corps && voulus.length > 1) {
+      // Une seule publicité illisible (supprimée depuis longtemps) fait échouer toute la demande : on les prend une par une.
+      const une = await Promise.all(voulus.map((id) => demander([id]).catch(() => null)));
+      corps = Object.assign({}, ...une.filter(Boolean));
+    }
+    if (!corps) return fiches;
     for (const [id, pub] of Object.entries(corps)) {
       if (!/^\d{6,25}$/.test(id) || !pub || typeof pub !== 'object') continue;
       const creation = /** @type {any} */ (pub).creative ?? {};
@@ -184,7 +216,7 @@ export async function assemblerPubs({ mois, periode, env, fetchImpl = fetch, mai
   const moisDeLaPeriode = [...new Set(jours.map((jour) => jour.slice(0, 7)))];
 
   const [parPub, parJour, parHeure, inscrites, appels, registre, creneaux] = await Promise.all([
-    statistiques({ env, fetchImpl, parametres: { level: 'ad', fields: `ad_id,ad_name,adset_name,campaign_name,${CHAMPS_INSIGHTS}`, time_range: plage } }),
+    statistiques({ env, fetchImpl, tousLesEtats: true, parametres: { level: 'ad', fields: `ad_id,ad_name,adset_name,campaign_name,${CHAMPS_INSIGHTS}`, time_range: plage } }),
     statistiques({ env, fetchImpl, parametres: { level: 'account', fields: 'spend,inline_link_clicks,actions', time_range: plage, time_increment: '1' } }),
     statistiques({
       env,
