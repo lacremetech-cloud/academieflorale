@@ -1,0 +1,923 @@
+---
+/**
+ * Cockpit : les chiffres du tunnel, mois par mois, avec le détail jour par jour,
+ * en trois parties (Acquisition, VSL, Closing). Modèle : le tableau publicitaire
+ * d'origine, sans second appel (R1 closing).
+ *
+ * Accès privé : cette page ne contient aucun chiffre. Elle demande le mot de
+ * passe, puis lit les chiffres auprès de /api/cockpit/donnees, qui exige une
+ * session ouverte. Rien n'est indexé.
+ */
+import Tunnel from '../../layouts/Tunnel.astro';
+import { CHEMINS } from '../../reglages';
+---
+
+<Tunnel titre="Cockpit · Académie Florale" pied="compact">
+  <div class="cockpit">
+    <!-- La porte : mot de passe -->
+    <section class="porte" data-porte hidden>
+      <h1>Cockpit</h1>
+      <p data-porte-texte>Accès privé. Entre le mot de passe pour voir les chiffres du tunnel.</p>
+      <form data-connexion novalidate>
+        <label for="mot-de-passe">Mot de passe</label>
+        <input id="mot-de-passe" name="motDePasse" type="password" autocomplete="current-password" required />
+        <button class="bouton bouton-large" type="submit">Ouvrir le cockpit</button>
+        <p class="message" data-message role="alert"></p>
+      </form>
+      <p class="texte-secondaire"><a href={CHEMINS.equipe}>Retour à la bibliothèque de liens</a></p>
+    </section>
+
+    <p class="attente" data-attente>Chargement du cockpit…</p>
+
+    <!-- Le tableau de bord -->
+    <div class="tableau-de-bord" data-tableau hidden>
+      <header class="tete">
+        <div class="titre">
+          <h1>Cockpit</h1>
+          <p class="texte-secondaire">
+            <a href={CHEMINS.equipe}>Bibliothèque de liens</a> ·
+            <button type="button" class="lien" data-deconnexion>Se déconnecter</button>
+          </p>
+        </div>
+        <div class="mois" role="group" aria-label="Choix du mois">
+          <button type="button" class="fleche" data-mois-precedent aria-label="Mois précédent">‹</button>
+          <select data-mois aria-label="Mois affiché"></select>
+          <button type="button" class="fleche" data-mois-suivant aria-label="Mois suivant">›</button>
+        </div>
+      </header>
+
+      <p class="bandeau demonstration" data-demonstration hidden>
+        <strong>Données de démonstration.</strong> Ces chiffres sont inventés : ils servent à mettre au point l’affichage,
+        en local seulement.
+      </p>
+      <p class="bandeau erreur" data-erreur role="alert" hidden></p>
+
+      <section class="branchements" aria-labelledby="titre-branchements">
+        <h2 id="titre-branchements" class="visuellement-cache">Sources des chiffres</h2>
+        <ul data-sources role="list"></ul>
+      </section>
+
+      <nav class="sommaire" aria-label="Parties du cockpit">
+        <a href="#acquisition">Acquisition</a>
+        <a href="#vsl">VSL</a>
+        <a href="#closing">Closing</a>
+      </nav>
+
+      <section class="partie" id="acquisition" aria-labelledby="titre-acquisition">
+        <div class="tete-partie">
+          <h2 id="titre-acquisition"><span class="numero" aria-hidden="true">1</span>Acquisition</h2>
+          <p class="texte-secondaire">De la publicité à l’inscription. Dépense, impressions et clics : Meta Ads. Inscrits : formulaire de la landing.</p>
+        </div>
+        <ul class="cartes" data-cartes="acquisition" role="list"></ul>
+        <div class="defilement" tabindex="0" role="region" aria-label="Acquisition, jour par jour">
+          <table data-table="acquisition"></table>
+        </div>
+        <div class="formulations" data-formulations hidden>
+          <h3>Test des formulations de la landing</h3>
+          <div class="defilement" tabindex="0" role="region" aria-label="Test des formulations">
+            <table data-table="formulations"></table>
+          </div>
+        </div>
+      </section>
+
+      <section class="partie" id="vsl" aria-labelledby="titre-vsl">
+        <div class="tete-partie">
+          <h2 id="titre-vsl"><span class="numero" aria-hidden="true">2</span>VSL</h2>
+          <p class="texte-secondaire">De l’inscription à l’appel réservé. Lectures de la vidéo : Wistia. Appels réservés : iClosed, à leur date de réservation.</p>
+        </div>
+        <ul class="cartes" data-cartes="vsl" role="list"></ul>
+        <div class="defilement" tabindex="0" role="region" aria-label="VSL, jour par jour">
+          <table data-table="vsl"></table>
+        </div>
+      </section>
+
+      <section class="partie" id="closing" aria-labelledby="titre-closing">
+        <div class="tete-partie">
+          <h2 id="titre-closing"><span class="numero" aria-hidden="true">3</span>Closing</h2>
+          <p class="texte-secondaire">De l’appel à la vente, en un seul appel (R1). Annulations et absences au jour prévu de l’appel, ventes au jour de la vente : iClosed.</p>
+        </div>
+        <ul class="cartes" data-cartes="closing" role="list"></ul>
+        <div class="defilement" tabindex="0" role="region" aria-label="Closing, jour par jour">
+          <table data-table="closing"></table>
+        </div>
+      </section>
+    </div>
+  </div>
+</Tunnel>
+
+<style>
+  .cockpit {
+    width: 100%;
+    max-width: 1360px;
+    margin-inline: auto;
+    padding: 0 clamp(12px, 3vw, 32px) clamp(32px, 6vw, 60px);
+  }
+
+  /* La porte */
+  .porte {
+    display: grid;
+    gap: 14px;
+    max-width: 24rem;
+    margin: clamp(16px, 6vw, 56px) auto 0;
+    text-align: center;
+  }
+
+  .porte form {
+    display: grid;
+    gap: 10px;
+    padding: 20px;
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon);
+    background: var(--blanc);
+    text-align: left;
+  }
+
+  .porte label {
+    font-size: var(--corps-petit);
+    font-weight: 600;
+  }
+
+  .porte input {
+    width: 100%;
+    min-height: 52px;
+    padding: 0.6em 0.9em;
+    border: 1.5px solid var(--trait);
+    border-radius: var(--rayon);
+    background: var(--blanc);
+    color: var(--encre);
+    font-family: var(--police-texte);
+    font-size: var(--corps-champ);
+  }
+
+  .message {
+    color: var(--erreur);
+    font-size: var(--corps-petit);
+    font-weight: 500;
+  }
+
+  .message:empty {
+    display: none;
+  }
+
+  .attente {
+    padding-block: 48px;
+    color: var(--encre-douce);
+    text-align: center;
+  }
+
+  /* L'en-tête du tableau de bord */
+  .tableau-de-bord {
+    display: grid;
+    gap: clamp(16px, 2.6vw, 26px);
+  }
+
+  .tete {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px 24px;
+  }
+
+  h1 {
+    font-size: clamp(1.7rem, 1.2rem + 2.2vw, 2.4rem);
+  }
+
+  .lien {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-decoration: underline;
+    text-underline-offset: 0.18em;
+    cursor: pointer;
+  }
+
+  .mois {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .mois select,
+  .fleche {
+    min-height: 46px;
+    border: 1.5px solid var(--trait);
+    border-radius: var(--rayon);
+    background: var(--blanc);
+    color: var(--encre);
+    font-family: var(--police-texte);
+    font-size: 1.05rem;
+    font-weight: 600;
+  }
+
+  .mois select {
+    padding: 0 0.9em;
+    text-transform: capitalize;
+  }
+
+  .fleche {
+    width: 46px;
+    font-size: 1.4rem;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .fleche:disabled {
+    color: var(--trait);
+    cursor: default;
+  }
+
+  .bandeau {
+    padding: 12px 16px;
+    border-radius: var(--rayon);
+    font-size: var(--corps-petit);
+    line-height: 1.4;
+  }
+
+  .demonstration {
+    background: var(--jaune);
+  }
+
+  .erreur {
+    border: 1.5px solid var(--erreur);
+    background: var(--blanc);
+    color: var(--erreur);
+    font-weight: 500;
+  }
+
+  /* Les sources : branchées ou non */
+  .branchements ul {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
+    gap: 10px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .branchements :global(li) {
+    display: grid;
+    gap: 2px;
+    padding: 10px 14px;
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon);
+    background: var(--blanc);
+    font-size: var(--corps-petit);
+    line-height: 1.35;
+  }
+
+  .branchements :global(.etat) {
+    font-weight: 600;
+  }
+
+  .branchements :global(.ok .etat) {
+    color: var(--vert-trustpilot);
+  }
+
+  .branchements :global(.erreur-source .etat) {
+    color: var(--erreur);
+  }
+
+  .branchements :global(.detail) {
+    color: var(--encre-douce);
+    overflow-wrap: anywhere;
+  }
+
+  .branchements :global(code) {
+    font-size: 0.78rem;
+  }
+
+  .sommaire {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .sommaire a {
+    padding: 0.45em 1.1em;
+    border-radius: var(--rayon-bouton);
+    background: var(--rose);
+    font-size: var(--corps-petit);
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  /* Une partie : titre, cartes du mois, tableau des jours */
+  .partie {
+    display: grid;
+    gap: 14px;
+    scroll-margin-top: 12px;
+  }
+
+  .tete-partie {
+    display: grid;
+    gap: 4px;
+  }
+
+  h2 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: var(--titre-2);
+  }
+
+  h3 {
+    font-size: 1.05rem;
+  }
+
+  .numero {
+    display: grid;
+    place-items: center;
+    width: 1.7em;
+    height: 1.7em;
+    border-radius: 50%;
+    background: var(--jaune);
+    font-size: 0.62em;
+    font-weight: 700;
+  }
+
+  .cartes {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+    gap: 10px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .cartes :global(li) {
+    display: grid;
+    gap: 2px;
+    padding: 12px 14px;
+    border-radius: var(--rayon);
+    background: var(--blanc);
+    box-shadow: 0 14px 30px -26px var(--ombre);
+  }
+
+  .cartes :global(.libelle) {
+    color: var(--encre-douce);
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .cartes :global(.valeur) {
+    font-size: clamp(1.25rem, 1.05rem + 0.8vw, 1.6rem);
+    font-weight: 700;
+    line-height: 1.15;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .cartes :global(.precision) {
+    color: var(--encre-douce);
+    font-size: 0.78rem;
+  }
+
+  .formulations {
+    display: grid;
+    gap: 8px;
+  }
+
+  /* Tableaux : larges, ils défilent dans leur cadre ; la date reste visible */
+  .defilement {
+    overflow-x: auto;
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon);
+    background: var(--blanc);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.84rem;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.25;
+    white-space: nowrap;
+  }
+
+  table :global(th),
+  table :global(td) {
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--trait);
+    text-align: right;
+  }
+
+  table :global(thead th) {
+    position: sticky;
+    top: 0;
+    background: var(--rose);
+    font-weight: 700;
+  }
+
+  table :global(th[title]) {
+    cursor: help;
+  }
+
+  table :global(th:first-child),
+  table :global(td:first-child) {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: var(--blanc);
+    text-align: left;
+    font-weight: 600;
+  }
+
+  table :global(thead th:first-child) {
+    z-index: 2;
+    background: var(--rose);
+  }
+
+  table :global(tr.dimanche td:first-child) {
+    color: var(--orange-fonce);
+  }
+
+  table :global(tr.aujourd-hui td) {
+    background: var(--creme);
+  }
+
+  table :global(td.vide) {
+    color: var(--trait);
+  }
+
+  table :global(td.vente) {
+    background: var(--vert-trustpilot);
+    color: var(--blanc);
+    font-weight: 700;
+  }
+
+  table :global(tfoot td) {
+    position: sticky;
+    bottom: 0;
+    border-top: 2px solid var(--encre);
+    border-bottom: 0;
+    background: var(--creme);
+    font-weight: 700;
+  }
+
+  table :global(tfoot td:first-child) {
+    background: var(--creme);
+  }
+
+  table :global(td.note) {
+    max-width: 16rem;
+    padding: 2px 6px;
+    text-align: left;
+    white-space: normal;
+  }
+
+  table :global(td.note button) {
+    width: 100%;
+    min-width: 7rem;
+    min-height: 30px;
+    padding: 3px 6px;
+    border: 1px dashed transparent;
+    border-radius: 6px;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: text;
+  }
+
+  table :global(td.note button:hover),
+  table :global(td.note button:focus-visible) {
+    border-color: var(--trait);
+  }
+
+  table :global(td.note input) {
+    width: 100%;
+    min-width: 12rem;
+    min-height: 30px;
+    padding: 3px 6px;
+    border: 1.5px solid var(--encre);
+    border-radius: 6px;
+    font: inherit;
+  }
+</style>
+
+<script>
+  import { indicateurs, moisCourant, moisDecale, moisValide, totaliser } from '../../../partage/cockpit.js';
+
+  type Chiffres = Record<string, number | null>;
+  type Jour = Chiffres & { date: string };
+  type Source = { nom: string; etat: 'ok' | 'a-brancher' | 'erreur'; detail: string; variables: string[] };
+  type Donnees = {
+    mois: string;
+    aujourdHui: string;
+    demonstration: boolean;
+    jours: Jour[];
+    notes: Record<string, string>;
+    variantes: { nom: string; vues: number; inscrits: number }[];
+    campagnes: string;
+    sources: Record<string, Source>;
+  };
+  type Format = 'euros' | 'centimes' | 'entier' | 'pourcent' | 'ratio' | 'minutes';
+  type Colonne = {
+    cle: string;
+    titre: string;
+    aide: string;
+    format: Format;
+    /** Lit la valeur dans les chiffres bruts et les indicateurs d'une ligne. */
+    lire?: (bruts: Chiffres, calcules: ReturnType<typeof indicateurs>) => number | null;
+    vente?: boolean;
+  };
+
+  const API = '/api/cockpit';
+  const PREMIER_MOIS = '2026-01';
+
+  /* ---------- Les colonnes de chaque partie : les noms du tableau publicitaire ---------- */
+
+  const brut = (cle: string) => (bruts: Chiffres) => bruts[cle] ?? null;
+  const calcule = (cle: keyof ReturnType<typeof indicateurs>) => (_: Chiffres, calcules: ReturnType<typeof indicateurs>) =>
+    calcules[cle];
+
+  const COLONNES: Record<string, Colonne[]> = {
+    acquisition: [
+      { cle: 'depense', titre: 'Dépense', aide: 'Dépense publicitaire (Meta Ads)', format: 'euros', lire: brut('depense') },
+      { cle: 'impressions', titre: 'Imp.', aide: 'Impressions des publicités', format: 'entier', lire: brut('impressions') },
+      { cle: 'clics', titre: 'Clics', aide: 'Clics sur le lien des publicités', format: 'entier', lire: brut('clics') },
+      { cle: 'cpm', titre: 'CPM', aide: 'Coût pour 1 000 impressions', format: 'centimes', lire: calcule('cpm') },
+      { cle: 'ctr', titre: 'CTR', aide: 'Clics ÷ impressions', format: 'pourcent', lire: calcule('ctr') },
+      { cle: 'cpc', titre: 'CPC', aide: 'Dépense ÷ clics', format: 'centimes', lire: calcule('cpc') },
+      { cle: 'inscrits', titre: 'Inscrits', aide: 'Formulaires de la landing envoyés', format: 'entier', lire: brut('inscrits') },
+      { cle: 'cpp', titre: 'CPP', aide: 'Coût par inscrite : dépense ÷ inscrits', format: 'centimes', lire: calcule('cpp') },
+      { cle: 'tauxInscription', titre: '% PI', aide: 'Page d’inscription : inscrits ÷ clics', format: 'pourcent', lire: calcule('tauxInscription') },
+    ],
+    vsl: [
+      { cle: 'inscrits', titre: 'Inscrits', aide: 'Formulaires de la landing envoyés', format: 'entier', lire: brut('inscrits') },
+      { cle: 'chargements', titre: 'Charg.', aide: 'Chargements de la vidéo (Wistia)', format: 'entier', lire: brut('chargements') },
+      { cle: 'lectures', titre: 'Lectures', aide: 'Lectures de la vidéo (Wistia)', format: 'entier', lire: brut('lectures') },
+      { cle: 'tauxLecture', titre: '% Lect.', aide: 'Lectures ÷ chargements', format: 'pourcent', lire: calcule('tauxLecture') },
+      { cle: 'minutesVues', titre: 'Min. vues', aide: 'Minutes regardées par lecture, en moyenne (la vidéo dure 10 min 31)', format: 'minutes', lire: calcule('minutesVues') },
+      { cle: 'partVue', titre: '% Vidéo', aide: 'Part de la vidéo regardée, en moyenne', format: 'pourcent', lire: calcule('partVue') },
+      { cle: 'appels', titre: 'Appels', aide: 'Appels réservés, à leur date de réservation (iClosed)', format: 'entier', lire: brut('appels') },
+      { cle: 'tauxAppel', titre: '% Appel', aide: 'Appels réservés ÷ inscrits (le « % Webi. » du tableau d’origine)', format: 'pourcent', lire: calcule('tauxAppel') },
+      { cle: 'cpa', titre: 'CPA', aide: 'Coût par appel réservé : dépense ÷ appels', format: 'euros', lire: calcule('cpa') },
+    ],
+    closing: [
+      { cle: 'appels', titre: 'Appels', aide: 'Appels réservés, à leur date de réservation', format: 'entier', lire: brut('appels') },
+      { cle: 'annules', titre: 'C. Calls', aide: 'Appels annulés, au jour où ils étaient prévus', format: 'entier', lire: brut('annules') },
+      { cle: 'tauxAnnulation', titre: '% Canc.', aide: 'Annulés ÷ appels réservés', format: 'pourcent', lire: calcule('tauxAnnulation') },
+      { cle: 'maintenus', titre: 'Q. Calls', aide: 'Appels maintenus : réservés moins annulés', format: 'entier', lire: calcule('maintenus') },
+      { cle: 'cpaMaintenu', titre: 'Q. CPA', aide: 'Dépense ÷ appels maintenus', format: 'euros', lire: calcule('cpaMaintenu') },
+      { cle: 'absentes', titre: 'Absentes', aide: 'Appels où la prospecte ne s’est pas présentée, au jour prévu', format: 'entier', lire: brut('absentes') },
+      { cle: 'ventes', titre: 'Ventes', aide: 'Ventes enregistrées, à la date de la vente', format: 'entier', lire: brut('ventes'), vente: true },
+      { cle: 'tauxClosing', titre: '% Close', aide: 'Ventes ÷ appels maintenus', format: 'pourcent', lire: calcule('tauxClosing') },
+      { cle: 'encaisse', titre: 'Cash', aide: 'Encaissé', format: 'euros', lire: brut('encaisse') },
+      { cle: 'reste', titre: 'Recu.', aide: 'Reste à encaisser : contracté moins encaissé', format: 'euros', lire: calcule('reste') },
+      { cle: 'contracte', titre: 'Cum.', aide: 'Montant des ventes (contracté)', format: 'euros', lire: brut('contracte') },
+      { cle: 'cpv', titre: 'CPV', aide: 'Coût par vente : dépense ÷ ventes', format: 'euros', lire: calcule('cpv') },
+      { cle: 'roas', titre: 'ROAS', aide: 'Contracté ÷ dépense', format: 'ratio', lire: calcule('roas') },
+      { cle: 'roasDirect', titre: 'D. ROAS', aide: 'Encaissé ÷ dépense', format: 'ratio', lire: calcule('roasDirect') },
+    ],
+  };
+
+  /** Les chiffres du mois mis en avant, par partie. */
+  const CARTES: Record<string, string[]> = {
+    acquisition: ['depense', 'inscrits', 'cpp', 'tauxInscription', 'cpm', 'ctr', 'cpc'],
+    vsl: ['lectures', 'tauxLecture', 'partVue', 'appels', 'tauxAppel', 'cpa'],
+    closing: ['ventes', 'tauxClosing', 'contracte', 'encaisse', 'cpv', 'roas', 'roasDirect'],
+  };
+
+  /* ---------- Mise en forme ---------- */
+
+  const nombre = (options: Intl.NumberFormatOptions) => new Intl.NumberFormat('fr-FR', options);
+  const FORMATS: Record<Format, Intl.NumberFormat> = {
+    euros: nombre({ style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }),
+    centimes: nombre({ style: 'currency', currency: 'EUR', minimumFractionDigits: 1, maximumFractionDigits: 1 }),
+    entier: nombre({ maximumFractionDigits: 0 }),
+    pourcent: nombre({ style: 'percent', minimumFractionDigits: 1, maximumFractionDigits: 1 }),
+    ratio: nombre({ minimumFractionDigits: 1, maximumFractionDigits: 1 }),
+    minutes: nombre({ minimumFractionDigits: 1, maximumFractionDigits: 1 }),
+  };
+  const ecrire = (valeur: number | null, format: Format) =>
+    valeur == null || !Number.isFinite(valeur) ? '—' : FORMATS[format].format(valeur) + (format === 'minutes' ? ' min' : '');
+
+  const jourSemaine = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', timeZone: 'UTC' });
+  const nomDuMois = new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+  const libelleJour = (date: string) => `${jourSemaine.format(new Date(`${date}T12:00:00Z`))} ${date.slice(8)}/${date.slice(5, 7)}`;
+  const libelleMois = (mois: string) => nomDuMois.format(new Date(`${mois}-15T12:00:00Z`));
+
+  const creer = <K extends keyof HTMLElementTagNameMap>(balise: K, texte = '', classe = '') => {
+    const element = document.createElement(balise);
+    if (texte) element.textContent = texte;
+    if (classe) element.className = classe;
+    return element;
+  };
+  const $ = <T extends HTMLElement>(selecteur: string) => document.querySelector<T>(selecteur);
+
+  /* ---------- État de la page ---------- */
+
+  const porte = $('[data-porte]');
+  const tableau = $('[data-tableau]');
+  const attente = $('[data-attente]');
+  const message = $('[data-message]');
+  const erreur = $('[data-erreur]');
+  const choixMois = $<HTMLSelectElement>('[data-mois]');
+  let mois = new URLSearchParams(window.location.search).get('mois') ?? '';
+  if (!moisValide(mois)) mois = moisCourant();
+  let donnees: Donnees | null = null;
+
+  const montrer = (quoi: 'porte' | 'tableau' | 'attente') => {
+    if (porte) porte.hidden = quoi !== 'porte';
+    if (tableau) tableau.hidden = quoi !== 'tableau';
+    if (attente) attente.hidden = quoi !== 'attente';
+  };
+
+  /* ---------- Affichage ---------- */
+
+  function afficherSources(sources: Record<string, Source>, campagnes: string) {
+    const liste = $('[data-sources]');
+    if (!liste) return;
+    liste.replaceChildren(
+      ...Object.entries(sources).map(([cle, source]) => {
+        const ligne = creer('li', '', source.etat === 'ok' ? 'ok' : source.etat === 'erreur' ? 'erreur-source' : 'a-brancher');
+        ligne.append(creer('strong', source.nom));
+        ligne.append(
+          creer('span', source.etat === 'ok' ? '✓ Branché' : source.etat === 'erreur' ? '✕ En erreur' : '○ À brancher', 'etat'),
+        );
+        if (source.etat === 'erreur' && source.detail) ligne.append(creer('span', source.detail, 'detail'));
+        if (source.etat === 'a-brancher') {
+          const detail = creer('span', 'Variables à saisir dans Vercel : ', 'detail');
+          source.variables.forEach((variable, rang) => {
+            if (rang > 0) detail.append(', ');
+            detail.append(creer('code', variable));
+          });
+          ligne.append(detail);
+        }
+        if (cle === 'meta' && source.etat === 'ok') {
+          ligne.append(creer('span', campagnes ? `Campagnes dont le nom contient « ${campagnes} »` : 'Tout le compte publicitaire', 'detail'));
+        }
+        return ligne;
+      }),
+    );
+  }
+
+  function afficherCartes(partie: string, total: Chiffres) {
+    const liste = $(`[data-cartes="${partie}"]`);
+    if (!liste) return;
+    const calcules = indicateurs(total);
+    liste.replaceChildren(
+      ...(CARTES[partie] ?? []).map((cle) => {
+        const colonne = Object.values(COLONNES)
+          .flat()
+          .find((c) => c.cle === cle);
+        const carte = creer('li');
+        if (!colonne) return carte;
+        carte.append(creer('span', colonne.titre, 'libelle'));
+        carte.append(creer('span', ecrire(colonne.lire?.(total, calcules) ?? null, colonne.format), 'valeur'));
+        carte.append(creer('span', colonne.aide, 'precision'));
+        return carte;
+      }),
+    );
+  }
+
+  function afficherTable(partie: string, d: Donnees, total: Chiffres) {
+    const table = $(`[data-table="${partie}"]`);
+    const colonnes = COLONNES[partie];
+    if (!table || !colonnes) return;
+    const avecNotes = partie === 'acquisition';
+
+    const enTete = creer('tr');
+    enTete.append(creer('th', 'Jour'));
+    for (const colonne of colonnes) {
+      const cellule = creer('th', colonne.titre);
+      cellule.title = colonne.aide;
+      cellule.scope = 'col';
+      enTete.append(cellule);
+    }
+    if (avecNotes) enTete.append(creer('th', 'Notes'));
+    const tete = creer('thead');
+    tete.append(enTete);
+
+    const corps = creer('tbody');
+    for (const jour of d.jours) {
+      // Les jours à venir n'apportent rien : le tableau s'arrête à aujourd'hui.
+      if (jour.date > d.aujourdHui) continue;
+      const ligne = creer('tr');
+      const date = new Date(`${jour.date}T12:00:00Z`);
+      if (date.getUTCDay() === 0) ligne.classList.add('dimanche');
+      if (jour.date === d.aujourdHui) ligne.classList.add('aujourd-hui');
+      ligne.append(creer('td', libelleJour(jour.date)));
+      const calcules = indicateurs(jour);
+      for (const colonne of colonnes) {
+        const valeur = colonne.lire?.(jour, calcules) ?? null;
+        const cellule = creer('td', ecrire(valeur, colonne.format), valeur == null ? 'vide' : '');
+        if (colonne.vente && valeur != null && valeur > 0) cellule.classList.add('vente');
+        ligne.append(cellule);
+      }
+      if (avecNotes) ligne.append(celluleNote(jour.date, d));
+      corps.append(ligne);
+    }
+
+    const pied = creer('tfoot');
+    const ligneTotal = creer('tr');
+    ligneTotal.append(creer('td', 'TOTAL'));
+    const calculesTotal = indicateurs(total);
+    for (const colonne of colonnes) ligneTotal.append(creer('td', ecrire(colonne.lire?.(total, calculesTotal) ?? null, colonne.format)));
+    if (avecNotes) ligneTotal.append(creer('td', ''));
+    pied.append(ligneTotal);
+
+    table.replaceChildren(tete, corps, pied);
+  }
+
+  /** Une note par jour (« scaling cbo », « nouvelles pubs »…), modifiable d'un clic. */
+  function celluleNote(date: string, d: Donnees) {
+    const cellule = creer('td', '', 'note');
+    const bouton = creer('button', d.notes[date] ?? '');
+    bouton.type = 'button';
+    bouton.setAttribute('aria-label', `Note du ${libelleJour(date)} : ${d.notes[date] ?? 'aucune'}. Modifier`);
+    bouton.addEventListener('click', () => {
+      const champ = creer('input');
+      champ.type = 'text';
+      champ.maxLength = 160;
+      champ.value = d.notes[date] ?? '';
+      champ.setAttribute('aria-label', `Note du ${libelleJour(date)}`);
+      let termine = false;
+      const terminer = async (enregistrer: boolean) => {
+        if (termine) return;
+        termine = true;
+        const note = champ.value.trim();
+        if (enregistrer && note !== (d.notes[date] ?? '')) {
+          const resultat = await appeler('/note', { method: 'POST', body: JSON.stringify({ date, note }) });
+          if (resultat.statut === 200) {
+            if (note) d.notes[date] = String(resultat.corps?.note ?? note);
+            else delete d.notes[date];
+          } else {
+            signaler(
+              resultat.corps?.erreur === 'a-brancher'
+                ? 'La note n’est pas enregistrée : la base des compteurs n’est pas encore reliée.'
+                : 'La note n’a pas pu être enregistrée. Réessaie dans un instant.',
+            );
+          }
+        }
+        cellule.replaceWith(celluleNote(date, d));
+      };
+      champ.addEventListener('keydown', (evenement) => {
+        if (evenement.key === 'Enter') void terminer(true);
+        if (evenement.key === 'Escape') void terminer(false);
+      });
+      champ.addEventListener('blur', () => void terminer(true));
+      cellule.replaceChildren(champ);
+      champ.focus();
+    });
+    cellule.append(bouton);
+    return cellule;
+  }
+
+  function afficherFormulations(d: Donnees) {
+    const bloc = $('[data-formulations]');
+    const table = $('[data-table="formulations"]');
+    if (!bloc || !table) return;
+    bloc.hidden = d.variantes.length === 0;
+    if (d.variantes.length === 0) return;
+    const tete = creer('thead');
+    const enTete = creer('tr');
+    for (const [titre, aide] of [
+      ['Formulation', 'Adresse de la formulation : /inscription/…'],
+      ['Vues', 'Affichages de la landing (hors robots)'],
+      ['Inscrits', 'Formulaires envoyés'],
+      ['% Inscription', 'Inscrits ÷ vues'],
+    ]) {
+      const cellule = creer('th', titre);
+      cellule.title = aide ?? '';
+      enTete.append(cellule);
+    }
+    tete.append(enTete);
+    const corps = creer('tbody');
+    for (const variante of d.variantes) {
+      const ligne = creer('tr');
+      ligne.append(creer('td', variante.nom));
+      ligne.append(creer('td', ecrire(variante.vues, 'entier')));
+      ligne.append(creer('td', ecrire(variante.inscrits, 'entier')));
+      ligne.append(creer('td', ecrire(variante.vues > 0 ? variante.inscrits / variante.vues : null, 'pourcent')));
+      corps.append(ligne);
+    }
+    table.replaceChildren(tete, corps);
+  }
+
+  function afficher(d: Donnees) {
+    donnees = d;
+    const total = totaliser(d.jours);
+    const demonstration = $('[data-demonstration]');
+    if (demonstration) demonstration.hidden = !d.demonstration;
+    afficherSources(d.sources, d.campagnes);
+    for (const partie of Object.keys(COLONNES)) {
+      afficherCartes(partie, total);
+      afficherTable(partie, d, total);
+    }
+    afficherFormulations(d);
+  }
+
+  function signaler(texte: string) {
+    if (!erreur) return;
+    erreur.textContent = texte;
+    erreur.hidden = !texte;
+  }
+
+  /* ---------- Échanges avec le serveur ---------- */
+
+  async function appeler(chemin: string, options: RequestInit = {}) {
+    try {
+      const reponse = await fetch(API + chemin, {
+        credentials: 'same-origin',
+        headers: options.body ? { 'Content-Type': 'application/json' } : undefined,
+        ...options,
+      });
+      const corps = await reponse.json().catch(() => null);
+      return { statut: reponse.status, corps };
+    } catch {
+      return { statut: 0, corps: null };
+    }
+  }
+
+  function remplirChoixDuMois() {
+    if (!choixMois) return;
+    const courant = moisCourant();
+    const liste: string[] = [];
+    for (let m = courant; m >= PREMIER_MOIS; m = moisDecale(m, -1)) liste.push(m);
+    if (!liste.includes(mois)) liste.push(mois);
+    choixMois.replaceChildren(
+      ...liste.map((m) => {
+        const option = creer('option', libelleMois(m));
+        option.value = m;
+        option.selected = m === mois;
+        return option;
+      }),
+    );
+    const suivant = $<HTMLButtonElement>('[data-mois-suivant]');
+    const precedent = $<HTMLButtonElement>('[data-mois-precedent]');
+    if (suivant) suivant.disabled = mois >= courant;
+    if (precedent) precedent.disabled = mois <= PREMIER_MOIS;
+  }
+
+  async function charger() {
+    signaler('');
+    remplirChoixDuMois();
+    if (!donnees) montrer('attente');
+    const { statut, corps } = await appeler(`/donnees?mois=${mois}`);
+    if (statut === 200 && corps?.ok) {
+      const url = new URL(window.location.href);
+      url.searchParams.set('mois', mois);
+      window.history.replaceState(null, '', url);
+      afficher(corps as Donnees);
+      montrer('tableau');
+      return;
+    }
+    donnees = null;
+    montrer('porte');
+    const texte = $('[data-porte-texte]');
+    if (statut === 503 && corps?.erreur === 'non-regle') {
+      if (texte) texte.textContent = 'Le cockpit est fermé : son mot de passe n’est pas encore réglé (variable COCKPIT_MOT_DE_PASSE dans Vercel).';
+    } else if (statut !== 401 && message) {
+      message.textContent = 'Le cockpit ne répond pas. Réessaie dans un instant.';
+    }
+  }
+
+  function changerDeMois(nouveau: string) {
+    if (!moisValide(nouveau) || nouveau > moisCourant() || nouveau < PREMIER_MOIS) return;
+    mois = nouveau;
+    void charger();
+  }
+
+  $('[data-mois-precedent]')?.addEventListener('click', () => changerDeMois(moisDecale(mois, -1)));
+  $('[data-mois-suivant]')?.addEventListener('click', () => changerDeMois(moisDecale(mois, 1)));
+  choixMois?.addEventListener('change', () => changerDeMois(choixMois.value));
+
+  $<HTMLFormElement>('[data-connexion]')?.addEventListener('submit', async (evenement) => {
+    evenement.preventDefault();
+    const formulaire = evenement.currentTarget as HTMLFormElement;
+    const champ = formulaire.elements.namedItem('motDePasse') as HTMLInputElement;
+    const bouton = formulaire.querySelector<HTMLButtonElement>('button[type="submit"]');
+    if (message) message.textContent = '';
+    if (!champ.value) {
+      if (message) message.textContent = 'Entre le mot de passe.';
+      return;
+    }
+    if (bouton) bouton.disabled = true;
+    const { statut, corps } = await appeler('/connexion', { method: 'POST', body: JSON.stringify({ motDePasse: champ.value }) });
+    if (bouton) bouton.disabled = false;
+    if (statut === 200) {
+      champ.value = '';
+      await charger();
+      return;
+    }
+    if (!message) return;
+    if (statut === 401) message.textContent = 'Mot de passe incorrect.';
+    else if (statut === 429) message.textContent = 'Trop d’essais. Réessaie dans dix minutes.';
+    else if (statut === 503 && corps?.erreur === 'non-regle') message.textContent = 'Le mot de passe du cockpit n’est pas encore réglé dans Vercel.';
+    else message.textContent = 'Connexion impossible pour le moment. Réessaie dans un instant.';
+  });
+
+  $('[data-deconnexion]')?.addEventListener('click', async () => {
+    await appeler('/connexion', { method: 'DELETE' });
+    donnees = null;
+    montrer('porte');
+  });
+
+  void charger();
+</script>

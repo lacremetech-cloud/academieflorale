@@ -17,6 +17,7 @@ import {
 } from '../partage/validation.js';
 import { synchroniserContact } from './activecampaign.js';
 import { repondre } from './reponse.js';
+import { adresseCliente, memeOrigine } from './requete.js';
 import {
   CHAMPS,
   DELAI_MINIMAL_MS,
@@ -29,24 +30,6 @@ import {
 
 /** Nom du champ piège : invisible pour une personne, rempli par les robots. */
 export const CHAMP_PIEGE = 'af_champ_libre';
-
-/**
- * La demande vient-elle bien d'une page du site lui-même ?
- * @param {Request} request
- */
-function memeOrigine(request) {
-  const origine = request.headers.get('origin');
-  if (!origine) return false;
-  let hoteOrigine;
-  try {
-    hoteOrigine = new URL(origine).host;
-  } catch {
-    return false;
-  }
-  const hote =
-    request.headers.get('x-forwarded-host') ?? request.headers.get('host') ?? new URL(request.url).host;
-  return hoteOrigine.toLowerCase() === hote.toLowerCase();
-}
 
 /**
  * Limitation simple, en mémoire : elle freine les rafales sur une instance.
@@ -81,14 +64,6 @@ export function creerLimiteur(limite = LIMITE_ENVOIS, periodeMs = LIMITE_PERIODE
 }
 
 const limiteurParDefaut = creerLimiteur();
-
-/** @param {Request} request */
-function adresseCliente(request) {
-  const reelle = request.headers.get('x-real-ip');
-  if (reelle) return reelle.trim();
-  const transmise = request.headers.get('x-forwarded-for');
-  return transmise ? (transmise.split(',')[0] ?? '').trim() : 'inconnue';
-}
 
 /**
  * Prépare la fiche envoyée à ActiveCampaign.
@@ -130,10 +105,11 @@ export function construireContact({ prenom, email, telephone, source, utm, page 
  * @param {Pick<Console, 'warn' | 'error'>} [contexte.journal]
  * @param {(ms: number) => Promise<void>} [contexte.attente]
  * @param {{ autoriser: (cle: string) => boolean }} [contexte.limiteur]
+ * @param {(evenement: string, variante: string) => void} [contexte.compter] compte l'inscription (cockpit)
  * @returns {Promise<Response>}
  */
 export async function traiterLead(request, contexte = {}) {
-  const { env = {}, fetchImpl = fetch, journal = console, attente, limiteur = limiteurParDefaut } = contexte;
+  const { env = {}, fetchImpl = fetch, journal = console, attente, limiteur = limiteurParDefaut, compter } = contexte;
 
   if (request.method !== 'POST') return repondre(405, { ok: false, erreur: 'methode' }, { Allow: 'POST' });
   if (!memeOrigine(request)) return repondre(403, { ok: false, erreur: 'origine' });
@@ -202,13 +178,14 @@ export async function traiterLead(request, contexte = {}) {
     return repondre(503, { ok: false, erreur: 'indisponible' });
   }
 
+  const page = nettoyerSlug(donnees.page);
   const contact = construireContact({
     prenom,
     email,
     telephone,
     source: typeof donnees.source === 'string' ? donnees.source : '',
     utm: nettoyerUTM(donnees.utm),
-    page: nettoyerSlug(donnees.page),
+    page,
   });
 
   const resultat = await synchroniserContact({
@@ -227,6 +204,13 @@ export async function traiterLead(request, contexte = {}) {
       motif: resultat.motif ?? 'refus',
     });
     return repondre(502, { ok: false, erreur: 'indisponible' });
+  }
+
+  // L'inscription est enregistrée : on la compte pour le cockpit, sans jamais faire échouer la réponse.
+  try {
+    compter?.('inscrits', page);
+  } catch {
+    /* le compteur ne doit jamais gêner une inscription */
   }
 
   return repondre(200, { ok: true });

@@ -8,6 +8,9 @@
   "functions": {
     "api/*.js": {
       "maxDuration": 15
+    },
+    "api/cockpit/*.js": {
+      "maxDuration": 30
     }
   },
   "redirects": [

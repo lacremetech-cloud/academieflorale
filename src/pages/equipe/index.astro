@@ -14,6 +14,8 @@ interface Lien {
   chemin: string;
   note?: string;
   etiquette?: string;
+  /** Lien mis en avant (celui des publicités). */
+  vedette?: boolean;
 }
 
 const ressources = (await getCollection('ressources')).sort(
@@ -22,20 +24,33 @@ const ressources = (await getCollection('ressources')).sort(
 
 const sections: { titre: string; intro: string; liens: Lien[] }[] = [
   {
+    titre: 'Pilotage',
+    intro: 'Les chiffres du tunnel, en accès privé.',
+    liens: [
+      {
+        etiquette: 'Accès par mot de passe',
+        titre: 'Cockpit : Acquisition, VSL, Closing',
+        chemin: `${CHEMINS.equipe}/cockpit`,
+        note: 'Mois par mois, avec le détail jour par jour.',
+      },
+    ],
+  },
+  {
     titre: 'Le tunnel',
     intro: 'Les quatre pages, dans l’ordre du parcours.',
     liens: [
       {
-        etiquette: 'Landing',
-        titre: 'Inscription (l’adresse à mettre dans les pubs)',
+        etiquette: 'Le lien de tes pubs',
+        titre: 'Inscription : le seul lien à mettre dans les publicités',
         chemin: CHEMINS.inscription,
-        note: `Chaque clic reçoit l’une des ${LANDINGS.length} formulations ci-dessous, à parts égales.`,
+        note: `C’est lui qui fait le test : chaque clic reçoit l’une des ${LANDINGS.length} formulations, à parts égales. Mets ce lien-là dans toutes tes pubs, jamais les ${LANDINGS.length} adresses ci-dessous.`,
+        vedette: true,
       },
       ...LANDINGS.map((landing) => ({
-        etiquette: 'Landing · formulation',
+        etiquette: 'Landing · formulation (pas pour les pubs)',
         titre: landing.titre.replace(/\*/g, ''),
         chemin: `${CHEMINS.inscription}/${landing.slug}`,
-        note: 'Adresse directe de cette formulation, pour la relire ou la montrer.',
+        note: 'Adresse directe de cette formulation, pour la relire ou la montrer. Elle ne participe pas au test.',
       })),
       { etiquette: 'Vidéo', titre: 'La vidéo de vente (VSL)', chemin: CHEMINS.video },
       { etiquette: 'Appel', titre: 'La réservation de l’appel (calendrier iClosed)', chemin: CHEMINS.call },
@@ -92,7 +107,7 @@ const adresse = (chemin: string) => new URL(chemin, Astro.site).href;
           </div>
           <ul class="liens" role="list">
             {section.liens.map((lien) => (
-              <li class="lien" data-lien={lien.chemin}>
+              <li class:list={['lien', { vedette: lien.vedette }]} data-lien={lien.chemin}>
                 <div class="texte">
                   {lien.etiquette && <span class="etiquette">{lien.etiquette}</span>}
                   <strong>{lien.titre}</strong>
@@ -163,6 +178,22 @@ const adresse = (chemin: string) => new URL(chemin, Astro.site).href;
     border: 1px solid var(--trait);
     border-radius: var(--rayon);
     background: var(--blanc);
+  }
+
+  /* Le lien des publicités ressort : c'est celui qu'on vient chercher le plus souvent. */
+  .lien.vedette {
+    border: 2px solid var(--orange);
+    background: var(--rose);
+  }
+
+  .lien.vedette .etiquette {
+    justify-self: start;
+    padding: 0.25em 0.8em;
+    border-radius: var(--rayon-bouton);
+    background: var(--orange);
+    color: var(--blanc);
+    font-size: 0.8rem;
+    font-weight: 700;
   }
 
   .texte {

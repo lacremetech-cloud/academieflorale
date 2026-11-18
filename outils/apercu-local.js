@@ -6,20 +6,39 @@
 // En local, VERCEL_ENV n'est pas « production » : /api/lead et /api/booking
 // n'écrivent donc jamais dans ActiveCampaign, sauf pour l'adresse LEAD_TEST_EMAIL
 // si elle est définie. Sans ICLOSED_WEBHOOK_SECRET, /api/booking reste fermée.
+// Le cockpit (/api/cockpit/…) reste fermé sans COCKPIT_MOT_DE_PASSE.
 import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import booking from '../api/booking.js';
+import cockpitConnexion from '../api/cockpit/connexion.js';
+import cockpitDonnees from '../api/cockpit/donnees.js';
+import cockpitNote from '../api/cockpit/note.js';
 import lead from '../api/lead.js';
 import pays from '../api/pays.js';
 import { choisirVariante } from '../partage/repartition.js';
+
+// Réglages locaux, s'il y en a : le fichier .env.local (jamais dans le repo) peut porter
+// un mot de passe de test pour le cockpit et COCKPIT_DEMO=1 pour ses chiffres de démonstration.
+try {
+  process.loadEnvFile(fileURLToPath(new URL('../.env.local', import.meta.url)));
+} catch {
+  /* pas de réglages locaux */
+}
 
 const RACINE = resolve(fileURLToPath(new URL('../dist', import.meta.url)));
 const PORT = Number(process.env.PORT ?? 4321);
 // En local, /api/pays ne connaît pas le pays (pas de géolocalisation) : le
 // formulaire se rabat alors sur le fuseau horaire du navigateur.
-const FONCTIONS = { '/api/booking': booking, '/api/lead': lead, '/api/pays': pays };
+const FONCTIONS = {
+  '/api/booking': booking,
+  '/api/cockpit/connexion': cockpitConnexion,
+  '/api/cockpit/donnees': cockpitDonnees,
+  '/api/cockpit/note': cockpitNote,
+  '/api/lead': lead,
+  '/api/pays': pays,
+};
 const TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.css': 'text/css; charset=utf-8',

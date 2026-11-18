@@ -3,6 +3,7 @@
  * (Les réglages du serveur — tags, champs ActiveCampaign — sont dans serveur/reglages.js.)
  */
 import { ICLOSED_VSL } from '../partage/iclosed.js';
+import { WISTIA_VSL } from '../partage/wistia.js';
 
 export const MARQUE = 'Académie Florale';
 
@@ -28,7 +29,7 @@ export const MENTION_META =
  * ses statistiques continuent ainsi d'alimenter le cockpit.
  */
 export const WISTIA = {
-  vsl: 'zklz621hsl',
+  vsl: WISTIA_VSL,
   /** Page merci call, étape 1 : comment confirmer son rendez-vous (1 min 48). */
   confirmation: 'ar6g31iwuz',
   /** Page merci call, étape 2 : présentation de l'Académie Florale (15 min). */
