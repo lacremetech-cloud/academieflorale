@@ -147,6 +147,66 @@ test('production : écrit la fiche attendue dans ActiveCampaign', async () => {
   });
 });
 
+test('production : après l’inscription, le suivi reçoit la publicité d’arrivée et le contexte', async () => {
+  const suivies = [];
+  const comptees = [];
+  const { ctx } = contexte(PROD);
+  const hooks = { ...ctx, suivre: (inscription) => suivies.push(inscription), compter: (...a) => comptees.push(a), identifiant: () => 'uuid-de-test' };
+  const lead = {
+    ...LEAD,
+    telephone: '06 12 34 56 78',
+    page: 'inscription/90-jours',
+    utm: { utm_source: 'meta', utm_id: '120212345678901234', utm_content: 'P01 H1', fbclid: 'IwAR0abcDEF_123-xyz', autre: 'x' },
+  };
+  const enTetes = {
+    referer: `${SITE}/inscription?utm_id=120212345678901234&fbclid=IwAR0abcDEF_123-xyz`,
+    host: 'tunnel.test',
+    'user-agent': 'Navigateur de test',
+    cookie: 'autre=1; _fbp=fb.1.1795000000000.123456789',
+  };
+  assert.deepEqual(await (await traiterLead(demande(lead, { enTetes }), hooks)).json(), { ok: true });
+  assert.deepEqual(comptees, [['inscrits', 'inscription/90-jours']]);
+  assert.deepEqual(suivies, [
+    {
+      email: 'camille@exemple.fr',
+      prenom: 'Camille',
+      telephone: '+33612345678',
+      variante: 'inscription/90-jours',
+      utm: { utm_source: 'meta', utm_content: 'P01 H1', utm_id: '120212345678901234', fbclid: 'IwAR0abcDEF_123-xyz' },
+      // Aucun bandeau ne recueille encore l'accord : il n'est jamais supposé.
+      accord: false,
+      ip: '203.0.113.7',
+      ua: 'Navigateur de test',
+      fbp: 'fb.1.1795000000000.123456789',
+      // L'adresse donnée à Meta : la page du formulaire, sans ses paramètres, sur le domaine public.
+      adresse: 'https://decouvrir.academie-florale.fr/inscription',
+      idEvenement: 'lead-uuid-de-test',
+    },
+  ]);
+
+  // L'accord et l'identifiant d'événement donnés par la page sont repris ; une page d'un autre site, jamais.
+  await traiterLead(demande({ ...lead, consentement: true, idEvenement: 'lead-navigateur-0001' }, { enTetes: { referer: 'https://ailleurs.test/piege?email=x' } }), hooks);
+  assert.deepEqual([suivies[1].accord, suivies[1].idEvenement, suivies[1].adresse, suivies[1].fbp], [true, 'lead-navigateur-0001', 'https://decouvrir.academie-florale.fr/inscription', '']);
+
+  // Un suivi qui plante ne fait jamais échouer l'inscription.
+  const plante = await traiterLead(demande(lead), {
+    ...ctx,
+    suivre: () => {
+      throw new Error('suivi en panne');
+    },
+  });
+  assert.equal(plante.status, 200);
+});
+
+test('preview : une inscription de test n’est ni comptée ni suivie', async () => {
+  const appels = [];
+  const { ctx, ac } = contexte({ ...PROD, VERCEL_ENV: 'preview', LEAD_TEST_EMAIL: 'test@exemple.fr' });
+  const hooks = { ...ctx, suivre: () => appels.push('suivre'), compter: () => appels.push('compter') };
+  assert.deepEqual(await (await traiterLead(demande({ ...LEAD, email: 'test@exemple.fr' }), hooks)).json(), { ok: true });
+  assert.equal(ac.appels.length, 1);
+  assert.deepEqual(appels, []);
+});
+
 test('production : le téléphone prend l’indicatif du pays choisi', async () => {
   for (const [pays, saisi, attendu] of [
     ['BE', '0470 12 34 56', '+32470123456'],

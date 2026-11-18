@@ -10,6 +10,7 @@ import { ecrireNote, lireCompteurs, NOTE_MAX } from '../../partage/compteurs.js'
 import { repondre } from '../reponse.js';
 import { memeOrigine } from '../requete.js';
 import { verifierAcces } from './acces.js';
+import { controlerSuivi } from './controle.js';
 import { lireIclosed } from './iclosed.js';
 import { CAMPAGNES_PAR_DEFAUT, filtreCampagnes, lireMeta } from './meta.js';
 import { lireRegistre } from './registre.js';
@@ -103,12 +104,13 @@ function detailDesVentes(bloc) {
  * @param {Date} [options.maintenant]
  */
 export async function assemblerMois({ mois, env, fetchImpl = fetch, maintenant = new Date() }) {
-  const [meta, compteurs, wistia, iclosed, registre] = await Promise.all([
+  const [meta, compteurs, wistia, iclosed, registre, suivi] = await Promise.all([
     lireMeta({ env, mois, fetchImpl, maintenant }),
     lireCompteurs(env, mois, { fetchImpl }),
     lireWistia({ env, mois, fetchImpl, maintenant }),
     lireIclosed({ env, mois, fetchImpl, maintenant }),
     lireRegistre(env, { fetchImpl }),
+    controlerSuivi({ env, fetchImpl, maintenant }),
   ]);
   const bloc = blocVentes(registre, mois, maintenant);
   const lues = { meta, compteurs, wistia, iclosed, ventes: sourceVentes(registre, bloc, mois) };
@@ -135,6 +137,7 @@ export async function assemblerMois({ mois, env, fetchImpl = fetch, maintenant =
     variantes: compteurs.variantes,
     ...detailDesVentes(bloc),
     campagnes: filtreCampagnes(env),
+    suivi,
     sources: Object.fromEntries(
       Object.entries(SOURCES).map(([cle, source]) => {
         const lue = lues[/** @type {keyof typeof lues} */ (cle)];
@@ -252,11 +255,19 @@ export async function traiterDonnees(request, contexte = {}) {
   // En local seulement : COCKPIT_DEMO=1 sert des chiffres de démonstration.
   let donnees;
   if (env.COCKPIT_DEMO === '1' && !env.VERCEL) {
-    const [base, registre] = await Promise.all([lireCompteurs(env, mois, { fetchImpl }), lireRegistre(env, { fetchImpl })]);
-    donnees = donneesDeDemonstration(mois, maintenant, {
-      notes: base.etat === 'ok' ? base.notes : null,
-      bloc: blocVentes(registre, mois, maintenant),
-    });
+    const [base, registre, suivi] = await Promise.all([
+      lireCompteurs(env, mois, { fetchImpl }),
+      lireRegistre(env, { fetchImpl }),
+      controlerSuivi({ env, fetchImpl, maintenant }),
+    ]);
+    donnees = {
+      ...donneesDeDemonstration(mois, maintenant, {
+        notes: base.etat === 'ok' ? base.notes : null,
+        bloc: blocVentes(registre, mois, maintenant),
+      }),
+      // Le suivi n'est jamais inventé : c'est l'état réel des branchements de l'aperçu.
+      suivi,
+    };
   } else {
     donnees = await assemblerMois({ mois, env, fetchImpl, maintenant });
   }

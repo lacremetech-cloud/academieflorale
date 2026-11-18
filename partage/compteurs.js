@@ -3,8 +3,9 @@
  * Compteurs du tunnel : affichages de la landing et inscriptions, par jour et par
  * formulation, plus les notes du cockpit. Ils donnent au cockpit ses inscrites
  * par jour et permettent de lire le test des formulations.
- * Aucune donnée personnelle : seulement des nombres et de courtes notes.
- * (Le registre des ventes vit dans la même base : serveur/cockpit/registre.js.)
+ * Aucune donnée personnelle ici : seulement des nombres et de courtes notes.
+ * (La même base porte aussi le registre des ventes, serveur/cockpit/registre.js,
+ * et le suivi des publicités, serveur/suivi.js, rangé sous des empreintes.)
  *
  * Stockage : une base Redis (Upstash, depuis le Marketplace de Vercel), par son
  * API REST. Vercel pose lui-même les variables quand la base est reliée au projet :

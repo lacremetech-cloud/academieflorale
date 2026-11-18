@@ -5,7 +5,6 @@
  * (ActiveCampaign crée tout seul un tag inconnu : une faute de frappe ici
  * créerait un tag en double dans le compte.)
  */
-import { ICLOSED_VSL } from '../partage/iclosed.js';
 
 /** Tags d'étape du tunnel VSL, validés le 17/11/2026. */
 export const TAGS = Object.freeze({
@@ -28,9 +27,16 @@ export const TAGS_SOURCE = Object.freeze({
  * Numéros relevés dans le brief du 17/11/2026, à vérifier à la recette.
  */
 export const CHAMPS = Object.freeze({
-  /** « Source » : reste à « VSL », il sert peut-être de déclencheur à « VSL Séquence Mail ». */
+  /**
+   * « Source » = « VSL » : c'est le déclencheur de l'automatisation « VSL Séquence Mail »
+   * (vérifié dans le compte le 18/11/2026). Elle inscrit elle-même le contact à la liste
+   * « Prospect » et lui pose le tag « VSL Meta Ads ».
+   */
   source: Object.freeze({ numero: '2', valeur: 'VSL' }),
-  /** « Prise de RDV », rempli à la réservation. */
+  /**
+   * « Prise de RDV » = « VSL », rempli à la réservation : c'est le déclencheur de
+   * l'automatisation « Onboarding Call » (liste « Prise de call », sortie de « Prospect »).
+   */
   priseDeRdv: Object.freeze({ numero: '3', valeur: 'VSL' }),
   /** « Nom de l'event », rempli à la réservation. */
   nomEvent: Object.freeze({ numero: '10' }),
@@ -49,6 +55,45 @@ export const CHAMPS = Object.freeze({
   pageOrigine: '',
 });
 
+/**
+ * Listes ActiveCampaign, par numéro (relevées dans le compte le 18/11/2026).
+ * À l'enregistrement d'une vente, l'élève entre dans « Client » et sort de « Prospect ».
+ */
+export const LISTES = Object.freeze({
+  prospect: '3',
+  client: '4',
+});
+
+/** Automatisations ActiveCampaign du tunnel, par numéro : le cockpit vérifie leur déclencheur. */
+export const AUTOMATISATIONS = Object.freeze({
+  sequence: Object.freeze({ numero: '1', nom: 'VSL Séquence Mail' }),
+  appel: Object.freeze({ numero: '3', nom: 'Onboarding Call' }),
+});
+
+/**
+ * API de conversion Meta : faut-il l'accord de la visiteuse avant d'envoyer ses
+ * événements à Meta ?
+ * - 'requis' : rien ne part sans un accord explicite (bandeau de consentement) ;
+ * - 'non-requis' : les événements partent pour toutes les inscrites.
+ * Décision qui revient à l'Académie (brief : « ne charger le pixel qu'après
+ * consentement »). Tant qu'aucun bandeau ne recueille l'accord, 'requis' veut
+ * dire qu'aucun événement n'est envoyé.
+ */
+export const CONSENTEMENT_META = /** @type {'requis' | 'non-requis'} */ ('requis');
+
+/** Durée de garde de l'attribution d'une inscrite (sa publicité d'arrivée), en secondes : 400 jours. */
+export const GARDE_INSCRIPTION_S = 400 * 86400;
+/** Durée de garde du contexte technique d'une inscription (adresse IP, navigateur), en secondes : 14 jours. */
+export const GARDE_CONTEXTE_S = 14 * 86400;
+
+/**
+ * Suivi des rendez-vous : à chaque passage, les appels créés ou modifiés depuis
+ * moins de trois jours sont relus. Aucun appel réservé avant le début du suivi
+ * n'est repris (pas d'écriture rétroactive dans ActiveCampaign ni chez Meta).
+ */
+export const RDV_RECUL_MS = 3 * 86400000;
+export const SUIVI_DEPUIS = '2026-11-18T00:00:00Z';
+
 /** Anti-spam : en dessous de ce délai entre l'affichage et l'envoi, c'est un robot. */
 export const DELAI_MINIMAL_MS = 800;
 
@@ -58,22 +103,3 @@ export const LIMITE_PERIODE_MS = 10 * 60 * 1000;
 
 /** Taille maximale du corps d'une demande, en caractères. */
 export const TAILLE_MAX_DEMANDE = 4096;
-
-/**
- * Webhook iClosed (/api/booking).
- * Seules les réservations de ces events sont traitées : les autres events du compte
- * iClosed (webinaire, autres tunnels) passent par le même webhook et sont ignorés.
- */
-export const EVENTS_ICLOSED = Object.freeze([ICLOSED_VSL.event]);
-
-/** Déclencheurs iClosed traités, tels qu'iClosed les nomme (comparés sans tenir compte de la casse). */
-export const DECLENCHEURS = Object.freeze({
-  reserve: Object.freeze(['call booked']),
-  annule: Object.freeze(['call cancelled', 'call canceled']),
-});
-
-/** En dessous de cette longueur, le secret du webhook est refusé : la fonction reste fermée. */
-export const SECRET_MIN = 16;
-
-/** Taille maximale d'un webhook, en caractères (réponses au formulaire comprises). */
-export const TAILLE_MAX_WEBHOOK = 65536;

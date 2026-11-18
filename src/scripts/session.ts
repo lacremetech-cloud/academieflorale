@@ -119,6 +119,23 @@ export function enregistrerRdv(rdv: Rdv): void {
   ecrire(CLE_RDV, JSON.stringify(rdv));
 }
 
+/** Même clé que celle qu'écrira le bandeau de consentement, quand il existera. */
+const CLE_ACCORD = 'af_consentement';
+
+/**
+ * L'accord de la visiteuse pour la mesure publicitaire (événements envoyés à Meta) :
+ * vrai si elle l'a donné, faux si elle l'a refusé, indéfini tant que rien ne lui a
+ * été demandé. Sans accord donné, le serveur n'envoie rien à Meta.
+ */
+export function lireAccord(): boolean | undefined {
+  try {
+    const valeur = window.localStorage.getItem(CLE_ACCORD);
+    return valeur === 'oui' ? true : valeur === 'non' ? false : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export function lireRdv(): Rdv | null {
   try {
     const rdv = JSON.parse(lire(CLE_RDV) ?? 'null');

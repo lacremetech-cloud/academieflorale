@@ -112,8 +112,12 @@ test('vente saisie : mise au propre, et refus de ce qui ne tient pas', () => {
       { methode: 'sequra', montant: 2000, mensualites: 6, debut: AUJOURD_HUI },
     ],
     note: 'b appel du soir /b',
+    email: '',
   });
+  // L'email de l'élève est facultatif ; saisi, il est mis au propre, et refusé s'il est illisible.
+  assert.equal(normaliserVente({ ...brute, email: '  Camille@Exemple.FR ' }, { aujourdHui: AUJOURD_HUI }).vente.email, 'camille@exemple.fr');
   const refus = (changement) => normaliserVente({ ...brute, ...changement }, { aujourdHui: AUJOURD_HUI }).erreur;
+  assert.equal(refus({ email: 'camille@exemple' }), 'email');
   assert.equal(refus({ date: '2026-11-19' }), 'date'); // un jour à venir
   assert.equal(refus({ date: '2026-02-30' }), 'date');
   assert.equal(refus({ formule: 'premium' }), 'formule');

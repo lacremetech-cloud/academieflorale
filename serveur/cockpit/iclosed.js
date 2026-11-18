@@ -4,75 +4,46 @@
  * - appels : appels réservés ce jour-là (date de réservation) ;
  * - annules, absentes : parmi les appels prévus ce jour-là.
  * Les ventes ne sont pas lues ici : elles se saisissent à la main dans le cockpit.
- *
- * Variable d'environnement (saisie dans Vercel) :
- * - ICLOSED_API_KEY : clé créée dans iClosed (Paramètres, Développeur, Clés API),
- *   collée telle qu'iClosed la donne, avec son préfixe. Deux droits de lecture
- *   suffisent : « Évènements » et « Appels d'évènements ».
+ * (Le client de l'API et la variable ICLOSED_API_KEY : serveur/iclosed.js.)
  */
-import { joursEcoules, jourParis } from '../../partage/cockpit.js';
-import { ICLOSED_VSL } from '../../partage/iclosed.js';
-
-const BASE = 'https://public.api.iclosed.io';
-const PAGES_MAX = 25;
-/** Motifs d'absence de vente qui valent annulation. */
-const MOTIFS_ANNULATION = ['CONTACT_CANCELLED', 'ADMIN_CANCELLED'];
-
-/** Event déjà retrouvé (son identifiant ne change pas) : évite une demande à chaque affichage. */
-const eventsConnus = new Map();
-
-class ErreurIclosed extends Error {}
+import { joursEcoules } from '../../partage/cockpit.js';
+import { ErreurIclosed, estAbsente, estAnnule, jourDe, LIEN_EVENT, lireAppels, lister, trouverEvent } from '../iclosed.js';
 
 /**
- * @param {string} chemin
- * @param {Record<string, string>} parametres
- * @param {string} cle
- * @param {typeof fetch} fetchImpl
+ * Ce qu'il faut dire quand iClosed ne répond pas comme prévu.
+ * @param {unknown} erreur
  */
-async function demander(chemin, parametres, cle, fetchImpl) {
-  const reponse = await fetchImpl(`${BASE}${chemin}?${new URLSearchParams(parametres)}`, {
-    headers: { Authorization: `Bearer ${cle}`, Accept: 'application/json' },
-    signal: AbortSignal.timeout(9000),
-  });
-  const corps = await reponse.json().catch(() => null);
-  if (!reponse.ok) {
-    const message = typeof corps?.message === 'string' ? corps.message : (corps?.message?.message ?? corps?.error ?? 'erreur');
-    throw new ErreurIclosed(`iClosed a répondu ${reponse.status} : ${String(message).slice(0, 160)}`);
-  }
-  return corps;
+export function detailErreurIclosed(erreur) {
+  if (erreur instanceof ErreurIclosed) return erreur.message;
+  const nom = erreur instanceof Error ? erreur.name : '';
+  return nom === 'TimeoutError' ? 'iClosed ne répond pas (délai dépassé)' : 'iClosed est injoignable';
 }
 
 /**
- * Toutes les pages d'une liste d'iClosed.
- * @param {string} chemin
- * @param {Record<string, string>} parametres
- * @param {number} parPage
- * @param {(corps: any) => { lignes: unknown, total: unknown }} lire
- * @param {string} cle
- * @param {typeof fetch} fetchImpl
- * @returns {Promise<any[]>}
+ * Les appels de l'event du tunnel réservés entre deux jours (date de réservation),
+ * tels qu'iClosed les rend : pour le rapport des publicités.
+ * @param {object} options
+ * @param {Record<string, string | undefined>} options.env
+ * @param {string[]} options.jours jours de la période, dans l'ordre
+ * @param {typeof fetch} [options.fetchImpl]
+ * @returns {Promise<{ etat: 'ok' | 'a-brancher' | 'erreur', detail?: string, appels: any[] }>}
  */
-async function lister(chemin, parametres, parPage, lire, cle, fetchImpl) {
-  const tout = [];
-  for (let page = 0; page < PAGES_MAX; page += 1) {
-    const corps = await demander(chemin, { ...parametres, limit: String(parPage), page: String(page) }, cle, fetchImpl);
-    const { lignes, total } = lire(corps);
-    const recues = Array.isArray(lignes) ? lignes : [];
-    tout.push(...recues);
-    if (recues.length < parPage || tout.length >= (Number(total) || 0)) break;
+export async function lireAppelsReserves({ env, jours, fetchImpl = fetch }) {
+  const cle = (env.ICLOSED_API_KEY ?? '').trim();
+  if (!cle) return { etat: 'a-brancher', appels: [] };
+  if (jours.length === 0) return { etat: 'ok', appels: [] };
+  const dansLaPeriode = new Set(jours);
+  // Fenêtre élargie d'un jour de chaque côté : le tri par jour se fait ensuite à l'heure de Paris.
+  const debut = new Date(Date.parse(`${jours[0]}T00:00:00Z`) - 86400000).toISOString();
+  const fin = new Date(Date.parse(`${jours[jours.length - 1]}T23:59:59.999Z`) + 86400000).toISOString();
+  try {
+    const event = await trouverEvent(cle, fetchImpl);
+    if (!event) return { etat: 'erreur', detail: `event « ${LIEN_EVENT} » introuvable dans iClosed`, appels: [] };
+    const reserves = await lister('/v1/eventCalls', { eventIds: event, eventType: 'ALL', createdAtStart: debut, createdAtEnd: fin }, 100, lireAppels, cle, fetchImpl);
+    return { etat: 'ok', appels: reserves.filter((appel) => dansLaPeriode.has(jourDe(appel?.createdAt))) };
+  } catch (erreur) {
+    return { etat: 'erreur', detail: detailErreurIclosed(erreur), appels: [] };
   }
-  return tout;
-}
-
-/**
- * Une date d'iClosed, parfois sans fuseau (« 2025-12-10 19:23:01.299 ») : lue en UTC.
- * @param {unknown} texte
- * @returns {string} le jour à Paris, ou ''
- */
-function jourDe(texte) {
-  if (typeof texte !== 'string' || !texte) return '';
-  const iso = /(Z|[+-]\d{2}:?\d{2})$/.test(texte) ? texte : `${texte.replace(' ', 'T')}Z`;
-  return jourParis(iso);
 }
 
 /**
@@ -87,7 +58,6 @@ export async function lireIclosed({ env, mois, fetchImpl = fetch, maintenant = n
   const cle = (env.ICLOSED_API_KEY ?? '').trim();
   if (!cle) return { etat: 'a-brancher', jours: {} };
 
-  const lien = `${ICLOSED_VSL.compte}/${ICLOSED_VSL.event}`;
   // Jusqu'à aujourd'hui seulement : les jours à venir ne s'affichent pas.
   const jours = joursEcoules(mois, maintenant);
   if (jours.length === 0) return { etat: 'ok', jours: {} };
@@ -107,18 +77,8 @@ export async function lireIclosed({ env, mois, fetchImpl = fetch, maintenant = n
 
   try {
     // 1. L'event du tunnel, retrouvé par son adresse.
-    let event = eventsConnus.get(lien);
-    if (!event) {
-      const corps = await demander('/v1/events', { search: ICLOSED_VSL.event, limit: '50' }, cle, fetchImpl);
-      const trouve = (Array.isArray(corps?.data) ? corps.data : []).find(
-        (/** @type {any} */ e) => String(e?.linkPrefix ?? '').toLowerCase() === lien.toLowerCase(),
-      );
-      if (!trouve?.id) return { etat: 'erreur', detail: `event « ${lien} » introuvable dans iClosed`, jours: {} };
-      event = String(trouve.id);
-      eventsConnus.set(lien, event);
-    }
-
-    const lireAppels = (/** @type {any} */ corps) => ({ lignes: corps?.data?.eventCalls, total: corps?.data?.count });
+    const event = await trouverEvent(cle, fetchImpl);
+    if (!event) return { etat: 'erreur', detail: `event « ${LIEN_EVENT} » introuvable dans iClosed`, jours: {} };
     const commun = { eventIds: event, eventType: 'ALL' };
 
     // 2. Les appels réservés dans le mois (date de réservation).
@@ -129,14 +89,11 @@ export async function lireIclosed({ env, mois, fetchImpl = fetch, maintenant = n
     const prevus = await lister('/v1/eventCalls', { ...commun, dateFrom: debut, dateTo: fin }, 100, lireAppels, cle, fetchImpl);
     for (const appel of prevus) {
       const jour = jourDe(appel?.dateTimeUTC ?? appel?.dateTime);
-      const motifs = (Array.isArray(appel?.task) ? appel.task : []).map((/** @type {any} */ t) => t?.noSaleReason);
-      if (appel?.cancelledBy || appel?.cancelReason || motifs.some((m) => MOTIFS_ANNULATION.includes(m))) ajouter(jour, 'annules');
-      else if (motifs.includes('NO_SHOW')) ajouter(jour, 'absentes');
+      if (estAnnule(appel)) ajouter(jour, 'annules');
+      else if (estAbsente(appel)) ajouter(jour, 'absentes');
     }
   } catch (erreur) {
-    if (erreur instanceof ErreurIclosed) return { etat: 'erreur', detail: erreur.message, jours: {} };
-    const nom = erreur instanceof Error ? erreur.name : '';
-    return { etat: 'erreur', detail: nom === 'TimeoutError' ? 'iClosed ne répond pas (délai dépassé)' : 'iClosed est injoignable', jours: {} };
+    return { etat: 'erreur', detail: detailErreurIclosed(erreur), jours: {} };
   }
   return { etat: 'ok', jours: resultat };
 }

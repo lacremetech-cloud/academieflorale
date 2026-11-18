@@ -259,7 +259,7 @@ const m = {
 
 <script>
   import { PAYS_TELEPHONE, nettoyerEmail, nettoyerPrenom, nettoyerTelephone } from '../../partage/validation.js';
-  import { adresseAvecUTM, enregistrerLead, lireUTM } from '../scripts/session';
+  import { adresseAvecUTM, enregistrerLead, lireAccord, lireUTM } from '../scripts/session';
 
   const PIEGE = 'af_champ_libre';
   const CHAMPS = ['prenom', 'email', 'telephone'];
@@ -426,6 +426,8 @@ const m = {
             source: form.dataset.source || undefined,
             page: form.dataset.page || undefined,
             utm: lireUTM(),
+            // L'accord pour la mesure publicitaire, s'il a été demandé (sinon absent).
+            consentement: lireAccord(),
             delai: Date.now() - affichage,
             [PIEGE]: champ(PIEGE)?.value ?? '',
           }),

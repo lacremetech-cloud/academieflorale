@@ -3,10 +3,10 @@
 // - branche /api/lead, /api/pays et /api/booking sur les vraies fonctions serveur.
 // Usage : npm run apercu   (puis http://localhost:4321)
 //
-// En local, VERCEL_ENV n'est pas « production » : /api/lead et /api/booking
-// n'écrivent donc jamais dans ActiveCampaign, sauf pour l'adresse LEAD_TEST_EMAIL
-// si elle est définie. Sans ICLOSED_WEBHOOK_SECRET, /api/booking reste fermée.
-// Le cockpit (/api/cockpit/…) reste fermé sans COCKPIT_MOT_DE_PASSE.
+// En local, VERCEL_ENV n'est pas « production » : /api/lead, /api/booking et les
+// ventes du cockpit n'écrivent donc jamais dans ActiveCampaign, sauf pour l'adresse
+// LEAD_TEST_EMAIL si elle est définie, et n'envoient rien à Meta. Sans ICLOSED_API_KEY,
+// /api/booking répond 503. Le cockpit (/api/cockpit/…) reste fermé sans COCKPIT_MOT_DE_PASSE.
 import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize, resolve } from 'node:path';
@@ -16,6 +16,7 @@ import cockpitConnexion from '../api/cockpit/connexion.js';
 import cockpitDonnees from '../api/cockpit/donnees.js';
 import cockpitCloser from '../api/cockpit/closer.js';
 import cockpitNote from '../api/cockpit/note.js';
+import cockpitPubs from '../api/cockpit/pubs.js';
 import cockpitVente from '../api/cockpit/vente.js';
 import lead from '../api/lead.js';
 import pays from '../api/pays.js';
@@ -54,6 +55,7 @@ const FONCTIONS = {
   '/api/cockpit/donnees': cockpitDonnees,
   '/api/cockpit/closer': cockpitCloser,
   '/api/cockpit/note': cockpitNote,
+  '/api/cockpit/pubs': cockpitPubs,
   '/api/cockpit/vente': cockpitVente,
   '/api/lead': lead,
   '/api/pays': pays,

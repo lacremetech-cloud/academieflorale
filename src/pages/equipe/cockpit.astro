@@ -6,6 +6,10 @@
  * (« Ajouter une vente ») : formule, montant, closer et commission, moyens de
  * paiement. Le cockpit en tire le commandé, l'encaissé, le reste à encaisser,
  * ce qui doit entrer en caisse les mois suivants (MRR) et les commissions.
+ * Quatrième partie, « Publicités » : chaque création publicitaire, de sa dépense
+ * aux inscrites, aux rendez-vous et aux ventes qu'elle amène, et à quels moments.
+ * Les cartes « Suivi du tunnel » disent si chaque maillon est en place
+ * (ActiveCampaign, rendez-vous, liste Client, API de conversion Meta).
  *
  * Accès privé : cette page ne contient aucun chiffre. Elle demande le mot de
  * passe, puis lit les chiffres auprès de /api/cockpit/donnees, qui exige une
@@ -61,10 +65,16 @@ import { FORMULES } from '../../../partage/ventes.js';
         <ul data-sources role="list"></ul>
       </section>
 
+      <section class="branchements suivi" aria-labelledby="titre-suivi" data-bloc-suivi hidden>
+        <h2 id="titre-suivi" class="titre-suivi">Suivi du tunnel</h2>
+        <ul data-suivi role="list"></ul>
+      </section>
+
       <nav class="sommaire" aria-label="Parties du cockpit">
         <a href="#acquisition">Acquisition</a>
         <a href="#vsl">VSL</a>
         <a href="#closing">Closing</a>
+        <a href="#publicites">Publicités</a>
       </nav>
 
       <section class="partie" id="acquisition" aria-labelledby="titre-acquisition">
@@ -143,6 +153,79 @@ import { FORMULES } from '../../../partage/ventes.js';
           <ul class="closers" data-closers role="list"></ul>
         </div>
       </section>
+
+      <section class="partie" id="publicites" aria-labelledby="titre-publicites">
+        <div class="tete-partie avec-action">
+          <div>
+            <h2 id="titre-publicites"><span class="numero" aria-hidden="true">4</span>Publicités</h2>
+            <p class="texte-secondaire">
+              De la publicité au rendez-vous, puis à la vente : ce que chaque création amène, et à quel moment. Une création
+              diffusée dans plusieurs ensembles ne fait qu’une ligne.
+            </p>
+          </div>
+          <div class="reglages-pubs">
+            <label>
+              Période
+              <select data-pubs-periode>
+                <option value="mois">Le mois affiché</option>
+                <option value="3m">3 derniers mois</option>
+                <option value="12m">12 derniers mois</option>
+              </select>
+            </label>
+            <label>
+              Résultats comptés par
+              <select data-pubs-source>
+                <option value="tunnel">Le tunnel</option>
+                <option value="meta">Meta</option>
+              </select>
+            </label>
+            <button type="button" class="bouton" data-copier-rapport disabled>Copier le rapport</button>
+          </div>
+        </div>
+        <p class="bandeau" data-pubs-etat role="status">Chargement du rapport des publicités…</p>
+        <div data-pubs-contenu hidden>
+          <p class="texte-secondaire" data-pubs-legende></p>
+          <ul class="cartes" data-cartes="publicites" role="list"></ul>
+          <div class="defilement" tabindex="0" role="region" aria-label="Créations publicitaires">
+            <table data-table="publicites"></table>
+          </div>
+          <p class="texte-secondaire" data-pubs-regle></p>
+
+          <div class="bloc">
+            <h3>À quel moment</h3>
+            <div class="moments">
+              <div class="moment">
+                <h4>Par jour de la semaine</h4>
+                <div class="defilement" tabindex="0" role="region" aria-label="Par jour de la semaine">
+                  <table data-table="semaine"></table>
+                </div>
+              </div>
+              <div class="moment">
+                <h4>Par heure (heure de Paris)</h4>
+                <div class="defilement" tabindex="0" role="region" aria-label="Par heure">
+                  <table data-table="heures"></table>
+                </div>
+              </div>
+              <div class="moment">
+                <h4>Combien de temps après l’inscription</h4>
+                <div class="defilement" tabindex="0" role="region" aria-label="Délai après l’inscription">
+                  <table data-table="delais"></table>
+                </div>
+                <p class="texte-secondaire">Pour les inscrites passées par la landing du nouveau tunnel.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="bloc">
+            <h3>Paramètres d’URL à mettre dans chaque publicité</h3>
+            <p class="texte-secondaire">
+              Dans Meta, champ « Paramètres d’URL » de la publicité. Sans eux, une inscrite ne peut pas être rattachée à sa
+              publicité : elle est comptée dans « Sans publicité connue ».
+            </p>
+            <p class="parametres"><code data-pubs-parametres></code><button type="button" class="lien" data-copier-parametres>Copier</button></p>
+          </div>
+        </div>
+      </section>
     </div>
 
     <!-- La fenêtre « Ajouter une vente » -->
@@ -180,6 +263,14 @@ import { FORMULES } from '../../../partage/ventes.js';
           <label>
             Commission du closer (€)
             <input type="text" name="commission" inputmode="decimal" autocomplete="off" placeholder="0" />
+          </label>
+          <label class="pleine-largeur">
+            Email de l’élève
+            <input type="email" name="email" inputmode="email" autocomplete="off" spellcheck="false" placeholder="prenom@exemple.fr" maxlength="254" />
+            <span class="aide-champ">
+              Avec son email, elle entre dans la liste « Client » d’ActiveCampaign et sort de « Prospect », l’achat est envoyé à
+              Meta, et la vente est rattachée à la publicité qui l’a fait s’inscrire.
+            </span>
           </label>
         </div>
 
@@ -924,10 +1015,249 @@ import { FORMULES } from '../../../partage/ventes.js';
     color: var(--vert-trustpilot);
     font-weight: 600;
   }
+  /* Le suivi du tunnel : l'état de chaque maillon */
+  .suivi {
+    display: grid;
+    gap: 8px;
+  }
+
+  .titre-suivi {
+    color: var(--encre-douce);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .branchements :global(.attente .etat),
+  .branchements :global(.a-brancher .etat) {
+    color: var(--orange-fonce);
+  }
+
+  /* Une vente : l'élève, et ce que la vente a déclenché */
+  .pleine-largeur {
+    grid-column: 1 / -1;
+  }
+
+  .aide-champ {
+    color: var(--encre-douce);
+    font-size: 0.8rem;
+    font-weight: 400;
+    line-height: 1.35;
+  }
+
+  table :global(.suivi-vente) {
+    display: block;
+    color: var(--encre-douce);
+    font-size: 0.76rem;
+    font-weight: 500;
+  }
+
+  table :global(.suivi-vente.fait) {
+    color: var(--vert-trustpilot);
+  }
+
+  table :global(.suivi-vente.rate) {
+    color: var(--erreur);
+  }
+
+  /* Les publicités : réglages, verdicts, détail d'une création, moments */
+  .avec-action > .reglages-pubs {
+    display: flex;
+    flex: 0 1 auto;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 10px 14px;
+  }
+
+  .reglages-pubs label {
+    display: grid;
+    gap: 4px;
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+
+  .reglages-pubs select {
+    min-height: 46px;
+    padding: 0 0.8em;
+    border: 1.5px solid var(--trait);
+    border-radius: var(--rayon);
+    background: var(--blanc);
+    color: var(--encre);
+    font-family: var(--police-texte);
+    font-size: 0.95rem;
+    font-weight: 600;
+  }
+
+  .reglages-pubs .bouton:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  [data-pubs-contenu] {
+    display: grid;
+    gap: 14px;
+  }
+
+  [data-pubs-contenu][hidden] {
+    display: none;
+  }
+
+  table :global(td.creation) {
+    min-width: 13rem;
+    max-width: 20rem;
+    white-space: normal;
+  }
+
+  table :global(.ouvrir-pub) {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  table :global(.ouvrir-pub img) {
+    flex: none;
+    width: 34px;
+    height: 34px;
+    border-radius: 6px;
+    object-fit: cover;
+    background: var(--creme);
+  }
+
+  table :global(.ouvrir-pub::after) {
+    content: '▾';
+    margin-left: auto;
+    color: var(--encre-douce);
+    font-size: 0.8em;
+  }
+
+  table :global(.ouvrir-pub[aria-expanded='true']::after) {
+    content: '▴';
+  }
+
+  table :global(.verdict) {
+    display: inline-block;
+    padding: 2px 9px;
+    border-radius: 999px;
+    background: var(--creme);
+    font-size: 0.76rem;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  table :global(.verdict.gagnante) {
+    background: color-mix(in srgb, var(--vert-trustpilot) 70%, #000);
+    color: var(--blanc);
+  }
+
+  table :global(.verdict.prometteuse) {
+    background: var(--jaune);
+  }
+
+  table :global(.verdict.a-couper) {
+    background: var(--erreur);
+    color: var(--blanc);
+  }
+
+  table :global(.verdict.trop-tot) {
+    background: none;
+    border: 1px solid var(--trait);
+    color: var(--encre-douce);
+    font-weight: 600;
+  }
+
+  table :global(tr.sans-depense td),
+  table :global(tr.sans-pub td) {
+    color: var(--encre-douce);
+  }
+
+  table :global(tr.detail-pub td) {
+    position: static;
+    padding: 12px 14px 16px;
+    background: var(--creme);
+    font-weight: 400;
+    text-align: left;
+    white-space: normal;
+  }
+
+  table :global(.detail-pub .texte-pub) {
+    max-width: 46rem;
+    margin-top: 6px;
+    white-space: pre-line;
+  }
+
+  table :global(.detail-pub .titre-pub) {
+    font-weight: 700;
+  }
+
+  table :global(.detail-pub .faits) {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 18px;
+    margin: 0;
+    padding: 0;
+    color: var(--encre-douce);
+    font-size: 0.8rem;
+    list-style: none;
+  }
+
+  table :global(td.meilleur) {
+    background: color-mix(in srgb, var(--vert-trustpilot) 16%, var(--blanc));
+    font-weight: 700;
+  }
+
+  .moments {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr));
+    gap: 14px;
+    align-items: start;
+  }
+
+  .moment {
+    display: grid;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  h4 {
+    font-size: 0.92rem;
+  }
+
+  .moment .defilement {
+    max-height: 22rem;
+    overflow-y: auto;
+  }
+
+  .parametres {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 14px;
+    padding: 10px 14px;
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon);
+    background: var(--blanc);
+  }
+
+  .parametres code {
+    flex: 1 1 20rem;
+    font-size: 0.8rem;
+    overflow-wrap: anywhere;
+  }
 </style>
 
 <script>
   import { indicateurs, moisCourant, moisDecale, moisValide, totaliser } from '../../../partage/cockpit.js';
+  import { classerPubs, indicateursPub, parJourDeSemaine, resultats, totaliserPubs, trierPubs, tunnelParle, VERDICTS } from '../../../partage/pubs.js';
   import { echeancier, FORMULES, lireMontant, METHODES, normaliserVente } from '../../../partage/ventes.js';
 
   type Chiffres = Record<string, number | null>;
@@ -952,10 +1282,52 @@ import { FORMULES } from '../../../partage/ventes.js';
     closerNom: string;
     paiements: Paiement[];
     note?: string;
+    email?: string;
+    /** Ce que la vente a déclenché : liste « Client », événement « Achat », publicité d'arrivée. */
+    suivi?: { ac?: string; meta?: string; pub?: string };
     encaisse: number;
     reste: number;
   };
   type Closer = { id: string; nom: string };
+  /** Un maillon du suivi du tunnel (ActiveCampaign, rendez-vous, API de conversion…). */
+  type Maillon = { nom: string; etat: 'ok' | 'a-brancher' | 'attente' | 'erreur'; lignes: string[]; variables?: string[] };
+  type SourcePub = 'tunnel' | 'meta';
+  type ResultatsTunnel = { inscrites: number; rdv: number; rdvAnnules: number; ventes: number; commande: number; encaisse: number };
+  type LignePub = {
+    cle: string;
+    nom: string;
+    ids: string[];
+    campagnes: string[];
+    ensembles: number;
+    statut: string;
+    creeLe: string;
+    titre: string;
+    texte: string;
+    vignette: string;
+    depense: number;
+    impressions: number;
+    clics: number;
+    vues3s: number;
+    vuesCompletes: number;
+    meta: { prospects: number; rdv: number; achats: number; valeur: number };
+    tunnel: ResultatsTunnel;
+  };
+  type RapportPubs = {
+    mois: string;
+    periode: string;
+    du: string;
+    au: string;
+    demonstration: boolean;
+    campagnes: string;
+    parametres: string;
+    etats: Record<'meta' | 'tunnel' | 'iclosed', 'ok' | 'a-brancher' | 'erreur'>;
+    details: Record<string, string>;
+    pubs: LignePub[];
+    sansPub: ResultatsTunnel | null;
+    jours: { date: string; depense: number; clics: number; prospects: number; inscrites: number; rdv: number; ventes: number; commande: number }[];
+    heures: { heure: number; depense: number; clics: number; prospects: number; inscrites: number }[];
+    delais: { rdv: Record<string, number>; vente: Record<string, number>; tranches: { cle: string; nom: string }[] };
+  };
   /** Ce que le serveur rend après chaque changement dans les ventes. */
   type BlocVentes = {
     jours: Record<string, { ventes: number; contracte: number; encaisse: number }>;
@@ -974,6 +1346,7 @@ import { FORMULES } from '../../../partage/ventes.js';
     variantes: { nom: string; vues: number; inscrits: number }[];
     campagnes: string;
     sources: Record<string, Source>;
+    suivi?: Record<string, Maillon>;
   };
   type Format = 'euros' | 'centimes' | 'entier' | 'pourcent' | 'ratio' | 'minutes';
   type Colonne = {
@@ -1120,6 +1493,33 @@ import { FORMULES } from '../../../partage/ventes.js';
         }
         if (cle === 'meta' && source.etat === 'ok') {
           ligne.append(creer('span', campagnes ? `Campagnes dont le nom contient « ${campagnes} »` : 'Tout le compte publicitaire', 'detail'));
+        }
+        return ligne;
+      }),
+    );
+  }
+
+  /** Les maillons du tunnel : en place, en attente, à brancher ou en erreur. */
+  function afficherSuivi(suivi: Record<string, Maillon> | undefined) {
+    const bloc = $('[data-bloc-suivi]');
+    const liste = $('[data-suivi]');
+    if (!bloc || !liste) return;
+    const maillons = Object.entries(suivi ?? {});
+    bloc.hidden = maillons.length === 0;
+    const libelles = { ok: '✓ En place', attente: '○ En attente', 'a-brancher': '○ À brancher', erreur: '✕ À corriger' };
+    liste.replaceChildren(
+      ...maillons.map(([cle, maillon]) => {
+        const ligne = creer('li', '', maillon.etat === 'erreur' ? 'erreur-source' : maillon.etat);
+        ligne.dataset.maillon = cle;
+        ligne.append(creer('strong', maillon.nom), creer('span', libelles[maillon.etat] ?? '', 'etat'));
+        for (const texte of maillon.lignes) ligne.append(creer('span', texte, 'detail'));
+        if (maillon.etat === 'a-brancher' && maillon.variables?.length) {
+          const detail = creer('span', 'Variables à saisir dans Vercel : ', 'detail');
+          maillon.variables.forEach((variable, rang) => {
+            if (rang > 0) detail.append(', ');
+            detail.append(creer('code', variable));
+          });
+          ligne.append(detail);
         }
         return ligne;
       }),
@@ -1319,6 +1719,59 @@ import { FORMULES } from '../../../partage/ventes.js';
     table.replaceChildren(...parties);
   }
 
+  /** Ce qu'une vente a déclenché, en clair. « fait » : en vert ; « rate » : en rouge, à relancer. */
+  function suiviDeVente(vente: Vente, enLigne: boolean): { texte: string; classe: string; relance: boolean }[] {
+    const suivi = vente.suivi ?? {};
+    const lignes: { texte: string; classe: string; relance: boolean }[] = [];
+    const ac: Record<string, [string, string, boolean]> = {
+      ok: ['Liste Client ✓', 'fait', false],
+      erreur: ['Liste Client : pas passée', 'rate', true],
+      simulation: [enLigne ? 'Liste Client : à envoyer' : 'Liste Client : à la mise en production', '', enLigne],
+      'a-brancher': ['Liste Client : ActiveCampaign à brancher', '', false],
+    };
+    const meta: Record<string, [string, string, boolean]> = {
+      ok: ['Achat envoyé à Meta ✓', 'fait', false],
+      erreur: ['Achat : refusé par Meta', 'rate', true],
+      simulation: [enLigne ? 'Achat : à envoyer à Meta' : 'Achat Meta : à la mise en production', '', enLigne],
+      'sans-accord': ['Achat non envoyé à Meta (sans accord)', '', false],
+      'trop-ancienne': ['Achat non envoyé à Meta (vente de plus de 6 jours)', '', false],
+    };
+    for (const etat of [ac[suivi.ac ?? ''], meta[suivi.meta ?? '']]) {
+      if (etat) lignes.push({ texte: etat[0], classe: etat[1], relance: etat[2] });
+    }
+    return lignes;
+  }
+
+  /** La cellule « Élève » d'une vente : son email, ce que la vente a déclenché, et la relance s'il le faut. */
+  function celluleEleve(vente: Vente, d: Donnees) {
+    const cellule = creer('span');
+    if (!vente.email) {
+      cellule.append(creer('span', 'Email non renseigné', 'suivi-vente'));
+      return cellule;
+    }
+    cellule.append(creer('span', vente.email));
+    const lignes = suiviDeVente(vente, d.suivi?.tunnel?.etat === 'ok');
+    for (const ligne of lignes) cellule.append(creer('span', ligne.texte, `suivi-vente ${ligne.classe}`.trim()));
+    if (lignes.some((ligne) => ligne.relance)) {
+      const relancer = creer('button', 'Relancer', 'lien');
+      relancer.type = 'button';
+      relancer.dataset.relancerVente = vente.id;
+      relancer.addEventListener('click', async () => {
+        relancer.disabled = true;
+        relancer.textContent = 'Envoi…';
+        const resultat = await appeler('/vente', { method: 'POST', body: JSON.stringify({ mois, renvoyer: vente.id }) });
+        if (resultat.statut === 200 && resultat.corps?.ok) appliquerVentes(resultat.corps as BlocVentes);
+        else {
+          relancer.disabled = false;
+          relancer.textContent = 'Relancer';
+          signaler('La relance n’a pas abouti. Réessaie dans un instant.');
+        }
+      });
+      cellule.append(relancer);
+    }
+    return cellule;
+  }
+
   function afficherVentes(d: Donnees) {
     // Sans la base, rien ne peut s'enregistrer : la carte « Ventes » dit quoi relier.
     const pret = d.sources.ventes?.etat === 'ok';
@@ -1347,6 +1800,7 @@ import { FORMULES } from '../../../partage/ventes.js';
         ['Paiement', 'Moyens de paiement de la vente'],
         ['Encaissé', 'Déjà encaissé, d’après l’échéancier'],
         ['Reste', 'Reste à encaisser'],
+        ['Élève', 'Son email, et ce que la vente a déclenché : liste « Client » d’ActiveCampaign, événement « Achat » chez Meta'],
         ['', ''],
       ],
       d.ventes.map((vente) => {
@@ -1366,14 +1820,15 @@ import { FORMULES } from '../../../partage/ventes.js';
             paiement,
             argent(vente.encaisse),
             argent(vente.reste),
+            celluleEleve(vente, d),
             modifier,
           ],
         };
       }),
-      d.ventes.length > 1 ? ['TOTAL', `${d.ventes.length} ventes`, argent(somme('montant')), '', argent(somme('commission')), '', argent(somme('encaisse')), argent(somme('reste')), ''] : undefined,
+      d.ventes.length > 1 ? ['TOTAL', `${d.ventes.length} ventes`, argent(somme('montant')), '', argent(somme('commission')), '', argent(somme('encaisse')), argent(somme('reste')), '', ''] : undefined,
     );
-    // Formule, closer et paiement sont du texte : alignés à gauche, titres compris.
-    for (const cellule of document.querySelectorAll<HTMLElement>('[data-table="ventes"] tr > :is(:nth-child(2), :nth-child(4), :nth-child(6))')) {
+    // Formule, closer, paiement et élève sont du texte : alignés à gauche, titres compris.
+    for (const cellule of document.querySelectorAll<HTMLElement>('[data-table="ventes"] tr > :is(:nth-child(2), :nth-child(4), :nth-child(6), :nth-child(9))')) {
       cellule.classList.add('texte');
     }
 
@@ -1468,6 +1923,8 @@ import { FORMULES } from '../../../partage/ventes.js';
     }
     Object.assign(d, { ventes: bloc.ventes, closers: bloc.closers, encaissements: bloc.encaissements, aEncaisser: bloc.aEncaisser, commissions: bloc.commissions });
     afficher(d);
+    // Une vente ajoutée, modifiée ou supprimée change aussi le rapport des publicités.
+    void chargerPubs();
   }
 
   function afficher(d: Donnees) {
@@ -1476,6 +1933,7 @@ import { FORMULES } from '../../../partage/ventes.js';
     const demonstration = $('[data-demonstration]');
     if (demonstration) demonstration.hidden = !d.demonstration;
     afficherSources(d.sources, d.campagnes);
+    afficherSuivi(d.suivi);
     for (const partie of Object.keys(COLONNES)) {
       afficherCartes(partie, total);
       afficherTable(partie, d, total);
@@ -1483,6 +1941,468 @@ import { FORMULES } from '../../../partage/ventes.js';
     afficherFormulations(d);
     afficherVentes(d);
   }
+
+  /* ---------- Les publicités : créations, verdicts, moments ---------- */
+
+  const choixPeriode = $<HTMLSelectElement>('[data-pubs-periode]');
+  const choixSource = $<HTMLSelectElement>('[data-pubs-source]');
+  const etatPubs = $('[data-pubs-etat]');
+  const contenuPubs = $('[data-pubs-contenu]');
+  const boutonRapport = $<HTMLButtonElement>('[data-copier-rapport]');
+  let rapportPubs: RapportPubs | null = null;
+  /** Vrai dès que la source des résultats a été choisie à la main. */
+  let sourceChoisie = false;
+  /** Numéro de la dernière demande : une réponse arrivée trop tard est ignorée. */
+  let demandePubs = 0;
+  /** Créations dont le détail est ouvert. */
+  const pubsOuvertes = new Set<string>();
+
+  const JOURS_SEMAINE = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
+  const STATUTS_PUB: Record<string, string> = {
+    ACTIVE: 'Active',
+    PAUSED: 'En pause',
+    ADSET_PAUSED: 'Ensemble en pause',
+    CAMPAIGN_PAUSED: 'Campagne en pause',
+    ARCHIVED: 'Archivée',
+    DELETED: 'Supprimée',
+    DISAPPROVED: 'Refusée',
+    PENDING_REVIEW: 'En examen',
+    WITH_ISSUES: 'En erreur',
+    IN_PROCESS: 'En préparation',
+  };
+  const NOMS_SOURCE: Record<SourcePub, string> = {
+    tunnel: 'le tunnel (inscrites de la landing, rendez-vous d’iClosed, ventes du cockpit)',
+    meta: 'Meta (pixel et API de conversion)',
+  };
+  const NIVEAUX = { ventes: 'les ventes', rdv: 'les rendez-vous', inscrites: 'les inscrites' };
+  const AUCUN_RESULTAT: ResultatsTunnel = { inscrites: 0, rdv: 0, rdvAnnules: 0, ventes: 0, commande: 0, encaisse: 0 };
+
+  const sourcePubs = (): SourcePub => (choixSource?.value === 'meta' ? 'meta' : 'tunnel');
+  const pluriel = (nombre: number, mot: string, mots = `${mot}s`) => `${ecrire(nombre, 'entier')} ${nombre > 1 ? mots : mot}`;
+
+  /** Une cellule de tableau, avec son texte, sa classe et son infobulle éventuelle. */
+  function cellule(contenu: string | HTMLElement, classe = '', aide = '') {
+    const td = creer('td', '', classe);
+    if (typeof contenu === 'string') td.textContent = contenu;
+    else td.append(contenu);
+    if (aide) td.title = aide;
+    return td;
+  }
+
+  /** L'en-tête d'un tableau : [titre, infobulle] par colonne. */
+  function enTeteDeTable(titres: [string, string][]) {
+    const ligne = creer('tr');
+    for (const [titre, aide] of titres) {
+      const th = creer('th', titre);
+      if (aide) th.title = aide;
+      th.scope = 'col';
+      ligne.append(th);
+    }
+    const tete = creer('thead');
+    tete.append(ligne);
+    return tete;
+  }
+
+  /** « 50 inscrites à 6,0 € · 5 rendez-vous à 60 € · 1 vente (3 000 €) · ROAS 10,0 » */
+  function resumeResultats(ligne: { depense: number; impressions: number; clics: number; vues3s: number; vuesCompletes: number }, r: { inscrites: number; rdv: number; ventes: number; commande: number }) {
+    const i = indicateursPub(ligne, r);
+    const morceaux = [`dépense ${ecrire(ligne.depense, 'euros')}`];
+    if (i.ctr != null) morceaux.push(`CTR ${ecrire(i.ctr, 'pourcent')}`);
+    if (i.accroche != null) morceaux.push(`accroche ${ecrire(i.accroche, 'pourcent')}`);
+    morceaux.push(r.inscrites > 0 ? `${pluriel(r.inscrites, 'inscrite')} à ${ecrire(i.coutInscrite, 'centimes')}` : 'aucune inscrite');
+    morceaux.push(r.rdv > 0 ? `${ecrire(r.rdv, 'entier')} rendez-vous à ${ecrire(i.coutRdv, 'euros')}` : 'aucun rendez-vous');
+    if (r.ventes > 0) morceaux.push(`${pluriel(r.ventes, 'vente')} (${ecrire(r.commande, 'euros')})`, `ROAS ${ecrire(i.roas, 'ratio')}`);
+    return morceaux.join(' · ');
+  }
+
+  /** Pourquoi ce verdict : la création face à la moyenne de la période. */
+  function raisonDuVerdict(ligne: LignePub, source: SourcePub, base: string, reperes: ReturnType<typeof classerPubs>['reperes']) {
+    const r = resultats(ligne, source);
+    const i = indicateursPub(ligne, r);
+    if (base === 'ventes') return `Jugée sur les ventes : ROAS ${ecrire(i.roas, 'ratio')} (moyenne : ${ecrire(reperes.roas, 'ratio')})`;
+    if (base === 'rdv') return `Jugée sur les rendez-vous : ${ecrire(r.rdv, 'entier')} à ${ecrire(i.coutRdv, 'euros')} (moyenne : ${ecrire(reperes.coutRdv, 'euros')})`;
+    if (base === 'inscrites') return `Jugée sur les inscrites : ${ecrire(r.inscrites, 'entier')} à ${ecrire(i.coutInscrite, 'centimes')} (moyenne : ${ecrire(reperes.coutInscrite, 'centimes')})`;
+    return '';
+  }
+
+  /** Le détail d'une création : son texte, son état, et ses résultats selon les deux sources. */
+  function detailDePub(ligne: LignePub, colonnes: number) {
+    const rangee = creer('tr', '', 'detail-pub');
+    const td = creer('td');
+    td.colSpan = colonnes;
+    const faits = creer('ul', '', 'faits');
+    const fait = (texte: string) => faits.append(creer('li', texte));
+    if (ligne.statut) fait(`État : ${STATUTS_PUB[ligne.statut] ?? ligne.statut}`);
+    if (ligne.creeLe) fait(`Créée le ${libelleDate(ligne.creeLe)}`);
+    if (ligne.ensembles > 0) fait(`Diffusée dans ${pluriel(ligne.ensembles, 'ensemble')}`);
+    if (ligne.campagnes.length > 0) fait(`${ligne.campagnes.length > 1 ? 'Campagnes' : 'Campagne'} : ${ligne.campagnes.join(', ')}`);
+    fait(`Selon Meta : ${pluriel(ligne.meta.prospects, 'prospect')}, ${ecrire(ligne.meta.rdv, 'entier')} rendez-vous, ${pluriel(ligne.meta.achats, 'achat')}`);
+    fait(
+      `Selon le tunnel : ${pluriel(ligne.tunnel.inscrites, 'inscrite')}, ${ecrire(ligne.tunnel.rdv, 'entier')} rendez-vous${ligne.tunnel.rdvAnnules > 0 ? ` (+ ${pluriel(ligne.tunnel.rdvAnnules, 'annulé')})` : ''}, ${pluriel(ligne.tunnel.ventes, 'vente')}${ligne.tunnel.ventes > 0 ? ` (${argent(ligne.tunnel.commande)} commandés, ${argent(ligne.tunnel.encaisse)} encaissés)` : ''}`,
+    );
+    if (ligne.vuesCompletes > 0 && ligne.vues3s > 0) fait(`Rétention : ${ecrire(ligne.vuesCompletes / ligne.vues3s, 'pourcent')} des lectures de 3 s vont au bout (ou à 15 s)`);
+    td.append(faits);
+    if (ligne.titre) td.append(creer('p', ligne.titre, 'texte-pub titre-pub'));
+    td.append(creer('p', ligne.texte || 'Texte de la publicité non disponible.', 'texte-pub'));
+    rangee.append(td);
+    return rangee;
+  }
+
+  function afficherPubs() {
+    const r = rapportPubs;
+    if (!r || !etatPubs || !contenuPubs) return;
+    const sansPub = r.sansPub ?? AUCUN_RESULTAT;
+    const parle = tunnelParle(r.pubs, sansPub);
+    // Tant que le tunnel n'a rien vu sur la période, seuls les chiffres de Meta parlent.
+    if (!sourceChoisie && choixSource) choixSource.value = parle ? 'tunnel' : 'meta';
+    const source = sourcePubs();
+
+    const messages: string[] = [];
+    if (r.etats.meta === 'a-brancher') messages.push('Meta Ads n’est pas branché : la dépense et les créations ne peuvent pas s’afficher.');
+    if (r.etats.meta === 'erreur') messages.push(`Meta Ads : ${r.details.meta || 'erreur'}.`);
+    if (r.etats.iclosed === 'erreur') messages.push(`iClosed : ${r.details.iclosed || 'erreur'}.`);
+    if (r.etats.meta === 'ok' && !r.pubs.some((ligne) => ligne.depense > 0)) {
+      messages.push(`Aucune publicité diffusée sur la période${r.campagnes ? ` dans les campagnes dont le nom contient « ${r.campagnes} »` : ''}.`);
+    }
+    etatPubs.textContent = messages.join(' ');
+    etatPubs.hidden = messages.length === 0;
+    etatPubs.classList.toggle('erreur', r.etats.meta === 'erreur' || r.etats.iclosed === 'erreur');
+    contenuPubs.hidden = false;
+    if (boutonRapport) boutonRapport.disabled = r.pubs.length === 0;
+
+    const legende = $('[data-pubs-legende]');
+    if (legende) {
+      legende.textContent =
+        `Du ${libelleDate(r.du)} au ${libelleDate(r.au)}${r.campagnes ? ` · campagnes dont le nom contient « ${r.campagnes} »` : ''} · résultats comptés par ${NOMS_SOURCE[source]}.` +
+        (source === 'tunnel' && !parle ? ' Le tunnel n’a encore rien vu sur cette période : il compte à partir de sa mise en production.' : '') +
+        (source === 'meta' && !parle ? ' Le tunnel n’a pas encore de chiffres sur cette période : ce sont ceux de Meta.' : '');
+    }
+
+    const { niveau, reperes, verdicts } = classerPubs(r.pubs, source);
+    const total = totaliserPubs(r.pubs, source);
+    // Pour le tunnel, les cartes comptent aussi les inscrites sans publicité connue : le coût par inscrite reste juste.
+    const ensemble =
+      source === 'tunnel'
+        ? { ...total, inscrites: total.inscrites + sansPub.inscrites, rdv: total.rdv + sansPub.rdv, ventes: total.ventes + sansPub.ventes, commande: total.commande + sansPub.commande }
+        : total;
+    const indic = indicateursPub(total, ensemble);
+
+    const cartes = $('[data-cartes="publicites"]');
+    if (cartes) {
+      const carte = (libelle: string, valeur: string, precision: string) => {
+        const element = creer('li');
+        element.append(creer('span', libelle, 'libelle'), creer('span', valeur, 'valeur'), creer('span', precision, 'precision'));
+        return element;
+      };
+      const gagnantes = r.pubs.filter((ligne) => verdicts[ligne.cle]?.verdict === 'gagnante').length;
+      cartes.replaceChildren(
+        carte('Créations', ecrire(r.pubs.filter((ligne) => ligne.depense > 0).length, 'entier'), gagnantes > 0 ? `dont ${pluriel(gagnantes, 'gagnante')}` : 'aucune gagnante pour l’instant'),
+        carte('Dépense', ecrire(total.depense, 'euros'), 'Sur la période'),
+        carte('Inscrites', ecrire(ensemble.inscrites, 'entier'), `Coût par inscrite : ${ecrire(indic.coutInscrite, 'centimes')}`),
+        carte('Rendez-vous', ecrire(ensemble.rdv, 'entier'), `Coût par rendez-vous : ${ecrire(indic.coutRdv, 'euros')}`),
+        carte('Ventes', ecrire(ensemble.ventes, 'entier'), `Commandé : ${ecrire(ensemble.commande, 'euros')}`),
+        carte('ROAS', ecrire(indic.roas, 'ratio'), 'Commandé ÷ dépense'),
+      );
+    }
+
+    // Le tableau des créations : les gagnantes d'abord.
+    const table = $('[data-table="publicites"]');
+    const titres: [string, string][] = [
+      ['Création', 'Nom de la publicité (toutes ses diffusions réunies). Un clic montre son texte.'],
+      ['Verdict', 'Par rapport à la moyenne de la période'],
+      ['Dépense', ''],
+      ['Imp.', 'Impressions'],
+      ['CTR', 'Clics sur le lien ÷ impressions'],
+      ['Accroche', 'Lectures de la vidéo de 3 secondes ÷ impressions'],
+      ['Inscrites', source === 'meta' ? 'Événements « Prospect » attribués par Meta' : 'Inscrites de la landing arrivées par cette publicité'],
+      ['Coût insc.', 'Dépense ÷ inscrites'],
+      ['RDV', source === 'meta' ? 'Événements « Rendez-vous programmé » attribués par Meta' : 'Appels réservés dans iClosed (hors annulés) par des inscrites venues de cette publicité'],
+      ['Coût RDV', 'Dépense ÷ rendez-vous'],
+      ['Ventes', source === 'meta' ? 'Événements « Achat » attribués par Meta' : 'Ventes du cockpit rattachées à cette publicité par l’email de l’élève'],
+      ['Commandé', 'Montant des ventes'],
+      ['ROAS', 'Commandé ÷ dépense'],
+    ];
+    if (table) {
+      const corps = creer('tbody');
+      const rangee = (nom: string | HTMLElement, verdict: string | HTMLElement, chiffres: { depense: number; impressions: number; clics: number; vues3s: number; vuesCompletes: number }, res: { inscrites: number; rdv: number; ventes: number; commande: number }, classe = '') => {
+        const i = indicateursPub(chiffres, res);
+        const tr = creer('tr', '', classe);
+        tr.append(
+          cellule(nom, 'creation'),
+          cellule(verdict, 'texte'),
+          cellule(chiffres.depense > 0 ? ecrire(chiffres.depense, 'euros') : '—'),
+          cellule(chiffres.impressions > 0 ? ecrire(chiffres.impressions, 'entier') : '—'),
+          cellule(ecrire(i.ctr, 'pourcent')),
+          cellule(ecrire(i.accroche, 'pourcent')),
+          cellule(ecrire(res.inscrites, 'entier')),
+          // Sans dépense, pas de coût : un tiret, jamais un zéro trompeur.
+          cellule(chiffres.depense > 0 ? ecrire(i.coutInscrite, 'centimes') : '—'),
+          cellule(ecrire(res.rdv, 'entier')),
+          cellule(chiffres.depense > 0 ? ecrire(i.coutRdv, 'euros') : '—'),
+          cellule(ecrire(res.ventes, 'entier'), res.ventes > 0 ? 'vente' : ''),
+          cellule(res.commande > 0 ? ecrire(res.commande, 'euros') : '—'),
+          cellule(chiffres.depense > 0 && res.ventes > 0 ? ecrire(i.roas, 'ratio') : '—'),
+        );
+        return tr;
+      };
+      for (const ligne of trierPubs(r.pubs, verdicts)) {
+        const ouvrir = creer('button', '', 'ouvrir-pub');
+        ouvrir.type = 'button';
+        ouvrir.dataset.pub = ligne.cle;
+        ouvrir.setAttribute('aria-expanded', String(pubsOuvertes.has(ligne.cle)));
+        if (ligne.vignette) {
+          const image = creer('img');
+          image.src = ligne.vignette;
+          image.alt = '';
+          image.loading = 'lazy';
+          image.referrerPolicy = 'no-referrer';
+          ouvrir.append(image);
+        }
+        ouvrir.append(creer('span', ligne.nom));
+        ouvrir.addEventListener('click', () => {
+          if (pubsOuvertes.has(ligne.cle)) pubsOuvertes.delete(ligne.cle);
+          else pubsOuvertes.add(ligne.cle);
+          afficherPubs();
+        });
+        const { verdict, base } = verdicts[ligne.cle] ?? { verdict: '', base: '' };
+        const pastille = verdict ? creer('span', (VERDICTS as Record<string, string>)[verdict] ?? '', `verdict ${verdict}`) : creer('span', 'Pas de dépense sur la période', 'suivi-vente');
+        if (verdict) pastille.title = raisonDuVerdict(ligne, source, base, reperes);
+        corps.append(rangee(ouvrir, pastille, ligne, resultats(ligne, source), ligne.depense > 0 ? '' : 'sans-depense'));
+        if (pubsOuvertes.has(ligne.cle)) corps.append(detailDePub(ligne, titres.length));
+      }
+      if (source === 'tunnel' && sansPub.inscrites + sansPub.rdv + sansPub.ventes > 0) {
+        const vide = { depense: 0, impressions: 0, clics: 0, vues3s: 0, vuesCompletes: 0 };
+        corps.append(rangee('Sans publicité connue', creer('span', 'Lien sans paramètres, email, accès direct', 'suivi-vente'), vide, sansPub, 'sans-pub'));
+      }
+      const pied = creer('tfoot');
+      const ligneTotal = rangee('TOTAL', '', total, ensemble);
+      pied.append(ligneTotal);
+      table.replaceChildren(enTeteDeTable(titres), corps, pied);
+      for (const element of table.querySelectorAll<HTMLElement>('tr > :nth-child(2)')) element.classList.add('texte');
+    }
+
+    const regle = $('[data-pubs-regle]');
+    if (regle) {
+      regle.textContent = `Verdict : chaque création est comparée à la moyenne de la période, sur ${NIVEAUX[niveau]} (le niveau le plus profond qui compte assez de résultats). Gagnante : au moins 20 % moins chère que la moyenne, avec assez de résultats. À couper : deux fois le coût moyen dépensé sans résultat, ou 50 % plus chère. Prometteuse : bonne en amont, pas encore confirmée plus bas.`;
+    }
+
+    afficherMoments(r, source);
+    const parametres = $('[data-pubs-parametres]');
+    if (parametres) parametres.textContent = r.parametres;
+  }
+
+  /** À quel moment : par jour de la semaine, par heure, et combien de temps après l'inscription. */
+  function afficherMoments(r: RapportPubs, source: SourcePub) {
+    const cleInscrites = source === 'meta' ? 'prospects' : 'inscrites';
+    /** Met en avant la cellule la plus haute d'une colonne (à partir de la deuxième ligne de données s'il y en a). */
+    const marquerLeMeilleur = (table: HTMLElement, colonne: number) => {
+      let meilleur: HTMLElement | null = null;
+      let record = 0;
+      for (const td of table.querySelectorAll<HTMLElement>(`tbody tr > :nth-child(${colonne})`)) {
+        const valeur = Number(td.dataset.valeur ?? 0);
+        if (valeur > record) {
+          record = valeur;
+          meilleur = td;
+        }
+      }
+      meilleur?.classList.add('meilleur');
+    };
+    const chiffre = (valeur: number, format: Format) => {
+      const td = cellule(ecrire(valeur, format));
+      td.dataset.valeur = String(valeur);
+      return td;
+    };
+
+    const semaine = $('[data-table="semaine"]');
+    if (semaine) {
+      const corps = creer('tbody');
+      for (const ligne of parJourDeSemaine(r.jours, ['depense', 'prospects', 'inscrites', 'rdv', 'ventes'])) {
+        const inscrites = ligne[cleInscrites] ?? 0;
+        const tr = creer('tr');
+        tr.append(
+          cellule(JOURS_SEMAINE[ligne.jour ?? 0] ?? ''),
+          cellule(ecrire(ligne.depense ?? 0, 'euros')),
+          chiffre(inscrites, 'entier'),
+          cellule(inscrites > 0 ? ecrire((ligne.depense ?? 0) / inscrites, 'centimes') : '—'),
+          chiffre(ligne.rdv ?? 0, 'entier'),
+          chiffre(ligne.ventes ?? 0, 'entier'),
+        );
+        corps.append(tr);
+      }
+      semaine.replaceChildren(
+        enTeteDeTable([
+          ['Jour', ''],
+          ['Dépense', ''],
+          ['Inscrites', source === 'meta' ? 'Prospects attribués par Meta' : 'Inscrites de la landing'],
+          ['Coût insc.', 'Dépense ÷ inscrites'],
+          ['RDV', 'Appels réservés ce jour-là (iClosed)'],
+          ['Ventes', 'Ventes enregistrées ce jour-là'],
+        ]),
+        corps,
+      );
+      marquerLeMeilleur(semaine, 3);
+      marquerLeMeilleur(semaine, 5);
+    }
+
+    const heures = $('[data-table="heures"]');
+    if (heures) {
+      const corps = creer('tbody');
+      for (const ligne of r.heures) {
+        const inscrites = ligne[cleInscrites];
+        if (ligne.depense === 0 && ligne.clics === 0 && inscrites === 0) continue;
+        const tr = creer('tr');
+        tr.append(
+          cellule(`${ligne.heure} h`),
+          cellule(ecrire(ligne.depense, 'euros')),
+          cellule(ecrire(ligne.clics, 'entier')),
+          chiffre(inscrites, 'entier'),
+          cellule(inscrites > 0 && ligne.depense > 0 ? ecrire(ligne.depense / inscrites, 'centimes') : '—'),
+        );
+        corps.append(tr);
+      }
+      if (!corps.firstChild) {
+        const tr = creer('tr');
+        const td = cellule('Aucune activité sur la période.', 'texte');
+        td.colSpan = 5;
+        tr.append(td);
+        corps.append(tr);
+      }
+      heures.replaceChildren(
+        enTeteDeTable([
+          ['Heure', 'Heure de Paris'],
+          ['Dépense', ''],
+          ['Clics', 'Clics sur le lien'],
+          ['Inscrites', source === 'meta' ? 'Prospects attribués par Meta, à l’heure de la publicité' : 'Inscrites de la landing, à l’heure de leur inscription'],
+          ['Coût insc.', 'Dépense ÷ inscrites'],
+        ]),
+        corps,
+      );
+      marquerLeMeilleur(heures, 4);
+    }
+
+    const delais = $('[data-table="delais"]');
+    if (delais) {
+      const corps = creer('tbody');
+      for (const tranche of r.delais.tranches) {
+        const tr = creer('tr');
+        tr.append(cellule(tranche.nom), chiffre(r.delais.rdv[tranche.cle] ?? 0, 'entier'), chiffre(r.delais.vente[tranche.cle] ?? 0, 'entier'));
+        corps.append(tr);
+      }
+      delais.replaceChildren(
+        enTeteDeTable([
+          ['Après l’inscription', ''],
+          ['RDV pris', 'Rendez-vous réservés dans ce délai'],
+          ['Ventes', 'Ventes conclues dans ce délai'],
+        ]),
+        corps,
+      );
+      marquerLeMeilleur(delais, 2);
+    }
+  }
+
+  /** Le rapport en texte, à coller dans une conversation pour écrire les prochaines publicités. */
+  function texteDuRapport() {
+    const r = rapportPubs;
+    if (!r) return '';
+    const source = sourcePubs();
+    const sansPub = r.sansPub ?? AUCUN_RESULTAT;
+    const { niveau, verdicts } = classerPubs(r.pubs, source);
+    const total = totaliserPubs(r.pubs, source);
+    const sorties = [
+      'RAPPORT DES PUBLICITÉS · Académie Florale (tunnel VSL)',
+      `Période : du ${libelleDate(r.du)} au ${libelleDate(r.au)}${r.campagnes ? `, campagnes dont le nom contient « ${r.campagnes} »` : ''}.`,
+      `Résultats comptés par ${NOMS_SOURCE[source]}. Verdicts jugés sur ${NIVEAUX[niveau]}.`,
+      `Total : ${resumeResultats(total, total)}.`,
+    ];
+    if (source === 'tunnel' && sansPub.inscrites + sansPub.rdv + sansPub.ventes > 0) {
+      sorties.push(`Sans publicité connue : ${pluriel(sansPub.inscrites, 'inscrite')}, ${ecrire(sansPub.rdv, 'entier')} rendez-vous, ${pluriel(sansPub.ventes, 'vente')}.`);
+    }
+    const triees = trierPubs(r.pubs, verdicts);
+    for (const [cle, nom] of [...Object.entries(VERDICTS), ['', 'Sans dépense sur la période']]) {
+      const groupe = triees.filter((ligne) => (verdicts[ligne.cle]?.verdict ?? '') === cle);
+      if (groupe.length === 0) continue;
+      sorties.push('', `${String(nom).toUpperCase()} (${groupe.length})`);
+      groupe.forEach((ligne, rang) => {
+        sorties.push(`${rang + 1}. ${ligne.nom} : ${resumeResultats(ligne, resultats(ligne, source))}`);
+        if (ligne.titre) sorties.push(`   Titre : ${ligne.titre}`);
+        if (ligne.texte) sorties.push(`   Texte : ${ligne.texte.replace(/\s*\n+\s*/g, ' / ')}`);
+      });
+    }
+    const cleInscrites = source === 'meta' ? 'prospects' : 'inscrites';
+    const semaine = parJourDeSemaine(r.jours, ['depense', 'prospects', 'inscrites', 'rdv', 'ventes']);
+    sorties.push('', 'À QUEL MOMENT');
+    sorties.push(
+      `Par jour : ${semaine
+        .map((ligne) => `${(JOURS_SEMAINE[ligne.jour ?? 0] ?? '').toLowerCase()} ${ecrire(ligne[cleInscrites] ?? 0, 'entier')} inscrites pour ${ecrire(ligne.depense ?? 0, 'euros')}, ${ecrire(ligne.rdv ?? 0, 'entier')} RDV`)
+        .join(' ; ')}.`,
+    );
+    const meilleures = [...r.heures].sort((a, b) => b[cleInscrites] - a[cleInscrites]).slice(0, 5).filter((ligne) => ligne[cleInscrites] > 0);
+    if (meilleures.length > 0) sorties.push(`Heures les plus fortes : ${meilleures.map((ligne) => `${ligne.heure} h (${ecrire(ligne[cleInscrites], 'entier')} inscrites)`).join(', ')}.`);
+    const delai = (compte: Record<string, number>) => r.delais.tranches.filter((tranche) => (compte[tranche.cle] ?? 0) > 0).map((tranche) => `${tranche.nom.toLowerCase()} ${compte[tranche.cle]}`).join(', ');
+    if (delai(r.delais.rdv)) sorties.push(`Rendez-vous pris après l’inscription : ${delai(r.delais.rdv)}.`);
+    if (delai(r.delais.vente)) sorties.push(`Ventes après l’inscription : ${delai(r.delais.vente)}.`);
+    return sorties.join('\n');
+  }
+
+  /** Copie un texte, et le dit sur le bouton. */
+  async function copier(texte: string, bouton: HTMLElement) {
+    const libelle = bouton.dataset.libelle ?? bouton.textContent ?? '';
+    bouton.dataset.libelle = libelle;
+    let fait = false;
+    try {
+      await navigator.clipboard.writeText(texte);
+      fait = true;
+    } catch {
+      // Sans accès au presse-papiers : on passe par une zone de texte.
+      const zone = document.createElement('textarea');
+      zone.value = texte;
+      zone.setAttribute('readonly', '');
+      zone.style.position = 'fixed';
+      zone.style.opacity = '0';
+      document.body.append(zone);
+      zone.select();
+      try {
+        fait = document.execCommand('copy');
+      } catch {
+        fait = false;
+      }
+      zone.remove();
+    }
+    bouton.textContent = fait ? 'Copié ✓' : 'Copie impossible';
+    window.setTimeout(() => {
+      bouton.textContent = libelle;
+    }, 2200);
+  }
+
+  async function chargerPubs() {
+    if (!etatPubs || !contenuPubs) return;
+    demandePubs += 1;
+    const numero = demandePubs;
+    etatPubs.textContent = 'Chargement du rapport des publicités…';
+    etatPubs.hidden = false;
+    etatPubs.classList.remove('erreur');
+    if (boutonRapport) boutonRapport.disabled = true;
+    const periode = choixPeriode?.value ?? 'mois';
+    const { statut, corps } = await appeler(`/pubs?mois=${mois}&periode=${encodeURIComponent(periode)}`);
+    if (numero !== demandePubs) return;
+    if (statut !== 200 || !corps?.ok) {
+      rapportPubs = null;
+      contenuPubs.hidden = true;
+      etatPubs.textContent = statut === 401 ? 'La session est terminée : recharge la page et reconnecte-toi.' : 'Le rapport des publicités n’a pas pu être chargé. Réessaie dans un instant.';
+      etatPubs.classList.add('erreur');
+      return;
+    }
+    rapportPubs = corps as RapportPubs;
+    afficherPubs();
+  }
+
+  choixPeriode?.addEventListener('change', () => void chargerPubs());
+  choixSource?.addEventListener('change', () => {
+    sourceChoisie = true;
+    afficherPubs();
+  });
+  boutonRapport?.addEventListener('click', () => void copier(texteDuRapport(), boutonRapport));
+  $('[data-copier-parametres]')?.addEventListener('click', (evenement) => void copier(rapportPubs?.parametres ?? '', evenement.currentTarget as HTMLElement));
 
   function signaler(texte: string) {
     if (!erreur) return;
@@ -1531,6 +2451,7 @@ import { FORMULES } from '../../../partage/ventes.js';
     formule: 'Choisis la formule vendue.',
     montant: 'Indique le montant de la vente, par exemple 3000.',
     commission: 'La commission doit être un montant, au plus égal à celui de la vente.',
+    email: 'L’email de l’élève n’est pas lisible. Corrige-le, ou laisse le champ vide.',
     paiements: 'Vérifie les moyens de paiement : chaque ligne a besoin d’un montant et d’un nombre de fois.',
     repartition: 'La somme des paiements doit être égale au montant de la vente.',
     closer: 'Choisis le closer de la vente, ou donne le nom du nouveau.',
@@ -1696,6 +2617,7 @@ import { FORMULES } from '../../../partage/ventes.js';
     champVente('montant').value = vente ? String(vente.montant).replace('.', ',') : '';
     champVente('commission').value = vente?.commission ? String(vente.commission).replace('.', ',') : '';
     champVente('note').value = vente?.note ?? '';
+    champVente('email').value = vente?.email ?? '';
 
     // Les closers déjà enregistrés se choisissent ; un nouveau nom s'enregistre avec la vente.
     const closers = champVente('closer') as HTMLSelectElement;
@@ -1772,6 +2694,7 @@ import { FORMULES } from '../../../partage/ventes.js';
         commission: champVente('commission').value,
         paiements: paiementsSaisis(),
         note: champVente('note').value,
+        email: champVente('email').value,
       },
       { aujourdHui: d.aujourdHui },
     );
@@ -1848,6 +2771,8 @@ import { FORMULES } from '../../../partage/ventes.js';
       window.history.replaceState(null, '', url);
       afficher(corps as Donnees);
       montrer('tableau');
+      // Le rapport des publicités se charge à part : il est plus long à assembler.
+      void chargerPubs();
       return;
     }
     donnees = null;

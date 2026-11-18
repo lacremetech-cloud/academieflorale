@@ -13,6 +13,12 @@
       "maxDuration": 30
     }
   },
+  "crons": [
+    {
+      "path": "/api/booking",
+      "schedule": "*/10 * * * *"
+    }
+  ],
   "redirects": [
     {
       "source": "/temoignage",

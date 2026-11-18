@@ -9,13 +9,18 @@ export const PRENOM_MAX = 40;
 /** Longueur maximale d'un prénom affiché dans un titre. */
 export const PRENOM_AFFICHE_MAX = 20;
 
-/** Paramètres d'attribution lus dans l'adresse d'arrivée. */
+/**
+ * Paramètres d'attribution lus dans l'adresse d'arrivée.
+ * « utm_id » porte l'identifiant de la publicité ({{ad.id}} dans les paramètres
+ * d'URL de Meta) : c'est lui qui relie une inscrite à sa publicité dans le cockpit.
+ */
 export const CLES_UTM = Object.freeze([
   'utm_source',
   'utm_medium',
   'utm_campaign',
   'utm_content',
   'utm_term',
+  'utm_id',
   'fbclid',
 ]);
 

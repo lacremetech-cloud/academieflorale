@@ -11,9 +11,8 @@
  * - META_API_VERSION (facultatif) : version de l'API, si celle par défaut expire.
  */
 import { joursEcoules } from '../../partage/cockpit.js';
+import { versionMeta } from '../meta-conversions.js';
 
-/** Version de l'API Marketing en cours le 18/11/2026. */
-const VERSION_PAR_DEFAUT = 'v27.0';
 const PAGES_MAX = 6;
 
 /** Seules comptent les campagnes dont le nom contient ce texte (règle de nommage des campagnes du tunnel). */
@@ -42,7 +41,7 @@ export async function lireMeta({ env, mois, fetchImpl = fetch, maintenant = new 
   if (!jeton || !compte) return { etat: 'a-brancher', jours: {} };
   if (!/^\d{5,20}$/.test(compte)) return { etat: 'erreur', detail: 'identifiant du compte publicitaire invalide', jours: {} };
 
-  const version = /^v\d{1,3}\.\d$/.test(env.META_API_VERSION ?? '') ? env.META_API_VERSION : VERSION_PAR_DEFAUT;
+  const version = versionMeta(env);
   // Jusqu'à aujourd'hui seulement : aucune source n'est interrogée sur des jours à venir.
   const jours = joursEcoules(mois, maintenant);
   if (jours.length === 0) return { etat: 'ok', jours: {} };

@@ -27,6 +27,24 @@ export function creerBaseLocale() {
         textes.set(cle, String(valeur));
         return valeur;
       }
+      case 'SET': {
+        // « NX » : seulement si la clé n'existe pas. Les durées (« EX ») ne sont pas simulées.
+        const options = reste.slice(1).map((mot) => mot.toUpperCase());
+        if (options.includes('NX') && textes.has(cle)) return null;
+        textes.set(cle, String(reste[0] ?? ''));
+        return 'OK';
+      }
+      case 'GET':
+        return textes.get(cle) ?? null;
+      case 'DEL':
+        return [cle, ...reste].filter((uneCle) => textes.delete(uneCle) || tables.delete(uneCle)).length;
+      case 'HINCRBY': {
+        const valeur = Number(table(cle)?.get(String(reste[0])) ?? 0) + Number(reste[1] ?? 0);
+        table(cle)?.set(String(reste[0]), String(valeur));
+        return valeur;
+      }
+      case 'HGET':
+        return table(cle)?.get(String(reste[0])) ?? null;
       case 'MGET':
         return [cle, ...reste].map((uneCle) => textes.get(uneCle) ?? null);
       case 'SADD':

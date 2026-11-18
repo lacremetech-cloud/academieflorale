@@ -530,6 +530,14 @@ import { CHEMINS, WISTIA } from '../reglages';
       /* stockage indisponible : le signal part quand même, l'adresse nettoyée évite un doublon au rechargement */
     }
     document.dispatchEvent(new CustomEvent('rdv:confirme', { detail: { id: retour.id } }));
+    // Prévient le serveur qu'un appel vient d'être réservé : il va le lire lui-même dans
+    // iClosed (tag ActiveCampaign, événement Meta) sans attendre son prochain passage.
+    // Rien de personnel ne part d'ici : ce n'est qu'un signal.
+    try {
+      void fetch('/api/booking', { method: 'POST', keepalive: true }).catch(() => {});
+    } catch {
+      /* sans conséquence : le serveur relit iClosed toutes les dix minutes */
+    }
   };
 
   // 4. Les détails affichés par iClosed. Son script lit l'adresse de la page au moment

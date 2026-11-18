@@ -8,6 +8,7 @@
  * Fonctions pures, communes au serveur et à la page : aucune dépendance,
  * aucun secret. Les montants sont en euros, calculés en centimes.
  */
+import { nettoyerEmail } from './validation.js';
 
 /** Les trois formules vendues. Le montant de la vente est toujours saisi. */
 export const FORMULES = Object.freeze({
@@ -51,8 +52,11 @@ const PREMIER_JOUR = '2024-01-01';
 
 /**
  * @typedef {{ methode: string, montant: number, mensualites: number, debut: string }} Paiement
+ * @typedef {{ ac?: string, meta?: string, pub?: string, delai?: number | null, le?: string }} SuiviVente ce que la vente a
+ *   déclenché : liste « Client » dans ActiveCampaign, événement « Achat » chez Meta, publicité d'arrivée de l'élève
  * @typedef {{ id?: string, date: string, formule: string, montant: number, commission: number,
- *   closer?: string, closerNom?: string, paiements: Paiement[], note?: string, creeLe?: string }} Vente
+ *   closer?: string, closerNom?: string, paiements: Paiement[], note?: string, creeLe?: string,
+ *   email?: string, suivi?: SuiviVente }} Vente
  * @typedef {{ date: string, montant: number, methode: string, etape: string }} Echeance
  */
 
@@ -200,7 +204,7 @@ export function texteCourt(texte, longueur) {
  * @returns {{ ok: true, vente: Vente } | { ok: false, erreur: 'vente' | 'date' | 'formule' | 'montant' | 'commission' | 'paiements' | 'repartition' }}
  */
 export function normaliserVente(brut, { aujourdHui }) {
-  /** @param {'vente' | 'date' | 'formule' | 'montant' | 'commission' | 'paiements' | 'repartition'} code */
+  /** @param {'vente' | 'date' | 'formule' | 'montant' | 'commission' | 'paiements' | 'repartition' | 'email'} code */
   const refus = (code) => /** @type {const} */ ({ ok: false, erreur: code });
   if (!brut || typeof brut !== 'object') return refus('vente');
   const date = typeof brut.date === 'string' ? brut.date : '';
@@ -211,6 +215,10 @@ export function normaliserVente(brut, { aujourdHui }) {
   if (!montant) return refus('montant');
   const commission = lireMontant(brut.commission ?? 0);
   if (commission === undefined || (commission ?? 0) > montant) return refus('commission');
+  // L'email de l'élève est facultatif : sans lui, la vente compte, mais rien ne bouge dans ActiveCampaign.
+  const emailSaisi = typeof brut.email === 'string' ? brut.email.trim() : '';
+  const email = emailSaisi ? nettoyerEmail(emailSaisi) : '';
+  if (emailSaisi && !email) return refus('email');
 
   const lignes = Array.isArray(brut.paiements) ? brut.paiements : [];
   if (lignes.length < 1 || lignes.length > PAIEMENTS_MAX) return refus('paiements');
@@ -231,7 +239,7 @@ export function normaliserVente(brut, { aujourdHui }) {
 
   return {
     ok: true,
-    vente: { date, formule: brut.formule, montant, commission: commission ?? 0, paiements, note: texteCourt(brut.note, NOTE_VENTE_MAX) },
+    vente: { date, formule: brut.formule, montant, commission: commission ?? 0, paiements, note: texteCourt(brut.note, NOTE_VENTE_MAX), email },
   };
 }
 

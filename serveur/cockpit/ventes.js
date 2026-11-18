@@ -3,6 +3,8 @@
  * Cockpit : enregistrer, modifier ou supprimer une vente, et tenir la liste des
  * closers. Chaque réponse rend le « bloc ventes » du mois affiché, recalculé :
  * la page n'a pas à redemander les autres sources (Meta, Wistia, iClosed).
+ * Une vente qui porte l'email de l'élève la fait passer en « Client » dans
+ * ActiveCampaign et envoie l'événement « Achat » à Meta (serveur/cockpit/suivi-vente.js).
  */
 import { jourParis, moisCourant, moisValide } from '../../partage/cockpit.js';
 import { calculerVentes, NOM_CLOSER_MAX, normaliserVente, texteCourt } from '../../partage/ventes.js';
@@ -10,6 +12,7 @@ import { repondre } from '../reponse.js';
 import { memeOrigine } from '../requete.js';
 import { verifierAcces } from './acces.js';
 import { ecrireRegistre, lireRegistre } from './registre.js';
+import { suivreVente } from './suivi-vente.js';
 
 /** Identifiant d'une fiche : lettres, chiffres et tirets seulement. */
 const ID = /^[a-z0-9-]{8,40}$/;
@@ -61,17 +64,22 @@ const moisDemande = (texte, maintenant = new Date()) => (moisValide(texte) ? Str
  * POST /api/cockpit/vente : enregistre une vente ({ mois, vente, closerNom? }) ;
  * avec `vente.id`, modifie la vente existante. Un nom de closer inconnu crée le
  * closer, qui se choisira ensuite dans la liste.
- * DELETE /api/cockpit/vente?id=…&mois=… : supprime une vente.
+ * POST { mois, renvoyer: id } : relance ce que la vente devait déclencher
+ * (ActiveCampaign, Meta) et qui n'a pas abouti.
+ * DELETE /api/cockpit/vente?id=…&mois=… : supprime une vente (rien n'est défait
+ * dans ActiveCampaign ni chez Meta).
  * @param {Request} request
  * @param {object} [contexte]
  * @param {Record<string, string | undefined>} [contexte.env]
  * @param {typeof fetch} [contexte.fetchImpl]
  * @param {Date} [contexte.maintenant]
  * @param {() => string} [contexte.identifiant]
+ * @param {Pick<Console, 'warn' | 'error'>} [contexte.journal]
+ * @param {(ms: number) => Promise<void>} [contexte.attente]
  * @returns {Promise<Response>}
  */
 export async function traiterVente(request, contexte = {}) {
-  const { env = {}, fetchImpl = fetch, maintenant = new Date(), identifiant = () => crypto.randomUUID() } = contexte;
+  const { env = {}, fetchImpl = fetch, maintenant = new Date(), identifiant = () => crypto.randomUUID(), journal = console, attente } = contexte;
   const ouverture = await ouvrir(request, ['POST', 'DELETE'], { env, fetchImpl });
   if (ouverture.refus) return ouverture.refus;
   const { registre } = ouverture;
@@ -86,6 +94,18 @@ export async function traiterVente(request, contexte = {}) {
   }
 
   const demande = await corpsJson(request);
+
+  // Relancer ce qu'une vente devait déclencher : seul ce qui n'a pas abouti est refait.
+  if (typeof demande?.renvoyer === 'string') {
+    const existante = registre.ventes.find((vente) => vente.id === demande.renvoyer);
+    if (!existante) return repondre(404, { ok: false, erreur: 'vente' });
+    const suivi = await suivreVente({ env, vente: existante, ancienne: existante, fetchImpl, maintenant, journal, attente });
+    const relancee = suivi ? { ...existante, suivi } : existante;
+    if (suivi && (await ecrireRegistre(env, { vente: relancee }, { fetchImpl })) !== 'ok') return repondre(502, { ok: false, erreur: 'indisponible' });
+    const apres = { ...registre, ventes: registre.ventes.map((vente) => (vente.id === relancee.id ? relancee : vente)) };
+    return repondre(200, { ok: true, id: relancee.id, ...blocVentes(apres, moisDemande(demande?.mois, maintenant), maintenant) });
+  }
+
   const lue = normaliserVente(demande?.vente, { aujourdHui: jourParis(maintenant) });
   if (!lue.ok) return repondre(400, { ok: false, erreur: lue.erreur });
 
@@ -105,15 +125,25 @@ export async function traiterVente(request, contexte = {}) {
   const ancienne = typeof demande.vente.id === 'string' ? registre.ventes.find((vente) => vente.id === demande.vente.id) : undefined;
   if (demande.vente.id != null && !ancienne) return repondre(404, { ok: false, erreur: 'vente' });
   const instant = maintenant.toISOString();
-  const vente = {
+  /** @type {import('../../partage/ventes.js').Vente & { id: string }} */
+  let vente = {
     ...lue.vente,
     id: ancienne?.id ?? identifiant(),
     closer: closer.id,
     closerNom: closer.nom,
     creeLe: ancienne?.creeLe ?? instant,
     ...(ancienne ? { modifieLe: instant } : {}),
+    // Ce que la vente a déjà déclenché reste noté tant que l'élève est la même.
+    ...(ancienne?.suivi && ancienne.email === lue.vente.email ? { suivi: ancienne.suivi } : {}),
   };
+  // La vente est d'abord enregistrée : elle ne dépend jamais d'ActiveCampaign ni de Meta.
   if ((await ecrireRegistre(env, { vente, closer: nouveauCloser }, { fetchImpl })) !== 'ok') return repondre(502, { ok: false, erreur: 'indisponible' });
+  const suivi = await suivreVente({ env, vente, ancienne, fetchImpl, maintenant, journal, attente });
+  if (suivi) {
+    vente = { ...vente, suivi };
+    // Si cette seconde écriture échoue, la vente reste enregistrée ; son suivi se relance depuis la liste.
+    await ecrireRegistre(env, { vente }, { fetchImpl });
+  }
 
   const suite = {
     ventes: [...registre.ventes.filter((v) => v.id !== vente.id), vente],

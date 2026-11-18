@@ -3,8 +3,11 @@
  * Cockpit : le registre des ventes et la liste des closers, rangés dans la même
  * base que les compteurs du tunnel (Upstash Redis). Chaque vente et chaque
  * closer est une fiche, sous son identifiant.
- * Rien ici ne décrit une élève : une vente porte une date, une formule, des
- * montants, un closer et une note libre.
+ * Une vente porte une date, une formule, des montants, un closer, une note
+ * libre et, si elle a été saisie, l'adresse email de l'élève : c'est elle qui la
+ * fait passer en « Client » dans ActiveCampaign et qui rattache la vente à sa
+ * publicité. C'est la seule donnée personnelle de cette base ; elle ne sort que
+ * vers le cockpit, pour une session ouverte.
  */
 import { accesCompteurs, executer } from '../../partage/compteurs.js';
 

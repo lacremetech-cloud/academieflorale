@@ -1,166 +1,40 @@
 // @ts-check
 /**
- * Réception du webhook iClosed : à chaque appel réservé pour le tunnel VSL, met à
- * jour la fiche ActiveCampaign (tag de rendez-vous, « Prise de RDV », « Nom de
- * l'event »), sans Make ni outil intermédiaire.
+ * Suivi des rendez-vous : à chaque appel réservé pour le tunnel VSL dans iClosed,
+ * - la fiche ActiveCampaign reçoit le tag de rendez-vous, « Prise de RDV » = VSL
+ *   (ce qui lance « Onboarding Call » et arrête la séquence d'emails) et « Nom de l'event » ;
+ * - Meta reçoit l'événement « Rendez-vous programmé » (API de conversion) ;
+ * - le cockpit retient l'appel, pour ne jamais le traiter deux fois.
+ * Une annulation pose le tag d'annulation.
+ *
+ * Le serveur va lui-même lire les appels récents dans iClosed, avec la clé du
+ * cockpit (ICLOSED_API_KEY). Il ne fait donc confiance à aucun message reçu :
+ * /api/booking n'est qu'un signal « va voir », envoyé toutes les dix minutes par
+ * Vercel, par le webhook d'iClosed s'il est réglé, et par la page merci call.
+ * Son contenu est ignoré : il n'y a pas de secret à partager avec iClosed.
  *
  * Règles :
- * - l'adresse est protégée par un secret, gardé dans les variables d'environnement ;
- * - seuls les events iClosed du tunnel VSL et les déclencheurs attendus sont traités ;
- * - aucune donnée personnelle dans les journaux ;
- * - sur une preview, on n'écrit dans ActiveCampaign que pour l'adresse de test.
- *
- * iClosed ne publie pas d'exemple complet de ses webhooks (ils sont en bêta) : la
- * lecture est donc tolérante sur l'emplacement des champs. Quand elle ne trouve pas
- * ce qu'il lui faut, elle journalise la forme reçue (les noms des champs, jamais
- * leurs valeurs) pour qu'on puisse l'ajuster à la recette.
+ * - aucune donnée personnelle dans les journaux ni dans la base (empreinte de l'email seulement) ;
+ * - hors production, rien n'est écrit, sauf dans ActiveCampaign pour l'adresse de test ;
+ * - aucun appel réservé avant le début du suivi n'est repris.
  */
-import { createHash, timingSafeEqual } from 'node:crypto';
+import { clePub, joursEntre } from '../partage/attribution.js';
+import { jourParis } from '../partage/cockpit.js';
+import { accesCompteurs, executer } from '../partage/compteurs.js';
+import { DOMAINE_PUBLIC } from '../partage/site.js';
 import { nettoyerEmail } from '../partage/validation.js';
 import { synchroniserContact } from './activecampaign.js';
+import { empreinteEmail } from './empreinte.js';
+import { demander, ErreurIclosed, estAnnule, instantDe, lireAppels, lister, trouverEvent, utmDe } from './iclosed.js';
+import { accesConversions, construireEvenement, envoiPermis, envoyerEvenement } from './meta-conversions.js';
+import { CHAMPS, RDV_RECUL_MS, SUIVI_DEPUIS, TAGS } from './reglages.js';
 import { repondre } from './reponse.js';
-import { CHAMPS, DECLENCHEURS, EVENTS_ICLOSED, SECRET_MIN, TAGS, TAILLE_MAX_WEBHOOK } from './reglages.js';
+import { CLE_VERROU_RDV, cleRdv, lireInscriptions, noterEtat } from './suivi.js';
 
 /** Longueur maximale du nom d'event écrit dans ActiveCampaign. */
 const NOM_EVENT_MAX = 120;
-
-/**
- * Nom de champ ramené à l'essentiel : « event_type », « eventType » et « Event Type »
- * deviennent tous « eventtype ».
- * @param {string} nom
- */
-const essentiel = (nom) => nom.toLowerCase().replace(/[^a-z0-9]/g, '');
-
-/**
- * Parcourt la charge utile en largeur : les champs les plus proches de la racine
- * sortent en premier. Borné, pour qu'une charge anormale ne coûte rien.
- * @param {unknown} racine
- * @returns {Generator<[string, unknown]>} couples (nom ramené à l'essentiel, valeur)
- */
-function* champs(racine) {
-  const file = [racine];
-  let vus = 0;
-  while (file.length > 0 && vus < 2000) {
-    const noeud = file.shift();
-    if (!noeud || typeof noeud !== 'object') continue;
-    for (const [nom, valeur] of Object.entries(noeud)) {
-      vus += 1;
-      yield [essentiel(nom), valeur];
-      if (valeur && typeof valeur === 'object') file.push(valeur);
-    }
-  }
-}
-
-/**
- * Premier texte non vide trouvé sous l'un de ces noms, où qu'il soit.
- * @param {unknown} racine
- * @param {string[]} noms
- */
-function texte(racine, noms) {
-  for (const [nom, valeur] of champs(racine)) {
-    if (noms.includes(nom) && typeof valeur === 'string' && valeur.trim() !== '') return valeur.trim();
-  }
-  return '';
-}
-
-/**
- * Texte d'un champ de cet objet, sans descendre plus bas.
- * @param {object} objet
- * @param {string[]} noms
- */
-function texteDirect(objet, noms) {
-  for (const [nom, valeur] of Object.entries(objet)) {
-    if (noms.includes(essentiel(nom)) && typeof valeur === 'string' && valeur.trim() !== '') return valeur.trim();
-  }
-  return '';
-}
-
-/**
- * Premier objet trouvé sous l'un de ces noms, où qu'il soit.
- * @param {unknown} racine
- * @param {string[]} noms
- * @returns {object | null}
- */
-function objet(racine, noms) {
-  for (const [nom, valeur] of champs(racine)) {
-    if (noms.includes(nom) && valeur && typeof valeur === 'object' && !Array.isArray(valeur)) return valeur;
-  }
-  return null;
-}
-
-/**
- * Ce qu'il faut savoir d'un webhook iClosed.
- * L'email est celui de l'invitée : jamais celui du closer ni du setter, qui
- * figurent aussi dans la charge utile.
- * @param {unknown} donnees
- * @returns {{ type: 'reserve' | 'annule' | 'autre' | '', event: string, nomEvent: string, email: string }}
- */
-export function lireReservation(donnees) {
-  const declencheur = texte(donnees, ['hooktype', 'trigger', 'triggername']).toLowerCase();
-  /** @type {'reserve' | 'annule' | 'autre' | ''} */
-  let type = '';
-  if (DECLENCHEURS.reserve.includes(declencheur)) type = 'reserve';
-  else if (DECLENCHEURS.annule.includes(declencheur)) type = 'annule';
-  else if (declencheur) type = 'autre';
-
-  const typeEvent = objet(donnees, ['eventtype', 'eventtypedata']);
-  const slug = (typeEvent ? texteDirect(typeEvent, ['slug']) : '') || texte(donnees, ['eventtypeslug', 'eventslug']);
-  const nom = (typeEvent ? texteDirect(typeEvent, ['name']) : '') || texte(donnees, ['eventtypename', 'eventname']);
-
-  const invitee = objet(donnees, ['invitee', 'inviteedata']);
-  const email =
-    (invitee ? texteDirect(invitee, ['email', 'inviteeemail', 'emailaddress']) : '') ||
-    texte(donnees, ['inviteeemail']);
-
-  // Le nom de l'event dans son adresse : on garde le dernier segment, sans paramètres.
-  const event = (slug.split(/[?#]/)[0] ?? '').split('/').filter(Boolean).pop() ?? '';
-
-  return {
-    type,
-    event: event.toLowerCase(),
-    nomEvent: nom
-      .replace(/[\u0000-\u001f\u007f]/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .slice(0, NOM_EVENT_MAX),
-    email: nettoyerEmail(email),
-  };
-}
-
-/**
- * Forme d'une charge utile : les noms de ses champs, jamais leurs valeurs.
- * Un nom inhabituel (le texte d'une question du formulaire, par exemple) n'est
- * pas recopié.
- * @param {unknown} donnees
- * @param {number} [profondeurMax]
- * @param {number} [limite]
- * @returns {string[]}
- */
-export function forme(donnees, profondeurMax = 3, limite = 80) {
-  /** @type {Set<string>} */
-  const chemins = new Set();
-  /**
-   * @param {unknown} noeud
-   * @param {string} prefixe
-   * @param {number} profondeur
-   */
-  const visiter = (noeud, prefixe, profondeur) => {
-    if (!noeud || typeof noeud !== 'object') return;
-    if (Array.isArray(noeud)) {
-      if (noeud.length > 0) visiter(noeud[0], `${prefixe}[]`, profondeur);
-      return;
-    }
-    for (const [nom, valeur] of Object.entries(noeud)) {
-      if (chemins.size >= limite) return;
-      const propre = /^[A-Za-z0-9_#-]{1,40}$/.test(nom) && !/^\d{5,}$/.test(nom) ? nom : '«autre»';
-      const chemin = prefixe ? `${prefixe}.${propre}` : propre;
-      chemins.add(chemin);
-      if (profondeur < profondeurMax) visiter(valeur, chemin, profondeur + 1);
-    }
-  };
-  visiter(donnees, '', 1);
-  return [...chemins];
-}
+/** Durée du verrou, en secondes : deux passages ne se marchent jamais dessus. */
+const VERROU_S = 25;
 
 /**
  * Prépare la mise à jour envoyée à ActiveCampaign. La fiche est retrouvée par son
@@ -178,127 +52,251 @@ export function construireContactRdv({ email, nomEvent = '', annule = false }) {
   return { email, fieldValues, tags: [TAGS.rdv] };
 }
 
-/**
- * Secret présenté par l'appelant. iClosed ne documente pas d'en-tête : le secret
- * se place alors dans l'adresse du webhook (…/api/booking?cle=…). Les deux
- * en-têtes restent acceptés pour un outil qui saurait les envoyer.
- * @param {Request} request
- */
-function secretRecu(request) {
-  const enTete = request.headers.get('x-webhook-secret');
-  if (enTete) return enTete.trim();
-  const autorisation = request.headers.get('authorization') ?? '';
-  if (autorisation.toLowerCase().startsWith('bearer ')) return autorisation.slice(7).trim();
-  return new URL(request.url).searchParams.get('cle') ?? '';
-}
+/** @param {unknown} brut */
+const nomEventPropre = (brut) =>
+  (typeof brut === 'string' ? brut : '')
+    .replace(/[\u0000-\u001f\u007f]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, NOM_EVENT_MAX);
 
 /**
- * Comparaison à durée constante : le temps de réponse ne renseigne pas sur le secret.
- * @param {string} recu
- * @param {string} attendu
+ * Ce que la base retient d'un appel suivi.
+ * @typedef {object} FicheRdv
+ * @property {'reserve' | 'annule'} etat
+ * @property {number} t instant de la réservation
+ * @property {string} jour jour de la réservation, à Paris
+ * @property {string} h empreinte de l'email, '' sans email
+ * @property {string} pub clé de la publicité d'arrivée, '' si inconnue
+ * @property {number | null} delai jours entre l'inscription et la réservation
+ * @property {0 | 1} ac 1 quand ActiveCampaign est à jour
+ * @property {number} meta 1 : envoyé à Meta ; 0 : à envoyer ; -1 : sans accord ; -2 : trop ancien
  */
-function memeSecret(recu, attendu) {
-  const a = createHash('sha256').update(recu).digest();
-  const b = createHash('sha256').update(attendu).digest();
-  return timingSafeEqual(a, b);
-}
 
 /**
- * @param {Request} request
+ * Lit les appels récents de l'event du tunnel et traite ceux qui ne l'ont pas été.
  * @param {object} [contexte]
  * @param {Record<string, string | undefined>} [contexte.env]
  * @param {typeof fetch} [contexte.fetchImpl]
+ * @param {Date} [contexte.maintenant]
  * @param {Pick<Console, 'warn' | 'error'>} [contexte.journal]
  * @param {(ms: number) => Promise<void>} [contexte.attente]
+ * @returns {Promise<{ etat: 'ok' | 'a-brancher' | 'occupe' | 'erreur', vus?: number, nouveaux?: number, annules?: number, echecs?: number, simulation?: boolean }>}
+ */
+export async function synchroniserRdv(contexte = {}) {
+  const { env = {}, fetchImpl = fetch, maintenant = new Date(), journal = console, attente } = contexte;
+  const cle = (env.ICLOSED_API_KEY ?? '').trim();
+  if (!cle) return { etat: 'a-brancher' };
+  const production = env.VERCEL_ENV === 'production';
+  const base = accesCompteurs(env);
+  // En production, la base est indispensable : elle retient les appels déjà traités.
+  if (production && !base) return { etat: 'a-brancher' };
+  const instant = maintenant.getTime();
+
+  if (production && base) {
+    try {
+      const [pose] = await executer(base, [['SET', CLE_VERROU_RDV, String(instant), 'NX', 'EX', String(VERROU_S)]], fetchImpl, 2500);
+      if (pose !== 'OK') return { etat: 'occupe' };
+    } catch {
+      return { etat: 'erreur' };
+    }
+  }
+
+  /** @type {any[]} */
+  let appels;
+  try {
+    const event = await trouverEvent(cle, fetchImpl);
+    if (!event) {
+      journal.error('booking : event du tunnel introuvable dans iClosed');
+      return { etat: 'erreur' };
+    }
+    const commun = { eventIds: event, eventType: 'ALL' };
+    const debut = new Date(instant - RDV_RECUL_MS).toISOString();
+    const fin = new Date(instant + 86400000).toISOString();
+    // Les appels réservés récemment, et ceux qui ont changé récemment (annulations).
+    const [recents, modifies] = await Promise.all([
+      lister('/v1/eventCalls', { ...commun, createdAtStart: debut, createdAtEnd: fin }, 100, lireAppels, cle, fetchImpl),
+      demander('/v1/eventCalls', { ...commun, orderColumn: 'updatedAt', orderBy: 'desc', limit: '50', page: '0' }, cle, fetchImpl).then(
+        (corps) => (Array.isArray(lireAppels(corps).lignes) ? /** @type {any[]} */ (lireAppels(corps).lignes) : []),
+      ),
+    ]);
+    const parId = new Map();
+    for (const appel of [...recents, ...modifies]) {
+      const id = String(appel?.id ?? '');
+      const cree = instantDe(appel?.createdAt);
+      const modifie = instantDe(appel?.updatedAt ?? appel?.createdAt);
+      if (!/^[\w-]{1,60}$/.test(id) || Number.isNaN(cree)) continue;
+      // Ni les appels d'avant le suivi, ni ceux qui n'ont pas bougé depuis trois jours.
+      if (cree < Date.parse(SUIVI_DEPUIS) || Math.max(cree, Number.isNaN(modifie) ? cree : modifie) < instant - RDV_RECUL_MS) continue;
+      parId.set(id, appel);
+    }
+    appels = [...parId.values()];
+  } catch (erreur) {
+    journal.error('booking : lecture d’iClosed impossible', { motif: erreur instanceof ErreurIclosed ? 'refus' : 'reseau' });
+    return { etat: 'erreur' };
+  }
+
+  // Ce que la base sait déjà de ces appels (en production seulement).
+  /** @type {Map<string, FicheRdv>} */
+  const connus = new Map();
+  /** @param {any} appel */
+  const moisDe = (appel) => jourParis(instantDe(appel.createdAt)).slice(0, 7);
+  if (production && base && appels.length > 0) {
+    /** @type {Map<string, string[]>} */
+    const parMois = new Map();
+    for (const appel of appels) parMois.set(moisDe(appel), [...(parMois.get(moisDe(appel)) ?? []), String(appel.id)]);
+    try {
+      const mois = [...parMois.keys()];
+      const lus = await executer(base, mois.map((m) => ['HMGET', cleRdv(m), ...(parMois.get(m) ?? [])]), fetchImpl, 4000);
+      mois.forEach((m, rang) => {
+        (parMois.get(m) ?? []).forEach((id, place) => {
+          try {
+            const fiche = typeof lus[rang]?.[place] === 'string' ? JSON.parse(lus[rang][place]) : null;
+            if (fiche && typeof fiche === 'object') connus.set(id, fiche);
+          } catch {
+            /* fiche illisible : l'appel sera retraité */
+          }
+        });
+      });
+    } catch {
+      // Sans la mémoire des appels déjà traités, mieux vaut ne rien faire que tout refaire.
+      return { etat: 'erreur' };
+    }
+  }
+
+  const adresseDeTest = nettoyerEmail(env.LEAD_TEST_EMAIL ?? '');
+  const acRegle = Boolean(env.ACTIVECAMPAIGN_API_URL && env.ACTIVECAMPAIGN_API_KEY);
+  const metaRegle = production && accesConversions(env) !== null;
+  const emails = appels.map((appel) => nettoyerEmail(appel?.inviteeEmail ?? appel?.contact?.email ?? ''));
+  const inscriptions = production ? await lireInscriptions(env, emails.filter(Boolean), { fetchImpl, avecContexte: true }) : new Map();
+
+  /** @param {string} email @param {Record<string, unknown>} contact */
+  const ecrireAC = async (email, contact) => {
+    if (!acRegle || !(production || (adresseDeTest && email === adresseDeTest))) return false;
+    const resultat = await synchroniserContact({
+      apiUrl: String(env.ACTIVECAMPAIGN_API_URL),
+      apiKey: String(env.ACTIVECAMPAIGN_API_KEY),
+      contact,
+      fetchImpl,
+      ...(attente ? { attente } : {}),
+    });
+    // Jamais d'email ici.
+    if (!resultat.ok) journal.error('booking : échec ActiveCampaign', { statut: resultat.statut, motif: resultat.motif ?? 'refus' });
+    return resultat.ok;
+  };
+
+  let nouveaux = 0;
+  let annules = 0;
+  let echecs = 0;
+  /** @type {(string | number)[][]} */
+  const ecritures = [];
+
+  for (const [rang, appel] of appels.entries()) {
+    const id = String(appel.id);
+    const email = emails[rang] ?? '';
+    const empreinte = email ? empreinteEmail(email) : '';
+    const connu = connus.get(id);
+    const annule = estAnnule(appel);
+    const reserveLe = instantDe(appel.createdAt);
+    const suivi = inscriptions.get(empreinte);
+
+    if (connu?.etat === 'annule') continue;
+    if (connu && !annule && connu.ac === 1 && (connu.meta === 1 || connu.meta === -2 || !metaRegle)) continue;
+
+    const avant = connu ? JSON.stringify(connu) : '';
+    /** @type {FicheRdv} */
+    const fiche = connu ?? {
+      etat: annule ? 'annule' : 'reserve',
+      t: reserveLe,
+      jour: jourParis(reserveLe),
+      h: empreinte,
+      pub: suivi?.inscription?.pub || clePub(utmDe(appel)),
+      delai: suivi?.inscription ? joursEntre(suivi.inscription.jour, jourParis(reserveLe)) : null,
+      ac: 0,
+      meta: 0,
+    };
+
+    if (annule) {
+      // Un appel annulé avant d'avoir été vu ne laisse aucune trace ailleurs que dans la base.
+      if (connu) {
+        if (email && !(await ecrireAC(email, construireContactRdv({ email, annule: true })))) {
+          echecs += 1;
+          continue;
+        }
+      }
+      fiche.etat = 'annule';
+      annules += 1;
+    } else {
+      if (!connu) nouveaux += 1;
+      if (email && fiche.ac !== 1) {
+        const nomEvent = nomEventPropre(appel?.event?.name) || 'candidature-vsl';
+        fiche.ac = (await ecrireAC(email, construireContactRdv({ email, nomEvent }))) ? 1 : 0;
+        if (fiche.ac === 0 && acRegle && (production || email === adresseDeTest)) echecs += 1;
+      }
+      if (email && metaRegle && fiche.meta !== 1 && fiche.meta !== -2) {
+        if (!envoiPermis(suivi?.inscription?.accord === 1)) {
+          fiche.meta = -1;
+        } else {
+          const surLeSite = Boolean(suivi?.contexte?.ua);
+          const resultat = await envoyerEvenement(
+            env,
+            construireEvenement({
+              nom: 'Schedule',
+              id: `rdv-${id}`,
+              instant: new Date(reserveLe),
+              origine: surLeSite ? 'website' : 'other',
+              adresse: `${DOMAINE_PUBLIC}/call`,
+              personne: {
+                email,
+                telephone: typeof appel?.phoneNumber === 'string' ? appel.phoneNumber : '',
+                ip: suivi?.contexte?.ip,
+                ua: suivi?.contexte?.ua,
+                fbp: suivi?.contexte?.fbp,
+                fbc: suivi?.inscription?.fbc,
+              },
+            }),
+            { fetchImpl, maintenant },
+          );
+          fiche.meta = resultat.etat === 'ok' ? 1 : resultat.etat === 'trop-ancien' ? -2 : 0;
+          if (resultat.etat === 'erreur') {
+            echecs += 1;
+            journal.error('booking : échec de l’API de conversion', { statut: resultat.statut ?? 0 });
+          }
+          if (resultat.etat !== 'a-brancher') {
+            await noterEtat(env, 'conversions', { t: maintenant.toISOString(), nom: 'Schedule', ok: resultat.etat === 'ok', detail: resultat.detail ?? '' }, { fetchImpl });
+          }
+        }
+      }
+    }
+    // Seul ce qui a changé est réécrit.
+    if (JSON.stringify(fiche) !== avant) ecritures.push(['HSET', cleRdv(moisDe(appel)), id, JSON.stringify(fiche)]);
+  }
+
+  if (production && base) {
+    try {
+      if (ecritures.length > 0) await executer(base, ecritures, fetchImpl, 4000);
+    } catch {
+      journal.error('booking : la base n’a pas retenu les appels traités');
+      echecs += 1;
+    }
+    await noterEtat(env, 'rdv', { t: maintenant.toISOString(), vus: appels.length, nouveaux, annules, echecs }, { fetchImpl });
+  }
+  return { etat: 'ok', vus: appels.length, nouveaux, annules, echecs, simulation: !production };
+}
+
+/**
+ * GET ou POST /api/booking : lance le suivi des rendez-vous. Le contenu de la
+ * demande est ignoré, et la réponse ne dit rien des appels.
+ * @param {Request} request
+ * @param {Parameters<typeof synchroniserRdv>[0]} [contexte]
  * @returns {Promise<Response>}
  */
-export async function traiterReservation(request, contexte = {}) {
-  const { env = {}, fetchImpl = fetch, journal = console, attente } = contexte;
-
-  if (request.method !== 'POST') return repondre(405, { ok: false, erreur: 'methode' }, { Allow: 'POST' });
-
-  // Sans secret réglé, la fonction reste fermée.
-  const secret = (env.ICLOSED_WEBHOOK_SECRET ?? '').trim();
-  if (secret.length < SECRET_MIN) {
-    journal.error('booking : secret du webhook absent ou trop court');
-    return repondre(503, { ok: false, erreur: 'indisponible' });
+export async function traiterRdv(request, contexte = {}) {
+  if (request.method !== 'GET' && request.method !== 'POST') {
+    return repondre(405, { ok: false, erreur: 'methode' }, { Allow: 'GET, POST' });
   }
-  if (!memeSecret(secretRecu(request), secret)) return repondre(401, { ok: false, erreur: 'acces' });
-
-  let corps;
-  try {
-    corps = await request.text();
-  } catch {
-    return repondre(400, { ok: false, erreur: 'format' });
-  }
-  if (corps.length > TAILLE_MAX_WEBHOOK) return repondre(413, { ok: false, erreur: 'format' });
-
-  /** @type {unknown} */
-  let donnees;
-  try {
-    donnees = JSON.parse(corps);
-    if (!donnees || typeof donnees !== 'object') throw new Error('format');
-  } catch {
-    journal.warn('booking : corps illisible', { type: (request.headers.get('content-type') ?? '').slice(0, 60) });
-    return repondre(400, { ok: false, erreur: 'format' });
-  }
-
-  const reservation = lireReservation(donnees);
-
-  // Autres déclencheurs (contact créé, appel déplacé…) : rien à écrire.
-  if (reservation.type !== 'reserve' && reservation.type !== 'annule') {
-    if (reservation.type === '') {
-      journal.warn('booking : webhook non reconnu', { manque: 'declencheur', forme: forme(donnees) });
-    }
-    return repondre(200, { ok: true, ignore: 'declencheur' });
-  }
-
-  // Autres events du compte iClosed (webinaire, autres tunnels) : rien à écrire.
-  if (!EVENTS_ICLOSED.includes(reservation.event)) {
-    if (reservation.event === '') {
-      journal.warn('booking : webhook non reconnu', { manque: 'event', forme: forme(donnees) });
-    }
-    return repondre(200, { ok: true, ignore: 'event' });
-  }
-
-  if (!reservation.email) {
-    journal.warn('booking : webhook non reconnu', { manque: 'email', forme: forme(donnees) });
-    return repondre(422, { ok: false, erreur: 'email' });
-  }
-
-  // Previews et développement : aucune écriture, sauf pour l'adresse de test.
-  if ((env.VERCEL_ENV ?? 'development') !== 'production') {
-    const adresseDeTest = nettoyerEmail(env.LEAD_TEST_EMAIL ?? '');
-    if (!adresseDeTest || reservation.email !== adresseDeTest) return repondre(200, { ok: true, simulation: true });
-  }
-
-  if (!env.ACTIVECAMPAIGN_API_URL || !env.ACTIVECAMPAIGN_API_KEY) {
-    journal.error('booking : variables ActiveCampaign absentes');
-    return repondre(503, { ok: false, erreur: 'indisponible' });
-  }
-
-  const resultat = await synchroniserContact({
-    apiUrl: env.ACTIVECAMPAIGN_API_URL,
-    apiKey: env.ACTIVECAMPAIGN_API_KEY,
-    contact: construireContactRdv({
-      email: reservation.email,
-      // À défaut de nom, le nom de l'event dans son adresse.
-      nomEvent: reservation.nomEvent || reservation.event,
-      annule: reservation.type === 'annule',
-    }),
-    fetchImpl,
-    ...(attente ? { attente } : {}),
-  });
-
-  if (!resultat.ok) {
-    // Jamais d'email ici.
-    journal.error('booking : échec ActiveCampaign', {
-      statut: resultat.statut,
-      tentatives: resultat.tentatives,
-      motif: resultat.motif ?? 'refus',
-    });
-    return repondre(502, { ok: false, erreur: 'indisponible' });
-  }
-
+  const resultat = await synchroniserRdv(contexte);
+  if (resultat.etat === 'a-brancher') return repondre(503, { ok: false, erreur: 'indisponible' });
+  if (resultat.etat === 'erreur') return repondre(502, { ok: false, erreur: 'indisponible' });
   return repondre(200, { ok: true });
 }

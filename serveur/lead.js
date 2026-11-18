@@ -6,7 +6,9 @@
  * Règles :
  * - aucune donnée personnelle dans les journaux ;
  * - sur une preview, on n'écrit dans ActiveCampaign que pour l'adresse de test ;
- * - un robot reçoit une réponse « tout va bien » et rien n'est écrit.
+ * - un robot reçoit une réponse « tout va bien » et rien n'est écrit ;
+ * - le cockpit (compteur d'inscrites, publicité d'arrivée) et l'API de conversion
+ *   Meta ne sont servis qu'en production, après la réponse à la visiteuse.
  */
 import {
   nettoyerEmail,
@@ -15,6 +17,7 @@ import {
   nettoyerTelephone,
   nettoyerUTM,
 } from '../partage/validation.js';
+import { DOMAINE_PUBLIC } from '../partage/site.js';
 import { synchroniserContact } from './activecampaign.js';
 import { repondre } from './reponse.js';
 import { adresseCliente, memeOrigine } from './requete.js';
@@ -98,6 +101,44 @@ export function construireContact({ prenom, email, telephone, source, utm, page 
 }
 
 /**
+ * Ce que le suivi reçoit d'une inscription réussie (publicité d'arrivée, API de conversion).
+ * @typedef {object} InscriptionSuivie
+ * @property {string} email
+ * @property {string} prenom
+ * @property {string} telephone
+ * @property {string} variante formulation de la landing
+ * @property {Record<string, string>} utm
+ * @property {boolean} accord vrai si la visiteuse a accepté la mesure publicitaire
+ * @property {string} ip
+ * @property {string} ua navigateur
+ * @property {string} fbp identifiant de navigateur posé par le pixel Meta, s'il y en a un
+ * @property {string} adresse page de l'inscription, sans paramètre
+ * @property {string} idEvenement identifiant de l'événement « Lead », commun au navigateur et au serveur
+ */
+
+/**
+ * La page d'où vient le formulaire, sans ses paramètres : c'est l'adresse donnée à
+ * Meta pour l'événement. Une page d'un autre site n'est jamais reprise.
+ * @param {Request} request
+ */
+function pageDuFormulaire(request) {
+  try {
+    const page = new URL(request.headers.get('referer') ?? '');
+    const hote = request.headers.get('x-forwarded-host') ?? request.headers.get('host') ?? '';
+    if (page.host.toLowerCase() === hote.toLowerCase() && /^\/[\w\-/]{0,120}$/.test(page.pathname)) return DOMAINE_PUBLIC + page.pathname;
+  } catch {
+    /* pas d'adresse lisible */
+  }
+  return `${DOMAINE_PUBLIC}/inscription`;
+}
+
+/** Le cookie « _fbp » du pixel Meta, s'il existe. @param {Request} request */
+function cookieFbp(request) {
+  const trouve = /(?:^|;\s*)_fbp=(fb\.\d\.\d{10,16}\.\d{1,20})(?:;|$)/.exec(request.headers.get('cookie') ?? '');
+  return trouve?.[1] ?? '';
+}
+
+/**
  * @param {Request} request
  * @param {object} [contexte]
  * @param {Record<string, string | undefined>} [contexte.env]
@@ -106,10 +147,21 @@ export function construireContact({ prenom, email, telephone, source, utm, page 
  * @param {(ms: number) => Promise<void>} [contexte.attente]
  * @param {{ autoriser: (cle: string) => boolean }} [contexte.limiteur]
  * @param {(evenement: string, variante: string) => void} [contexte.compter] compte l'inscription (cockpit)
+ * @param {(inscription: InscriptionSuivie) => void} [contexte.suivre] retient la publicité d'arrivée et prévient Meta
+ * @param {() => string} [contexte.identifiant]
  * @returns {Promise<Response>}
  */
 export async function traiterLead(request, contexte = {}) {
-  const { env = {}, fetchImpl = fetch, journal = console, attente, limiteur = limiteurParDefaut, compter } = contexte;
+  const {
+    env = {},
+    fetchImpl = fetch,
+    journal = console,
+    attente,
+    limiteur = limiteurParDefaut,
+    compter,
+    suivre,
+    identifiant = () => crypto.randomUUID(),
+  } = contexte;
 
   if (request.method !== 'POST') return repondre(405, { ok: false, erreur: 'methode' }, { Allow: 'POST' });
   if (!memeOrigine(request)) return repondre(403, { ok: false, erreur: 'origine' });
@@ -179,12 +231,13 @@ export async function traiterLead(request, contexte = {}) {
   }
 
   const page = nettoyerSlug(donnees.page);
+  const utm = nettoyerUTM(donnees.utm);
   const contact = construireContact({
     prenom,
     email,
     telephone,
     source: typeof donnees.source === 'string' ? donnees.source : '',
-    utm: nettoyerUTM(donnees.utm),
+    utm,
     page,
   });
 
@@ -206,11 +259,33 @@ export async function traiterLead(request, contexte = {}) {
     return repondre(502, { ok: false, erreur: 'indisponible' });
   }
 
-  // L'inscription est enregistrée : on la compte pour le cockpit, sans jamais faire échouer la réponse.
-  try {
-    compter?.('inscrits', page);
-  } catch {
-    /* le compteur ne doit jamais gêner une inscription */
+  // L'inscription est enregistrée. En production seulement (une inscription de test
+  // ne compte pas) : on la compte pour le cockpit, on retient sa publicité d'arrivée
+  // et on prévient Meta, sans jamais faire échouer la réponse.
+  if (env.VERCEL_ENV === 'production') {
+    try {
+      compter?.('inscrits', page);
+    } catch {
+      /* le compteur ne doit jamais gêner une inscription */
+    }
+    try {
+      const idRecu = typeof donnees.idEvenement === 'string' && /^[\w-]{8,64}$/.test(donnees.idEvenement) ? donnees.idEvenement : '';
+      suivre?.({
+        email,
+        prenom,
+        telephone,
+        variante: page,
+        utm,
+        accord: donnees.consentement === true,
+        ip: adresseCliente(request),
+        ua: (request.headers.get('user-agent') ?? '').slice(0, 400),
+        fbp: cookieFbp(request),
+        adresse: pageDuFormulaire(request),
+        idEvenement: idRecu || `lead-${identifiant()}`,
+      });
+    } catch {
+      /* le suivi ne doit jamais gêner une inscription */
+    }
   }
 
   return repondre(200, { ok: true });
