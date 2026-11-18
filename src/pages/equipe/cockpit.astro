@@ -1061,6 +1061,8 @@ import { FORMULES } from '../../../partage/ventes.js';
   const nomDuMois = new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric', timeZone: 'UTC' });
   const libelleJour = (date: string) => `${jourSemaine.format(new Date(`${date}T12:00:00Z`))} ${date.slice(8)}/${date.slice(5, 7)}`;
   const libelleMois = (mois: string) => nomDuMois.format(new Date(`${mois}-15T12:00:00Z`));
+  /** « de novembre 2026 », « d’octobre 2026 » : l'élision devant une voyelle. */
+  const deMois = (mois: string) => (/^[aeiouyàâéèêîôûh]/i.test(libelleMois(mois)) ? `d’${libelleMois(mois)}` : `de ${libelleMois(mois)}`);
 
   const creer = <K extends keyof HTMLElementTagNameMap>(balise: K, texte = '', classe = '') => {
     const element = document.createElement(balise);
@@ -1410,8 +1412,8 @@ import { FORMULES } from '../../../partage/ventes.js';
         return element;
       };
       cartes.replaceChildren(
-        carte(`Encaissements de ${libelleMois(d.mois)}`, argent(duMois.total), `Dont déjà encaissé : ${argent(duMois.encaisse)}`),
-        carte(`MRR de ${libelleMois(suivant?.mois ?? d.mois)}`, argent(suivant?.total ?? 0), 'Ce qui doit être encaissé le mois suivant'),
+        carte(`Encaissements ${deMois(d.mois)}`, argent(duMois.total), `Dont déjà encaissé : ${argent(duMois.encaisse)}`),
+        carte(`MRR ${deMois(suivant?.mois ?? d.mois)}`, argent(suivant?.total ?? 0), 'Ce qui doit être encaissé le mois suivant'),
         carte('Reste à encaisser', argent(d.aEncaisser), 'Toutes ventes confondues, après aujourd’hui'),
       );
     }
