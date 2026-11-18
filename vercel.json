@@ -6,26 +6,95 @@
   "cleanUrls": true,
   "trailingSlash": false,
   "functions": {
-    "api/*.js": { "maxDuration": 15 }
+    "api/*.js": {
+      "maxDuration": 15
+    }
   },
+  "redirects": [
+    {
+      "source": "/temoignage",
+      "destination": "/ressources/temoignage-amelie",
+      "permanent": false
+    },
+    {
+      "source": "/temoignage-2",
+      "destination": "/ressources/temoignage-claire",
+      "permanent": false
+    },
+    {
+      "source": "/temoignage-3",
+      "destination": "/ressources/temoignage-mahault",
+      "permanent": false
+    },
+    {
+      "source": "/explication",
+      "destination": "/ressources/pourquoi-academie-florale",
+      "permanent": false
+    },
+    {
+      "source": "/coaching",
+      "destination": "/ressources/extrait-coaching",
+      "permanent": false
+    },
+    {
+      "source": "/pro",
+      "destination": "/ressources/professionnelles",
+      "permanent": false
+    },
+    {
+      "source": "/07f1496a",
+      "destination": "/ressources/avis",
+      "permanent": false
+    }
+  ],
   "headers": [
     {
       "source": "/",
-      "headers": [{ "key": "X-Robots-Tag", "value": "noindex" }]
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex"
+        }
+      ]
     },
     {
       "source": "/pages/(.*)",
-      "headers": [{ "key": "X-Robots-Tag", "value": "noindex" }]
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex"
+        }
+      ]
     },
     {
       "source": "/equipe(.*)",
-      "headers": [{ "key": "X-Robots-Tag", "value": "noindex" }]
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex"
+        }
+      ]
+    },
+    {
+      "source": "/ressources/(.*)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex"
+        }
+      ]
     },
     {
       "source": "/api/(.*)",
       "headers": [
-        { "key": "X-Robots-Tag", "value": "noindex" },
-        { "key": "Cache-Control", "value": "no-store" }
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        }
       ]
     }
   ]

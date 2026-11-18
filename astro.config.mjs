@@ -1,14 +1,10 @@
 import { defineConfig } from 'astro/config';
 
-// Adresse publique du site, utile aux balises de partage (Open Graph).
-// Sur Vercel : le domaine de production en production, l'adresse de la preview sinon.
-const adresse =
-  process.env.SITE_URL ??
-  (process.env.VERCEL_ENV === 'production' && process.env.VERCEL_PROJECT_PRODUCTION_URL
-    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
-    : process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : 'http://localhost:4321');
+// Adresse publique du tunnel : c'est elle que portent les liens envoyés aux prospectes,
+// donc celle des balises de partage (Open Graph) des pages ressources.
+// À changer ici le jour où le tunnel change de domaine (ou par la variable SITE_URL).
+const DOMAINE_PUBLIC = 'https://decouvrir.academie-florale.fr';
+const adresse = process.env.SITE_URL ?? (process.env.VERCEL ? DOMAINE_PUBLIC : 'http://localhost:4321');
 
 export default defineConfig({
   site: adresse,

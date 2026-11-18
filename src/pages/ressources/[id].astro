@@ -1,0 +1,276 @@
+---
+/**
+ * Gabarit des pages ressources : une page par fichier de src/contenu/ressources/.
+ * L'équipe envoie leur lien à la main (WhatsApp, email) : aucune page du tunnel ne
+ * pointe vers elles, elles ne sortent pas dans Google et n'ont pas de formulaire.
+ * L'aperçu du lien (titre, phrase, image) est soigné : c'est lui qui donne envie d'ouvrir.
+ */
+import { getImage, Image } from 'astro:assets';
+import { getCollection, render } from 'astro:content';
+import type { GetStaticPaths } from 'astro';
+import Tunnel from '../../layouts/Tunnel.astro';
+import VideoWistia from '../../components/VideoWistia.astro';
+import partageParDefaut from '../../assets/partage-defaut.jpg';
+import { CHEMINS, MARQUE } from '../../reglages';
+import { insecables } from '../../scripts/typographie';
+
+export const getStaticPaths = (async () => {
+  const ressources = await getCollection('ressources');
+  return ressources.map((ressource) => ({ params: { id: ressource.id }, props: { ressource } }));
+}) satisfies GetStaticPaths;
+
+const { ressource } = Astro.props;
+const { type, titre, description, video, partage, citations, bouton } = ressource.data;
+const { Content } = await render(ressource);
+const aDuTexte = (ressource.body ?? '').trim() !== '';
+
+// Aperçu du lien : une image au format des aperçus (1200 × 630), à une adresse complète.
+const source = partage ?? video?.apercu ?? partageParDefaut;
+const largeur = Math.min(1200, source.width);
+const imagePartage = await getImage({
+  src: source,
+  width: largeur,
+  height: Math.round((largeur * 630) / 1200),
+  fit: 'cover',
+  format: 'jpg',
+  quality: 82,
+});
+const adresse = new URL(`${CHEMINS.ressources}/${ressource.id}`, Astro.site).href;
+const adresseImage = new URL(imagePartage.src, Astro.site).href;
+---
+
+<Tunnel titre={`${titre} · ${MARQUE}`} description={description} pied="compact">
+  <Fragment slot="tete">
+    <link rel="canonical" href={adresse} />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content={MARQUE} />
+    <meta property="og:locale" content="fr_FR" />
+    <meta property="og:title" content={titre} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={adresse} />
+    <meta property="og:image" content={adresseImage} />
+    <meta property="og:image:width" content={String(imagePartage.attributes.width)} />
+    <meta property="og:image:height" content={String(imagePartage.attributes.height)} />
+    <meta name="twitter:card" content="summary_large_image" />
+    {video && <link rel="preconnect" href="https://fast.wistia.com" />}
+  </Fragment>
+
+  <article class="conteneur ressource">
+    <header class="tete">
+      <p class="type">{type}{video?.duree && <span> · {video.duree}</span>}</p>
+      <h1>{insecables(titre)}</h1>
+    </header>
+
+    {
+      aDuTexte && (
+        <div class="texte">
+          <Content />
+        </div>
+      )
+    }
+
+    {
+      video && (
+        <div class="cadre">
+          <VideoWistia media={video.media} apercu={video.apercu} sujet={titre} format={video.format} />
+        </div>
+      )
+    }
+
+    {
+      citations.length > 0 && (
+        <ul class="citations" role="list">
+          {citations.map((citation) => (
+            <li>
+              <figure>
+                {citation.note && (
+                  <span class="etoiles" role="img" aria-label={`${citation.note} étoiles sur 5`}>
+                    {Array.from({ length: 5 }, (_, rang) => (
+                      <span class:list={['etoile', { vide: rang >= (citation.note ?? 0) }]}>★</span>
+                    ))}
+                  </span>
+                )}
+                <blockquote>«&nbsp;{insecables(citation.texte)}&nbsp;»</blockquote>
+                <figcaption>
+                  {citation.photo && (
+                    <Image src={citation.photo} alt="" width={48} height={48} densities={[1, 2, 3]} loading="lazy" />
+                  )}
+                  <span>
+                    <strong>{citation.nom}</strong>
+                    {citation.situation &&
+                      (citation.source ? (
+                        <a class="situation" href={citation.source} target="_blank" rel="noopener">
+                          {citation.situation}
+                        </a>
+                      ) : (
+                        <span class="situation">{citation.situation}</span>
+                      ))}
+                  </span>
+                </figcaption>
+              </figure>
+            </li>
+          ))}
+        </ul>
+      )
+    }
+
+    {
+      bouton === 'appel' && (
+        <div class="action">
+          <a class="bouton" href={CHEMINS.call} data-tunnel>
+            Je réserve mon appel gratuit
+          </a>
+          <p class="texte-secondaire">Tu as déjà réservé&nbsp;? Tu n’as rien de plus à faire.</p>
+        </div>
+      )
+    }
+
+    {
+      typeof bouton === 'object' && (
+        <div class="action">
+          <a class="bouton" href={bouton.adresse} target="_blank" rel="noopener">
+            {bouton.libelle}
+          </a>
+        </div>
+      )
+    }
+  </article>
+</Tunnel>
+
+<style>
+  .ressource {
+    display: grid;
+    justify-items: center;
+    gap: clamp(14px, 3vw, 24px);
+    max-width: calc(900px + 2 * var(--marge-page));
+    padding-bottom: clamp(26px, 6vw, 56px);
+    text-align: center;
+  }
+
+  .tete {
+    display: grid;
+    justify-items: center;
+    gap: clamp(8px, 1.6vw, 12px);
+    max-width: 44rem;
+  }
+
+  .type {
+    padding: 0.35em 1em;
+    border-radius: var(--rayon-bouton);
+    background: var(--jaune);
+    font-size: var(--corps-petit);
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  h1 {
+    font-size: clamp(1.6rem, 1.1rem + 2.6vw, 2.6rem);
+  }
+
+  .texte {
+    max-width: 38rem;
+    font-size: clamp(1rem, 0.94rem + 0.4vw, 1.2rem);
+    line-height: 1.5;
+    text-wrap: pretty;
+  }
+
+  .texte :global(p + p) {
+    margin-top: 0.8em;
+  }
+
+  /* La vidéo prend la largeur disponible, sans jamais dépasser la hauteur de l'écran. */
+  .cadre {
+    width: min(100%, calc((100svh - 150px) * 16 / 9));
+    min-width: min(100%, 280px);
+  }
+
+  /* Téléphone à l'horizontale : la vidéo occupe l'écran une fois qu'on a fait défiler le titre. */
+  @media (max-height: 480px) {
+    .cadre {
+      width: min(100%, calc((100svh - 24px) * 16 / 9));
+    }
+  }
+
+  .citations {
+    display: grid;
+    gap: 12px;
+    width: 100%;
+    max-width: 38rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    text-align: left;
+  }
+
+  .citations figure {
+    display: grid;
+    gap: 10px;
+    padding: 18px 20px;
+    border: 1px solid var(--trait);
+    border-radius: var(--rayon);
+    background: var(--blanc);
+  }
+
+  .citations blockquote {
+    margin: 0;
+    font-size: clamp(1.05rem, 0.98rem + 0.4vw, 1.25rem);
+    font-weight: 600;
+    line-height: 1.35;
+    text-wrap: pretty;
+  }
+
+  .citations figcaption {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: var(--corps-petit);
+    line-height: 1.3;
+  }
+
+  .citations figcaption :global(img) {
+    flex: none;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    object-fit: cover;
+  }
+
+  .situation {
+    display: block;
+    color: var(--encre-douce);
+  }
+
+  /* Étoiles d'un avis Trustpilot : blanches sur carrés verts. */
+  .etoiles {
+    display: inline-flex;
+    gap: 2px;
+    font-size: 0.95rem;
+  }
+
+  .etoile {
+    display: inline-grid;
+    place-items: center;
+    width: 1.35em;
+    height: 1.35em;
+    background: var(--vert-trustpilot);
+    color: var(--blanc);
+    font-size: 0.8em;
+    line-height: 1;
+  }
+
+  .etoile.vide {
+    background: var(--trait);
+  }
+
+  .action {
+    display: grid;
+    justify-items: center;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .action .bouton {
+    width: min(100%, 26rem);
+  }
+</style>

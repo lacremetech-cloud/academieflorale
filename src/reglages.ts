@@ -49,4 +49,8 @@ export const CHEMINS = {
   video: '/video',
   call: '/call',
   confirmation: '/confirmation',
+  /** Pages ressources, hors tunnel : /ressources/<nom>. */
+  ressources: '/ressources',
+  /** Bibliothèque de liens, réservée à l'équipe. */
+  equipe: '/equipe',
 } as const;

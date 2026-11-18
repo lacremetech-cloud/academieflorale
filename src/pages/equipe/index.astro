@@ -1,71 +1,296 @@
 ---
 /**
- * Espace réservé à l'équipe : pages internes, non indexées.
- * Le sommaire des pages ressources viendra ici à l'étape « ressources ».
+ * Bibliothèque de liens : toutes les adresses du tunnel et des pages ressources,
+ * à copier d'un clic. Page interne, non indexée, réservée à l'équipe.
+ * Les pages ressources s'y ajoutent toutes seules (src/contenu/ressources/).
  */
+import { getCollection } from 'astro:content';
 import Tunnel from '../../layouts/Tunnel.astro';
+import { LANDINGS } from '../../contenu/landings';
+import { CHEMINS } from '../../reglages';
+
+interface Lien {
+  titre: string;
+  chemin: string;
+  note?: string;
+  etiquette?: string;
+}
+
+const ressources = (await getCollection('ressources')).sort(
+  (a, b) => a.data.ordre - b.data.ordre || a.id.localeCompare(b.id),
+);
+
+const sections: { titre: string; intro: string; liens: Lien[] }[] = [
+  {
+    titre: 'Le tunnel',
+    intro: 'Les quatre pages, dans l’ordre du parcours.',
+    liens: [
+      {
+        etiquette: 'Landing',
+        titre: 'Inscription (l’adresse à mettre dans les pubs)',
+        chemin: CHEMINS.inscription,
+        note: `Chaque clic reçoit l’une des ${LANDINGS.length} formulations ci-dessous, à parts égales.`,
+      },
+      ...LANDINGS.map((landing) => ({
+        etiquette: 'Landing · formulation',
+        titre: landing.titre.replace(/\*/g, ''),
+        chemin: `${CHEMINS.inscription}/${landing.slug}`,
+        note: 'Adresse directe de cette formulation, pour la relire ou la montrer.',
+      })),
+      { etiquette: 'Vidéo', titre: 'La vidéo de vente (VSL)', chemin: CHEMINS.video },
+      { etiquette: 'Appel', titre: 'La réservation de l’appel (calendrier iClosed)', chemin: CHEMINS.call },
+      {
+        etiquette: 'Confirmation',
+        titre: 'La page merci call',
+        chemin: CHEMINS.confirmation,
+        note: 'iClosed y renvoie après une réservation. Ouverte directement, elle propose de réserver.',
+      },
+    ],
+  },
+  {
+    titre: 'Les pages ressources',
+    intro: 'À envoyer à la main à une prospecte (WhatsApp, email). Aucune page du tunnel n’y mène.',
+    liens: ressources.map((ressource) => ({
+      etiquette: ressource.data.type + (ressource.data.video?.duree ? ` · ${ressource.data.video.duree}` : ''),
+      titre: ressource.data.titre,
+      chemin: `${CHEMINS.ressources}/${ressource.id}`,
+      note: ressource.data.description,
+    })),
+  },
+  {
+    titre: 'Pages internes',
+    intro: 'Pour l’équipe seulement.',
+    liens: [
+      { titre: 'Charte et composants', chemin: `${CHEMINS.equipe}/charte`, note: 'Couleurs, typographie, bouton, formulaire.' },
+      {
+        titre: 'Session et UTM',
+        chemin: `${CHEMINS.equipe}/session`,
+        note: 'Ce que le tunnel garde en mémoire pendant une visite.',
+      },
+      { titre: 'Sommaire de la préversion', chemin: '/', note: 'Les pages de juin et juillet 2026, inchangées.' },
+    ],
+  },
+];
+
+const adresse = (chemin: string) => new URL(chemin, Astro.site).href;
 ---
 
-<Tunnel titre="Espace équipe · Académie Florale">
-  <div class="conteneur conteneur-texte page">
-    <h1>Espace équipe</h1>
-    <p class="texte-secondaire">Pages internes, non indexées. Ne pas envoyer ces liens aux prospectes.</p>
+<Tunnel titre="Bibliothèque de liens · Académie Florale">
+  <div class="conteneur page">
+    <header class="tete">
+      <h1>Bibliothèque de liens</h1>
+      <p>Tous les liens du tunnel et des pages ressources, à copier d’un clic.</p>
+      <p class="texte-secondaire">Page interne, non indexée : ne l’envoie pas aux prospectes.</p>
+    </header>
 
-    <h2>Socle du tunnel</h2>
-    <ul class="liste">
-      <li>
-        <a href="/equipe/charte" data-tunnel>Charte et composants</a>
-        <span>Couleurs, typographie, bouton, formulaire.</span>
-      </li>
-      <li>
-        <a href="/equipe/session" data-tunnel>Session et UTM</a>
-        <span>Ce que le tunnel garde en mémoire pendant une visite.</span>
-      </li>
-    </ul>
-
-    <h2>Pages historiques</h2>
-    <ul class="liste">
-      <li>
-        <a href="/">Sommaire de la préversion</a>
-        <span>Les pages de juin et juillet 2026, inchangées.</span>
-      </li>
-    </ul>
+    {
+      sections.map((section) => (
+        <section class="section">
+          <div class="tete-section">
+            <h2>{section.titre}</h2>
+            <p class="texte-secondaire">{section.intro}</p>
+          </div>
+          <ul class="liens" role="list">
+            {section.liens.map((lien) => (
+              <li class="lien" data-lien={lien.chemin}>
+                <div class="texte">
+                  {lien.etiquette && <span class="etiquette">{lien.etiquette}</span>}
+                  <strong>{lien.titre}</strong>
+                  {lien.note && <span class="note">{lien.note}</span>}
+                  <span class="adresse" data-adresse>{adresse(lien.chemin)}</span>
+                </div>
+                <div class="actions">
+                  <button type="button" class="copier" data-copier>
+                    Copier le lien
+                  </button>
+                  <a class="ouvrir" href={lien.chemin} target="_blank" rel="noopener">
+                    Ouvrir<span class="visuellement-cache"> {lien.titre} dans un nouvel onglet</span>
+                  </a>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))
+    }
   </div>
 </Tunnel>
 
 <style>
   .page {
     display: grid;
-    gap: 16px;
-    padding-block: 24px 56px;
+    gap: clamp(22px, 4vw, 36px);
+    max-width: calc(860px + 2 * var(--marge-page));
+    padding-block: 8px clamp(32px, 6vw, 60px);
+  }
+
+  .tete {
+    display: grid;
+    gap: 6px;
+    text-align: center;
+  }
+
+  h1 {
+    font-size: clamp(1.7rem, 1.2rem + 2.4vw, 2.6rem);
+  }
+
+  .section {
+    display: grid;
+    gap: 12px;
+  }
+
+  .tete-section {
+    display: grid;
+    gap: 2px;
   }
 
   h2 {
-    margin-top: 16px;
+    font-size: var(--titre-3);
   }
 
-  .liste {
+  .liens {
     display: grid;
     gap: 10px;
+    margin: 0;
     padding: 0;
     list-style: none;
   }
 
-  .liste li {
+  .lien {
     display: grid;
-    gap: 2px;
+    gap: 12px;
     padding: 14px 16px;
     border: 1px solid var(--trait);
     border-radius: var(--rayon);
     background: var(--blanc);
   }
 
-  .liste a {
-    font-weight: 600;
+  .texte {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+    line-height: 1.3;
   }
 
-  .liste span {
+  .etiquette {
+    color: var(--encre-douce);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .note {
     color: var(--encre-douce);
     font-size: var(--corps-petit);
   }
+
+  .adresse {
+    margin-top: 3px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.8rem;
+    overflow-wrap: anywhere;
+    user-select: all;
+  }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 14px;
+  }
+
+  .copier {
+    min-height: 44px;
+    padding: 0.5em 1.2em;
+    border: 0;
+    border-radius: var(--rayon-bouton);
+    background: var(--orange);
+    color: var(--blanc);
+    font-family: var(--police-texte);
+    font-size: var(--corps-bouton);
+    font-weight: 700;
+    line-height: 1.15;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+  }
+
+  .copier:hover,
+  .copier:active {
+    background: var(--orange-fonce);
+  }
+
+  /* Lien copié : le bouton le confirme un instant. */
+  .copier.copie {
+    background: var(--encre);
+  }
+
+  .ouvrir {
+    display: inline-block;
+    padding-block: 10px;
+    font-size: var(--corps-petit);
+    font-weight: 600;
+  }
+
+  @media (min-width: 700px) {
+    .lien {
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 18px;
+    }
+
+    .actions {
+      justify-content: flex-end;
+    }
+  }
 </style>
+
+<script>
+  // Les adresses s'affichent et se copient avec le domaine sur lequel la page est ouverte.
+  document.querySelectorAll<HTMLElement>('[data-lien]').forEach((ligne) => {
+    const chemin = ligne.dataset.lien;
+    const bouton = ligne.querySelector<HTMLButtonElement>('[data-copier]');
+    const affichage = ligne.querySelector<HTMLElement>('[data-adresse]');
+    if (!chemin || !bouton) return;
+    const adresse = new URL(chemin, window.location.origin).href;
+    if (affichage) affichage.textContent = adresse;
+
+    const libelle = (bouton.textContent ?? '').trim();
+    let retour: number | undefined;
+
+    const copier = async () => {
+      try {
+        await navigator.clipboard.writeText(adresse);
+        return true;
+      } catch {
+        // Presse-papiers refusé (navigateur ancien ou intégré) : on passe par une sélection.
+        const zone = document.createElement('textarea');
+        zone.value = adresse;
+        zone.setAttribute('readonly', '');
+        zone.style.position = 'fixed';
+        zone.style.opacity = '0';
+        document.body.append(zone);
+        zone.select();
+        let reussi = false;
+        try {
+          reussi = document.execCommand('copy');
+        } catch {
+          reussi = false;
+        }
+        zone.remove();
+        return reussi;
+      }
+    };
+
+    bouton.addEventListener('click', async () => {
+      const reussi = await copier();
+      bouton.textContent = reussi ? 'Copié ✓' : 'Sélectionne l’adresse';
+      bouton.classList.toggle('copie', reussi);
+      window.clearTimeout(retour);
+      retour = window.setTimeout(() => {
+        bouton.textContent = libelle;
+        bouton.classList.remove('copie');
+      }, 2000);
+    });
+  });
+</script>
