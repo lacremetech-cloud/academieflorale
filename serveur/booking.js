@@ -7,6 +7,10 @@
  * - le cockpit retient l'appel, pour ne jamais le traiter deux fois.
  * Une annulation pose le tag d'annulation.
  *
+ * Les autres events de candidature du compte (webinaire, site, setting, DM, YouTube)
+ * renvoient eux aussi vers la page merci du tunnel : pour eux, seul Meta est prévenu
+ * (« Rendez-vous programmé »), comme le faisait leur ancienne page merci.
+ *
  * Le serveur va lui-même lire les appels récents dans iClosed, avec la clé du
  * cockpit (ICLOSED_API_KEY). Il ne fait donc confiance à aucun message reçu :
  * /api/booking n'est qu'un signal « va voir », envoyé toutes les dix minutes par
@@ -20,16 +24,17 @@
  */
 import { clePub, joursEntre } from '../partage/attribution.js';
 import { jourParis } from '../partage/cockpit.js';
+import { ICLOSED_AUTRES, RDV_VSL } from '../partage/iclosed.js';
 import { accesCompteurs, executer } from '../partage/compteurs.js';
 import { DOMAINE_PUBLIC } from '../partage/site.js';
 import { nettoyerEmail } from '../partage/validation.js';
 import { synchroniserContact } from './activecampaign.js';
 import { empreinteEmail } from './empreinte.js';
-import { demander, ErreurIclosed, estAnnule, instantDe, lireAppels, lister, trouverEvent, utmDe } from './iclosed.js';
+import { demander, ErreurIclosed, estAnnule, instantDe, lireAppels, lister, trouverEvent, trouverEvents, utmDe } from './iclosed.js';
 import { accesConversions, construireEvenement, envoiPermis, envoyerEvenement, regleConsentement } from './meta-conversions.js';
 import { CHAMPS, RDV_RECUL_MS, SUIVI_DEPUIS, TAGS } from './reglages.js';
 import { repondre } from './reponse.js';
-import { CLE_VERROU_RDV, cleRdv, lireInscriptions, noterEtat } from './suivi.js';
+import { CLE_VERROU_RDV, cleRdv, cleRdvAutres, lireInscriptions, noterEtat } from './suivi.js';
 
 /** Longueur maximale du nom d'event écrit dans ActiveCampaign. */
 const NOM_EVENT_MAX = 120;
@@ -254,6 +259,7 @@ export async function synchroniserRdv(contexte = {}) {
                 fbp: suivi?.contexte?.fbp,
                 fbc: suivi?.inscription?.fbc,
               },
+              donnees: { ...RDV_VSL.donnees, tunnel: RDV_VSL.tunnel },
             }),
             { fetchImpl, maintenant },
           );
@@ -279,9 +285,146 @@ export async function synchroniserRdv(contexte = {}) {
       journal.error('booking : la base n’a pas retenu les appels traités');
       echecs += 1;
     }
-    await noterEtat(env, 'rdv', { t: maintenant.toISOString(), vus: appels.length, nouveaux, annules, echecs }, { fetchImpl });
+    // Les autres events de candidature : Meta seulement. Une panne ici ne défait rien de ce qui précède.
+    let autres = 0;
+    if (metaRegle) {
+      try {
+        const bilan = await signalerAutresRdv({ env, cle, base, fetchImpl, maintenant, journal });
+        autres = bilan.envoyes;
+        echecs += bilan.echecs;
+      } catch (erreur) {
+        journal.error('booking : autres events de candidature non relus', { motif: erreur instanceof ErreurIclosed ? 'refus' : 'reseau' });
+        echecs += 1;
+      }
+    }
+    await noterEtat(env, 'rdv', { t: maintenant.toISOString(), vus: appels.length, nouveaux, annules, echecs, autres }, { fetchImpl });
   }
   return { etat: 'ok', vus: appels.length, nouveaux, annules, echecs, simulation: !production };
+}
+
+/**
+ * Les autres events de candidature : chaque nouvelle réservation est signalée à Meta
+ * (« Rendez-vous programmé »), une seule fois, avec ce que son ancienne page merci
+ * envoyait. Rien d'autre : ni ActiveCampaign, ni cockpit. En production seulement.
+ * @param {object} contexte
+ * @param {Record<string, string | undefined>} contexte.env
+ * @param {string} contexte.cle clé de l'API d'iClosed
+ * @param {NonNullable<ReturnType<typeof accesCompteurs>>} contexte.base
+ * @param {typeof fetch} contexte.fetchImpl
+ * @param {Date} contexte.maintenant
+ * @param {Pick<Console, 'warn' | 'error'>} contexte.journal
+ * @returns {Promise<{ envoyes: number, echecs: number }>}
+ */
+async function signalerAutresRdv({ env, cle, base, fetchImpl, maintenant, journal }) {
+  const rien = { envoyes: 0, echecs: 0 };
+  const instant = maintenant.getTime();
+  // Jamais avant le changement de la page merci de l'event : l'ancienne page l'a déjà dit à Meta.
+  /** @param {(typeof ICLOSED_AUTRES)[number]} autre */
+  const depuisDe = (autre) => Math.max(Date.parse(autre.depuis), instant - RDV_RECUL_MS);
+  const ids = await trouverEvents(cle, fetchImpl, ICLOSED_AUTRES.map((autre) => autre.event));
+  const suivis = ICLOSED_AUTRES.filter((autre) => ids.has(autre.event) && depuisDe(autre) < instant);
+  if (suivis.length === 0) return rien;
+  const fin = new Date(instant + 86400000).toISOString();
+  // Une demande par event : on sait ainsi de quel tunnel vient chaque réservation.
+  const listes = await Promise.all(
+    suivis.map((autre) =>
+      lister('/v1/eventCalls', { eventIds: String(ids.get(autre.event)), eventType: 'ALL', createdAtStart: new Date(depuisDe(autre)).toISOString(), createdAtEnd: fin }, 100, lireAppels, cle, fetchImpl),
+    ),
+  );
+
+  /** @type {{ id: string, cree: number, email: string, telephone: string, autre: (typeof ICLOSED_AUTRES)[number] }[]} */
+  const reservations = [];
+  const vus = new Set();
+  suivis.forEach((autre, rang) => {
+    for (const appel of listes[rang] ?? []) {
+      const id = String(appel?.id ?? '');
+      const cree = instantDe(appel?.createdAt);
+      const email = nettoyerEmail(appel?.inviteeEmail ?? appel?.contact?.email ?? '');
+      if (!/^[\w-]{1,60}$/.test(id) || vus.has(id) || Number.isNaN(cree) || cree < depuisDe(autre) || !email || estAnnule(appel)) continue;
+      vus.add(id);
+      reservations.push({ id, cree, email, telephone: typeof appel?.phoneNumber === 'string' ? appel.phoneNumber : '', autre });
+    }
+  });
+  if (reservations.length === 0) return rien;
+
+  // Ce que la base sait déjà de ces réservations.
+  /** @param {{ cree: number }} reservation */
+  const moisDe = (reservation) => jourParis(reservation.cree).slice(0, 7);
+  /** @type {Map<string, string[]>} */
+  const parMois = new Map();
+  for (const reservation of reservations) parMois.set(moisDe(reservation), [...(parMois.get(moisDe(reservation)) ?? []), reservation.id]);
+  const mois = [...parMois.keys()];
+  // Sans la mémoire des réservations déjà signalées, mieux vaut ne rien envoyer (l'erreur remonte).
+  const lus = await executer(base, mois.map((m) => ['HMGET', cleRdvAutres(m), ...(parMois.get(m) ?? [])]), fetchImpl, 4000);
+  /** @type {Map<string, { meta?: number }>} */
+  const connus = new Map();
+  mois.forEach((m, rang) => {
+    (parMois.get(m) ?? []).forEach((id, place) => {
+      try {
+        const fiche = typeof lus[rang]?.[place] === 'string' ? JSON.parse(lus[rang][place]) : null;
+        if (fiche && typeof fiche === 'object') connus.set(id, fiche);
+      } catch {
+        /* fiche illisible : la réservation sera signalée de nouveau, Meta écarte le doublon (même identifiant) */
+      }
+    });
+  });
+
+  const inscriptions = await lireInscriptions(env, reservations.map((reservation) => reservation.email), { fetchImpl, avecContexte: true });
+  let envoyes = 0;
+  let echecs = 0;
+  /** @type {(string | number)[][]} */
+  const ecritures = [];
+  for (const reservation of reservations) {
+    const connu = connus.get(reservation.id);
+    if (connu && connu.meta !== 0) continue;
+    const empreinte = empreinteEmail(reservation.email);
+    // Si la personne est aussi passée par la landing du tunnel, on connaît son clic et son navigateur.
+    const suivi = inscriptions.get(empreinte);
+    let meta = -1;
+    if (envoiPermis(suivi?.inscription?.accord === 1, regleConsentement(env))) {
+      const resultat = await envoyerEvenement(
+        env,
+        construireEvenement({
+          nom: 'Schedule',
+          id: `rdv-${reservation.id}`,
+          instant: new Date(reservation.cree),
+          origine: suivi?.contexte?.ua ? 'website' : 'other',
+          adresse: `${DOMAINE_PUBLIC}/confirmation`,
+          personne: {
+            email: reservation.email,
+            telephone: reservation.telephone,
+            ip: suivi?.contexte?.ip,
+            ua: suivi?.contexte?.ua,
+            fbp: suivi?.contexte?.fbp,
+            fbc: suivi?.inscription?.fbc,
+          },
+          donnees: { ...reservation.autre.donnees, tunnel: reservation.autre.tunnel },
+        }),
+        { fetchImpl, maintenant },
+      );
+      meta = resultat.etat === 'ok' ? 1 : resultat.etat === 'trop-ancien' ? -2 : 0;
+      if (resultat.etat === 'ok') envoyes += 1;
+      if (resultat.etat === 'erreur') {
+        echecs += 1;
+        journal.error('booking : échec de l’API de conversion', { statut: resultat.statut ?? 0 });
+      }
+      if (resultat.etat !== 'a-brancher') {
+        await noterEtat(env, 'conversions', { t: maintenant.toISOString(), nom: 'Schedule', ok: resultat.etat === 'ok', detail: resultat.detail ?? '' }, { fetchImpl });
+      }
+    }
+    // Ni email ni téléphone dans la base : l'empreinte de l'email seulement.
+    const fiche = { t: reservation.cree, h: empreinte, tunnel: reservation.autre.tunnel, meta };
+    if (JSON.stringify(fiche) !== (connu ? JSON.stringify(connu) : '')) ecritures.push(['HSET', cleRdvAutres(moisDe(reservation)), reservation.id, JSON.stringify(fiche)]);
+  }
+  if (ecritures.length > 0) {
+    try {
+      await executer(base, ecritures, fetchImpl, 4000);
+    } catch {
+      journal.error('booking : la base n’a pas retenu les réservations signalées');
+      echecs += 1;
+    }
+  }
+  return { envoyes, echecs };
 }
 
 /**

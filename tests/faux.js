@@ -69,12 +69,17 @@ export function fauxJournal() {
   return { lignes, journal: { warn: (...a) => lignes.push(a), error: (...a) => lignes.push(a) } };
 }
 
-/** iClosed de test : l'event du tunnel, et les appels donnés. */
-export function fauxIclosed(appels) {
+/**
+ * iClosed de test : l'event du tunnel (n° 77), d'autres events si on les donne, et les appels donnés.
+ * Comme le vrai, il ne rend que les appels des events demandés (un appel sans « eventId » est toujours rendu).
+ */
+export function fauxIclosed(appels, autresEvents = []) {
   return (url) => {
-    if (url.pathname === '/v1/events') return { data: [{ id: 77, linkPrefix: 'academie-florale/candidature-vsl' }] };
+    if (url.pathname === '/v1/events') return { data: [{ id: 77, linkPrefix: 'academie-florale/candidature-vsl' }, ...autresEvents] };
     if (url.pathname === '/v1/eventCalls') {
-      const liste = typeof appels === 'function' ? appels(url) : appels;
+      const tous = typeof appels === 'function' ? appels(url) : appels;
+      const voulus = (url.searchParams.get('eventIds') ?? '').split(',').filter(Boolean);
+      const liste = voulus.length > 0 ? tous.filter((a) => a.eventId === undefined || voulus.includes(String(a.eventId))) : tous;
       return { data: { eventCalls: liste, count: liste.length } };
     }
     return new Response('{}', { status: 404 });

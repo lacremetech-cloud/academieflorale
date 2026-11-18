@@ -30,6 +30,8 @@ const clePubsDuJour = (jour) => `${PREFIXE}:pubs:${jour}`;
 const cleMoments = (mois) => `${PREFIXE}:moments:${mois}`;
 /** @param {string} mois */
 export const cleRdv = (mois) => `${PREFIXE}:rdv:${mois}`;
+/** Rendez-vous des autres events de candidature, signalés à Meta seulement. @param {string} mois */
+export const cleRdvAutres = (mois) => `${PREFIXE}:rdvautres:${mois}`;
 export const CLE_VERROU_RDV = `${PREFIXE}:verrou:rdv`;
 
 /** @param {unknown} texte @param {number} longueur */

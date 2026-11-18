@@ -127,6 +127,8 @@ export async function controlerSuivi({ env, fetchImpl = fetch, maintenant = new 
       lignes: [
         `iClosed relu ${ilYA(String(dernier.t), maintenant)} (toutes les 10 minutes).`,
         Number(dernier.echecs) > 0 ? 'Le dernier passage n’a pas pu tout écrire : il réessaie au suivant.' : 'Chaque appel réservé pose le tag « vsl-rdv » et « Prise de RDV » = VSL.',
+        // Les autres events de candidature renvoient vers la même page merci : le serveur prévient Meta pour eux aussi.
+        ...(dernier.autres !== undefined ? ['Les réservations des autres events de candidature (webinaire, site, setting, DM, YouTube) sont signalées à Meta.'] : []),
       ],
     };
   } else {

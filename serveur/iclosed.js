@@ -85,6 +85,32 @@ export async function trouverEvent(cle, fetchImpl) {
   return id;
 }
 
+/**
+ * Les identifiants d'autres events du compte, retrouvés par la fin de leur adresse.
+ * Une seule demande les retrouve tous ; un event introuvable manque dans la réponse.
+ * @param {string} cle
+ * @param {typeof fetch} fetchImpl
+ * @param {readonly string[]} events fins d'adresse (« candidature », « setting »…)
+ * @returns {Promise<Map<string, string>>} fin d'adresse → identifiant
+ */
+export async function trouverEvents(cle, fetchImpl, events) {
+  const lienDe = (/** @type {string} */ event) => `${ICLOSED_VSL.compte}/${event}`.toLowerCase();
+  if (events.some((event) => !eventsConnus.has(lienDe(event)))) {
+    const corps = await demander('/v1/events', { limit: '100' }, cle, fetchImpl);
+    for (const e of Array.isArray(corps?.data) ? corps.data : []) {
+      const lien = String(e?.linkPrefix ?? '').toLowerCase();
+      if (lien && e?.id) eventsConnus.set(lien, String(e.id));
+    }
+  }
+  /** @type {Map<string, string>} */
+  const trouves = new Map();
+  for (const event of events) {
+    const id = eventsConnus.get(lienDe(event));
+    if (id) trouves.set(event, id);
+  }
+  return trouves;
+}
+
 /** L'adresse de l'event du tunnel, pour les messages d'erreur. */
 export const LIEN_EVENT = `${ICLOSED_VSL.compte}/${ICLOSED_VSL.event}`;
 
