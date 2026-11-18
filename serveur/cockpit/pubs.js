@@ -324,6 +324,8 @@ export async function assemblerPubs({ mois, periode, env, fetchImpl = fetch, mai
     creneaux,
     delais: { rdv: delaisRdv, vente: delaisVente, tranches: TRANCHES_DELAI },
     typesVus: [...typesVus].sort(),
+    // Pour le diagnostic : combien de lignes Meta a rendues à chaque lecture, et les champs de la première publicité.
+    lectures: { parPub: parPub.lignes.length, parJour: parJour.lignes.length, parHeure: parHeure.lignes.length, champs: Object.keys(parPub.lignes[0] ?? {}) },
   };
 }
 
