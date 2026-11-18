@@ -2074,8 +2074,11 @@ import { FORMULES } from '../../../partage/ventes.js';
     if (legende) {
       legende.textContent =
         `Du ${libelleDate(r.du)} au ${libelleDate(r.au)}${r.campagnes ? ` · campagnes dont le nom contient « ${r.campagnes} »` : ''} · résultats comptés par ${NOMS_SOURCE[source]}.` +
-        (source === 'tunnel' && !parle ? ' Le tunnel n’a encore rien vu sur cette période : il compte à partir de sa mise en production.' : '') +
-        (source === 'meta' && !parle ? ' Le tunnel n’a pas encore de chiffres sur cette période : ce sont ceux de Meta.' : '');
+        (source === 'tunnel' && !parle ? ' Le nouveau tunnel n’a pas vu d’inscrite sur cette période : il compte à partir de sa mise en production.' : '') +
+        (source === 'meta' && !parle ? ' Le nouveau tunnel n’a pas vu d’inscrite sur cette période : ce sont les chiffres de Meta.' : '') +
+        (source === 'meta' && sansPub.rdv + sansPub.ventes > 0
+          ? ` À côté, sans publicité connue : ${ecrire(sansPub.rdv, 'entier')} rendez-vous dans iClosed, ${pluriel(sansPub.ventes, 'vente')} dans le cockpit.`
+          : '');
     }
 
     const { niveau, reperes, verdicts } = classerPubs(r.pubs, source);

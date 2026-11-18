@@ -268,9 +268,14 @@ export function totaliserPubs(lignes, source) {
   return total;
 }
 
-/** Le tunnel a-t-il vu quelque chose sur la période ? Sinon, seuls les chiffres de Meta parlent. */
+/**
+ * Le tunnel a-t-il vu passer des inscrites sur la période ? Sinon (période d'avant
+ * sa mise en ligne), seuls les chiffres de Meta disent ce que chaque publicité a amené.
+ * Un rendez-vous ou une vente sans publicité connue ne suffit pas : iClosed et le
+ * cockpit en comptent aussi pour l'ancien tunnel.
+ */
 export function tunnelParle(/** @type {LignePub[]} */ lignes, /** @type {ResultatsTunnel} */ sansPub) {
-  return lignes.some((ligne) => ligne.tunnel.inscrites + ligne.tunnel.rdv + ligne.tunnel.ventes > 0) || sansPub.inscrites + sansPub.rdv + sansPub.ventes > 0;
+  return sansPub.inscrites > 0 || lignes.some((ligne) => ligne.tunnel.inscrites > 0 || (ligne.depense > 0 && ligne.tunnel.rdv + ligne.tunnel.ventes > 0));
 }
 
 /**

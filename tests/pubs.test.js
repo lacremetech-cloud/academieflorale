@@ -55,7 +55,11 @@ test('tunnel : inscrites, rendez-vous et ventes rattachés par identifiant, par 
   assert.equal(par['nom:ancienne pub'].tunnel.inscrites, 2);
   assert.deepEqual(sansPub, { inscrites: 4, rdv: 1, rdvAnnules: 0, ventes: 1, commande: 1800, encaisse: 0 });
   assert.equal(tunnelParle(toutes, sansPub), true);
-  assert.equal(tunnelParle(regrouperPubs([pub({ depense: 10 })]), { inscrites: 0, rdv: 0, rdvAnnules: 0, ventes: 0, commande: 0, encaisse: 0 }), false);
+  // Avant la mise en ligne du tunnel : des rendez-vous et des ventes sans publicité connue ne suffisent pas, Meta garde la parole.
+  const rien = { inscrites: 0, rdv: 0, rdvAnnules: 0, ventes: 0, commande: 0, encaisse: 0 };
+  assert.equal(tunnelParle(regrouperPubs([pub({ depense: 10 })]), rien), false);
+  assert.equal(tunnelParle(regrouperPubs([pub({ depense: 10 })]), { ...rien, rdv: 3, ventes: 1 }), false);
+  assert.equal(tunnelParle(regrouperPubs([pub({ depense: 10 })]), { ...rien, inscrites: 1 }), true);
 });
 
 test('indicateurs : coûts et taux d’une création, selon la source', () => {
@@ -193,7 +197,8 @@ function fauxMeta() {
         name: 'P01 H1',
         effective_status: 'ACTIVE',
         created_time: '2026-10-28T09:00:00+0100',
-        creative: { thumbnail_url: 'https://images.test/p01.jpg', object_story_spec: { video_data: { message: 'Et si tu vivais des fleurs ?', title: 'Fleuriste indépendante' } } },
+        // Meta rend parfois un émoji abîmé dans le titre court : la version intacte de la création passe d'abord.
+        creative: { title: '\ufffd Fleuriste indépendante', thumbnail_url: 'https://images.test/p01.jpg', object_story_spec: { video_data: { message: 'Et si tu vivais des fleurs ?', title: 'Fleuriste indépendante' } } },
       },
       '120299999999999999': { name: 'P09 H1', effective_status: 'PAUSED' },
     };

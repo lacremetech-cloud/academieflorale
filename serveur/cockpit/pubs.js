@@ -79,6 +79,18 @@ function action(actions, types) {
 const court = (texte, longueur) => (typeof texte === 'string' ? texte.replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, ' ').trim().slice(0, longueur) : '');
 
 /**
+ * Le premier texte utilisable parmi plusieurs versions du même texte. Meta rend
+ * parfois un émoji abîmé (caractère « illisible ») dans l'une et pas dans l'autre :
+ * la version intacte passe d'abord ; à défaut, le caractère abîmé est retiré.
+ * @param {unknown[]} versions
+ * @param {number} longueur
+ */
+function texteDeMeta(versions, longueur) {
+  const lisibles = versions.map((version) => court(version, longueur)).filter(Boolean);
+  return lisibles.find((version) => !version.includes('\ufffd')) ?? (lisibles[0] ?? '').replace(/\ufffd+/g, '').trim();
+}
+
+/**
  * Les jours de la période qui ne sont pas à venir.
  * @param {string} mois dernier mois de la période
  * @param {keyof typeof PERIODES} periode
@@ -188,8 +200,8 @@ async function fichesDesPubs({ env, ids, fetchImpl }) {
       nom: court(pub.name, 200),
       statut: court(pub.effective_status, 40),
       creeLe: court(pub.created_time, 10),
-      titre: court(creation.title || recit.video_data?.title || recit.link_data?.name || flux.titles?.[0]?.text, 300),
-      texte: court(creation.body || recit.video_data?.message || recit.link_data?.message || flux.bodies?.[0]?.text, 3000),
+      titre: texteDeMeta([creation.title, recit.video_data?.title, recit.link_data?.name, flux.titles?.[0]?.text], 300),
+      texte: texteDeMeta([creation.body, recit.video_data?.message, recit.link_data?.message, flux.bodies?.[0]?.text], 3000),
       vignette,
     };
   };
