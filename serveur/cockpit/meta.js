@@ -10,7 +10,7 @@
  *   campagne pour être comptée (« VSL » sans cette variable). Vide : tout le compte ;
  * - META_API_VERSION (facultatif) : version de l'API, si celle par défaut expire.
  */
-import { joursDuMois } from '../../partage/cockpit.js';
+import { joursEcoules } from '../../partage/cockpit.js';
 
 /** Version de l'API Marketing en cours le 18/11/2026. */
 const VERSION_PAR_DEFAUT = 'v27.0';
@@ -33,16 +33,19 @@ export function filtreCampagnes(env) {
  * @param {Record<string, string | undefined>} options.env
  * @param {string} options.mois « 2026-11 »
  * @param {typeof fetch} [options.fetchImpl]
+ * @param {Date} [options.maintenant]
  * @returns {Promise<{ etat: 'ok' | 'a-brancher' | 'erreur', detail?: string, jours: Record<string, Record<string, number>> }>}
  */
-export async function lireMeta({ env, mois, fetchImpl = fetch }) {
+export async function lireMeta({ env, mois, fetchImpl = fetch, maintenant = new Date() }) {
   const jeton = (env.META_ACCESS_TOKEN ?? '').trim();
   const compte = (env.META_AD_ACCOUNT_ID ?? '').trim().replace(/^act_/, '');
   if (!jeton || !compte) return { etat: 'a-brancher', jours: {} };
   if (!/^\d{5,20}$/.test(compte)) return { etat: 'erreur', detail: 'identifiant du compte publicitaire invalide', jours: {} };
 
   const version = /^v\d{1,3}\.\d$/.test(env.META_API_VERSION ?? '') ? env.META_API_VERSION : VERSION_PAR_DEFAUT;
-  const jours = joursDuMois(mois);
+  // Jusqu'à aujourd'hui seulement : aucune source n'est interrogée sur des jours à venir.
+  const jours = joursEcoules(mois, maintenant);
+  if (jours.length === 0) return { etat: 'ok', jours: {} };
   const parametres = new URLSearchParams({
     level: 'account',
     fields: 'spend,impressions,inline_link_clicks',

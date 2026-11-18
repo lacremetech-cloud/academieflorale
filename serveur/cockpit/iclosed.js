@@ -10,7 +10,7 @@
  *   collée telle qu'iClosed la donne, avec son préfixe. Deux droits de lecture
  *   suffisent : « Évènements » et « Appels d'évènements ».
  */
-import { joursDuMois, jourParis } from '../../partage/cockpit.js';
+import { joursEcoules, jourParis } from '../../partage/cockpit.js';
 import { ICLOSED_VSL } from '../../partage/iclosed.js';
 
 const BASE = 'https://public.api.iclosed.io';
@@ -80,14 +80,17 @@ function jourDe(texte) {
  * @param {Record<string, string | undefined>} options.env
  * @param {string} options.mois
  * @param {typeof fetch} [options.fetchImpl]
+ * @param {Date} [options.maintenant]
  * @returns {Promise<{ etat: 'ok' | 'a-brancher' | 'erreur', detail?: string, jours: Record<string, Record<string, number>> }>}
  */
-export async function lireIclosed({ env, mois, fetchImpl = fetch }) {
+export async function lireIclosed({ env, mois, fetchImpl = fetch, maintenant = new Date() }) {
   const cle = (env.ICLOSED_API_KEY ?? '').trim();
   if (!cle) return { etat: 'a-brancher', jours: {} };
 
   const lien = `${ICLOSED_VSL.compte}/${ICLOSED_VSL.event}`;
-  const jours = joursDuMois(mois);
+  // Jusqu'à aujourd'hui seulement : les jours à venir ne s'affichent pas.
+  const jours = joursEcoules(mois, maintenant);
+  if (jours.length === 0) return { etat: 'ok', jours: {} };
   const dansLeMois = new Set(jours);
   // Fenêtre élargie d'un jour de chaque côté : le tri par jour se fait ensuite à l'heure de Paris.
   const debut = new Date(Date.parse(`${jours[0]}T00:00:00Z`) - 86400000).toISOString();

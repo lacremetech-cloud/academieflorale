@@ -99,6 +99,20 @@ export function joursDuMois(mois) {
 }
 
 /**
+ * Les jours d'un mois qui ne sont pas à venir : tout le mois s'il est passé, ses
+ * premiers jours jusqu'à aujourd'hui s'il est en cours, rien s'il est à venir.
+ * Une source ne doit jamais être interrogée sur des jours à venir : certaines
+ * répondent alors par des zéros pour toute la période.
+ * @param {string} mois « 2026-11 »
+ * @param {Date | string | number} [maintenant]
+ * @returns {string[]}
+ */
+export function joursEcoules(mois, maintenant = new Date()) {
+  const aujourdHui = jourParis(maintenant);
+  return joursDuMois(mois).filter((jour) => jour <= aujourdHui);
+}
+
+/**
  * Le mois voisin : moisDecale('2026-01', -1) donne '2025-12'.
  * @param {string} mois
  * @param {number} ecart

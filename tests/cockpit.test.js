@@ -7,6 +7,7 @@ import {
   indicateurs,
   jourParis,
   joursDuMois,
+  joursEcoules,
   jourVide,
   lireSaisie,
   moisCourant,
@@ -48,6 +49,11 @@ test('mois : validité, jours, voisins', () => {
   assert.equal(moisDecale('2026-01', -1), '2025-12');
   assert.equal(moisDecale('2026-12', 1), '2027-01');
   assert.equal(moisDecale('2026-11', 0), '2026-11');
+  // Les jours déjà commencés d'un mois, à l'heure de Paris.
+  assert.equal(joursEcoules('2026-10', new Date('2026-11-18T10:00:00Z')).length, 31);
+  assert.equal(joursEcoules('2026-11', new Date('2026-11-18T10:00:00Z')).at(-1), '2026-11-18');
+  assert.equal(joursEcoules('2026-11', new Date('2026-11-18T23:30:00Z')).at(-1), '2026-11-19');
+  assert.deepEqual(joursEcoules('2026-12', new Date('2026-11-18T10:00:00Z')), []);
 });
 
 test('jour à l’heure de Paris, été comme hiver', () => {

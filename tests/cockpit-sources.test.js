@@ -9,6 +9,10 @@ import { lireWistia } from '../serveur/cockpit/wistia.js';
 import { creerLimiteur, traiterLead } from '../serveur/lead.js';
 
 const MOIS = '2026-11';
+/** Un instant où le mois de novembre 2026 est entièrement passé : les tests ne dépendent pas du jour où ils tournent. */
+const APRES = new Date('2026-12-05T10:00:00Z');
+/** Un instant en plein mois de novembre 2026. */
+const PENDANT = new Date('2026-11-18T10:00:00Z');
 
 /** Faux réseau : répond selon l'adresse demandée, et garde la trace des demandes. */
 function fauxReseau(repondre) {
@@ -37,7 +41,7 @@ test('Meta : dépense, impressions et clics par jour, jeton hors de l’adresse'
   );
   // Sans réglage particulier, seules les campagnes dont le nom contient « VSL » sont comptées.
   const env = { META_ACCESS_TOKEN: 'jeton-meta-de-test', META_AD_ACCOUNT_ID: 'act_123456789' };
-  const lu = await lireMeta({ env, mois: MOIS, fetchImpl });
+  const lu = await lireMeta({ env, mois: MOIS, fetchImpl, maintenant: APRES });
   assert.equal(lu.etat, 'ok');
   assert.deepEqual(lu.jours['2026-11-01'], { depense: 197.4, impressions: 29186, clics: 430 });
   assert.deepEqual(lu.jours['2026-11-02'], { depense: 179, impressions: 28126, clics: 0 });
@@ -57,7 +61,7 @@ test('Meta : dépense, impressions et clics par jour, jeton hors de l’adresse'
 test('Meta : campagnes « VSL » par défaut, autre texte ou tout le compte sur réglage', async () => {
   const filtreDemande = async (reglage) => {
     const { demandes, fetchImpl } = fauxReseau(() => ({ data: [] }));
-    await lireMeta({ env: { META_ACCESS_TOKEN: 'jeton', META_AD_ACCOUNT_ID: '123456789', ...reglage }, mois: MOIS, fetchImpl });
+    await lireMeta({ env: { META_ACCESS_TOKEN: 'jeton', META_AD_ACCOUNT_ID: '123456789', ...reglage }, mois: MOIS, fetchImpl, maintenant: APRES });
     const filtre = demandes[0].url.searchParams.get('filtering');
     return filtre ? JSON.parse(filtre)[0].value : null;
   };
@@ -73,7 +77,7 @@ test('Meta : non branché sans variables, erreur lisible si Meta refuse', async 
   assert.equal((await lireMeta({ env: { META_ACCESS_TOKEN: 'x', META_AD_ACCOUNT_ID: 'compte' }, mois: MOIS })).etat, 'erreur');
 
   const refus = fauxReseau(() => new Response(JSON.stringify({ error: { message: 'Error validating access token: Session has expired', code: 190 } }), { status: 400 }));
-  const lu = await lireMeta({ env: { META_ACCESS_TOKEN: 'jeton-secret', META_AD_ACCOUNT_ID: '123456789' }, mois: MOIS, fetchImpl: refus.fetchImpl });
+  const lu = await lireMeta({ env: { META_ACCESS_TOKEN: 'jeton-secret', META_AD_ACCOUNT_ID: '123456789' }, mois: MOIS, fetchImpl: refus.fetchImpl, maintenant: APRES });
   assert.equal(lu.etat, 'erreur');
   assert.match(lu.detail, /Meta a répondu 400 : Error validating access token/);
   assert.equal(lu.detail.includes('jeton-secret'), false);
@@ -81,6 +85,7 @@ test('Meta : non branché sans variables, erreur lisible si Meta refuse', async 
   const panne = await lireMeta({
     env: { META_ACCESS_TOKEN: 'x', META_AD_ACCOUNT_ID: '123456789' },
     mois: MOIS,
+    maintenant: APRES,
     fetchImpl: async () => {
       throw new TypeError('fetch failed');
     },
@@ -93,7 +98,7 @@ test('Wistia : chargements, lectures et heures de la VSL par jour', async () => 
     { date: '2026-11-01', load_count: 40, play_count: 31, hours_watched: 2.75 },
     { date: '2026-11-02', load_count: 12, play_count: 9, hours_watched: 0.9 },
   ]);
-  const lu = await lireWistia({ env: { WISTIA_API_TOKEN: 'jeton-wistia' }, mois: MOIS, fetchImpl });
+  const lu = await lireWistia({ env: { WISTIA_API_TOKEN: 'jeton-wistia' }, mois: MOIS, fetchImpl, maintenant: APRES });
   assert.equal(lu.etat, 'ok');
   assert.deepEqual(lu.jours['2026-11-01'], { chargements: 40, lectures: 31, heures: 2.75 });
   const [demande] = demandes;
@@ -107,6 +112,7 @@ test('Wistia : chargements, lectures et heures de la VSL par jour', async () => 
   const refus = await lireWistia({
     env: { WISTIA_API_TOKEN: 'x' },
     mois: MOIS,
+    maintenant: APRES,
     fetchImpl: async () => new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 }),
   });
   assert.equal(refus.detail, 'Wistia a répondu 401 : Unauthorized');
@@ -161,7 +167,7 @@ test('iClosed : appels réservés, annulés et absentes de l’event du tunnel',
     return new Response('{}', { status: 404 });
   });
 
-  const lu = await lireIclosed({ env: { ICLOSED_API_KEY: 'iclosed_cle-de-test' }, mois: MOIS, fetchImpl });
+  const lu = await lireIclosed({ env: { ICLOSED_API_KEY: 'iclosed_cle-de-test' }, mois: MOIS, fetchImpl, maintenant: APRES });
   assert.equal(lu.etat, 'ok', lu.detail);
   assert.equal(lu.jours['2026-11-03'].appels, 2);
   assert.equal(lu.jours['2026-11-04'].appels, 1);
@@ -191,6 +197,33 @@ test('iClosed : non branché sans clé, erreurs lisibles', async () => {
     fetchImpl: async () => new Response(JSON.stringify({ message: 'Invalid API key' }), { status: 401 }),
   });
   assert.deepEqual([refus.etat, refus.detail], ['erreur', 'iClosed a répondu 401 : Invalid API key']);
+});
+
+test('mois en cours : aucune source n’est interrogée au-delà d’aujourd’hui, ni sur un mois à venir', async () => {
+  const env = { META_ACCESS_TOKEN: 'jeton', META_AD_ACCOUNT_ID: '123456789', WISTIA_API_TOKEN: 'jeton', ICLOSED_API_KEY: 'iclosed_cle' };
+  const { demandes, fetchImpl } = fauxReseau((url) => {
+    if (url.hostname === 'graph.facebook.com') return { data: [] };
+    if (url.hostname === 'api.wistia.com') return [{ date: '2026-11-17', load_count: 9, play_count: 5, hours_watched: 0.4 }];
+    if (url.pathname === '/v1/events') return { data: [{ id: 12, linkPrefix: 'academie-florale/candidature-vsl' }] };
+    return { data: { count: 0, eventCalls: [] } };
+  });
+  await lireMeta({ env, mois: MOIS, fetchImpl, maintenant: PENDANT });
+  const wistia = await lireWistia({ env, mois: MOIS, fetchImpl, maintenant: PENDANT });
+  await lireIclosed({ env, mois: MOIS, fetchImpl, maintenant: PENDANT });
+  const vers = (hote) => demandes.filter((d) => d.url.hostname === hote);
+  assert.deepEqual(JSON.parse(vers('graph.facebook.com')[0].url.searchParams.get('time_range')), { since: '2026-11-01', until: '2026-11-18' });
+  assert.deepEqual([vers('api.wistia.com')[0].url.searchParams.get('start_date'), vers('api.wistia.com')[0].url.searchParams.get('end_date')], ['2026-11-01', '2026-11-18']);
+  assert.equal(wistia.jours['2026-11-17'].lectures, 5);
+  const appels = vers('public.api.iclosed.io').filter((d) => d.url.pathname === '/v1/eventCalls');
+  assert.equal(appels[0].url.searchParams.get('createdAtEnd'), '2026-11-19T23:59:59.999Z');
+  assert.equal(appels[1].url.searchParams.get('dateTo'), '2026-11-19T23:59:59.999Z');
+
+  // Un mois à venir : rien n'est demandé, la source reste « branchée » et vide.
+  const avant = demandes.length;
+  for (const lire of [lireMeta, lireWistia, lireIclosed]) {
+    assert.deepEqual(await lire({ env, mois: '2026-12', fetchImpl, maintenant: PENDANT }), { etat: 'ok', jours: {} });
+  }
+  assert.equal(demandes.length, avant);
 });
 
 test('compteurs : une vue ou une inscription se compte par jour et par formulation', async () => {

@@ -103,10 +103,10 @@ function ventesSaisies(base, mois) {
  */
 export async function assemblerMois({ mois, env, fetchImpl = fetch, maintenant = new Date() }) {
   const [meta, compteurs, wistia, iclosed] = await Promise.all([
-    lireMeta({ env, mois, fetchImpl }),
+    lireMeta({ env, mois, fetchImpl, maintenant }),
     lireCompteurs(env, mois, { fetchImpl }),
-    lireWistia({ env, mois, fetchImpl }),
-    lireIclosed({ env, mois, fetchImpl }),
+    lireWistia({ env, mois, fetchImpl, maintenant }),
+    lireIclosed({ env, mois, fetchImpl, maintenant }),
   ]);
   const lues = { meta, compteurs, wistia, iclosed, ventes: ventesSaisies(compteurs, mois) };
   const aujourdHui = jourParis(maintenant);

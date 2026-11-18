@@ -6,7 +6,7 @@
  * Variable d'environnement (saisie dans Vercel) :
  * - WISTIA_API_TOKEN : jeton d'API Wistia avec le droit « Read detailed stats ».
  */
-import { joursDuMois } from '../../partage/cockpit.js';
+import { joursEcoules } from '../../partage/cockpit.js';
 import { WISTIA_VSL } from '../../partage/wistia.js';
 
 /** Version de l'API Wistia, exigée dans chaque demande. */
@@ -17,13 +17,17 @@ const VERSION = '2026-09';
  * @param {Record<string, string | undefined>} options.env
  * @param {string} options.mois
  * @param {typeof fetch} [options.fetchImpl]
+ * @param {Date} [options.maintenant]
  * @returns {Promise<{ etat: 'ok' | 'a-brancher' | 'erreur', detail?: string, jours: Record<string, Record<string, number>> }>}
  */
-export async function lireWistia({ env, mois, fetchImpl = fetch }) {
+export async function lireWistia({ env, mois, fetchImpl = fetch, maintenant = new Date() }) {
   const jeton = (env.WISTIA_API_TOKEN ?? '').trim();
   if (!jeton) return { etat: 'a-brancher', jours: {} };
 
-  const jours = joursDuMois(mois);
+  // Jusqu'à aujourd'hui seulement : interrogé sur une période qui dépasse le jour
+  // même, Wistia a répondu zéro pour tout le mois en cours (constaté le 18/11/2026).
+  const jours = joursEcoules(mois, maintenant);
+  if (jours.length === 0) return { etat: 'ok', jours: {} };
   const parametres = new URLSearchParams({ start_date: jours[0] ?? '', end_date: jours[jours.length - 1] ?? '' });
   try {
     const reponse = await fetchImpl(`https://api.wistia.com/modern/stats/medias/${WISTIA_VSL}/by_date?${parametres}`, {
