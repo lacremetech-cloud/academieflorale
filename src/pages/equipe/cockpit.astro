@@ -2187,7 +2187,7 @@ import { FORMULES } from '../../../partage/ventes.js';
 
     const regle = $('[data-pubs-regle]');
     if (regle) {
-      regle.textContent = `Verdict : chaque création est comparée à la moyenne de la période, sur ${NIVEAUX[niveau]} (le niveau le plus profond qui compte assez de résultats). Gagnante : au moins 20 % moins chère que la moyenne, avec assez de résultats. À couper : deux fois le coût moyen dépensé sans résultat, ou 50 % plus chère. Prometteuse : bonne en amont, pas encore confirmée plus bas.`;
+      regle.textContent = `Verdict : chaque création est comparée à la moyenne de la période, sur ${NIVEAUX[niveau]} (le niveau le plus profond qui compte assez de résultats). Gagnante : au moins 20 % moins chère que la moyenne, avec assez de résultats (20 inscrites, 2 rendez-vous ou une vente rentable). À couper : deux fois le coût moyen dépensé sans résultat, ou 50 % plus chère. Prometteuse : bon coût mais encore peu de volume, ou bonne en amont sans être confirmée plus bas.`;
     }
 
     afficherMoments(r, source);

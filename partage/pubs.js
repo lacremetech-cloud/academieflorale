@@ -72,6 +72,9 @@ export const VERDICTS = Object.freeze({
   'a-couper': 'À couper',
 });
 
+/** Nombre d'inscrites à partir duquel un bon coût par inscrite fait une création « gagnante ». */
+export const INSCRITES_POUR_GAGNER = 20;
+
 /** @returns {ResultatsTunnel} */
 const tunnelVide = () => ({ inscrites: 0, rdv: 0, rdvAnnules: 0, ventes: 0, commande: 0, encaisse: 0 });
 
@@ -283,10 +286,11 @@ export function tunnelParle(/** @type {LignePub[]} */ lignes, /** @type {Resulta
  * Le niveau de jugement est le plus profond qui porte assez de résultats : les
  * ventes (3 au moins sur la période), sinon les rendez-vous (5 au moins), sinon
  * les inscrites. Une création n'est « gagnante » que si elle fait au moins 20 %
- * mieux que la moyenne, avec assez de résultats ; « à couper » si elle a dépensé
- * deux fois le coût moyen d'un résultat sans en obtenir, ou si elle coûte 50 % de
- * plus que la moyenne. Une création bonne en amont mais pas encore confirmée au
- * niveau jugé est « prometteuse ».
+ * mieux que la moyenne, avec assez de résultats (20 inscrites, ou 2 rendez-vous,
+ * ou une vente rentable) ; « à couper » si elle a dépensé deux fois le coût moyen
+ * d'un résultat sans en obtenir, ou si elle coûte 50 % de plus que la moyenne.
+ * Une création au bon coût mais encore trop peu diffusée, ou bonne en amont sans
+ * être confirmée au niveau jugé, est « prometteuse ».
  * @param {LignePub[]} lignes
  * @param {SourcePub} source
  * @returns {{ niveau: 'ventes' | 'rdv' | 'inscrites', reperes: { coutInscrite: number | null, coutRdv: number | null, coutVente: number | null, roas: number | null }, verdicts: Record<string, { verdict: Verdict, base: 'ventes' | 'rdv' | 'inscrites' | '' }> }}
@@ -317,7 +321,9 @@ export function classerPubs(lignes, source) {
       if (moyen == null) return 'trop-tot';
       if (r.inscrites === 0) return ligne.depense >= 2 * moyen ? 'a-couper' : 'trop-tot';
       const cout = ligne.depense / r.inscrites;
-      if (r.inscrites >= 5 && cout <= 0.8 * moyen) return 'gagnante';
+      // Un bon coût sur une poignée d'inscrites ne prouve encore rien : gagnante à partir de 20.
+      if (r.inscrites >= INSCRITES_POUR_GAGNER && cout <= 0.8 * moyen) return 'gagnante';
+      if (r.inscrites >= 5 && cout <= 0.8 * moyen) return 'prometteuse';
       if (r.inscrites >= 3 && cout >= 1.5 * moyen) return 'a-couper';
       return r.inscrites < 3 && ligne.depense < 1.5 * moyen ? 'trop-tot' : 'moyenne';
     };

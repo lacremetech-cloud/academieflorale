@@ -86,18 +86,20 @@ test('verdicts : jugés sur les inscrites tant que les rendez-vous et les ventes
     pub({ id: '4', nom: 'Sans résultat', depense: 40, prospects: 0 }),
     pub({ id: '5', nom: 'Débutante', depense: 5, prospects: 0 }),
     pub({ id: '6', nom: 'Deux inscrites', depense: 6, prospects: 2 }),
+    pub({ id: '7', nom: 'Petit volume', depense: 20, prospects: 8 }),
   ]);
   const { niveau, reperes, verdicts } = classerPubs(lignes, 'meta');
   assert.equal(niveau, 'inscrites');
-  // 351 € pour 68 inscrites : 5,16 € en moyenne.
-  assert.equal(Math.round(reperes.coutInscrite * 100) / 100, 5.16);
+  // 371 € pour 76 inscrites : 4,88 € en moyenne.
+  assert.equal(Math.round(reperes.coutInscrite * 100) / 100, 4.88);
   assert.deepEqual(
     Object.fromEntries(Object.entries(verdicts).map(([cle, v]) => [cle.slice(4), v.verdict])),
-    { gagnante: 'gagnante', moyenne: 'moyenne', chère: 'a-couper', 'sans résultat': 'a-couper', débutante: 'trop-tot', 'deux inscrites': 'trop-tot' },
+    // « Petit volume » : 2,50 € l'inscrite, mais sur 8 inscrites seulement. Prometteuse, pas encore gagnante.
+    { gagnante: 'gagnante', moyenne: 'moyenne', chère: 'a-couper', 'sans résultat': 'a-couper', débutante: 'trop-tot', 'deux inscrites': 'trop-tot', 'petit volume': 'prometteuse' },
   );
-  assert.deepEqual(trierPubs(lignes, verdicts).map((ligne) => ligne.nom), ['Gagnante', 'Moyenne', 'Deux inscrites', 'Débutante', 'Chère', 'Sans résultat']);
+  assert.deepEqual(trierPubs(lignes, verdicts).map((ligne) => ligne.nom), ['Gagnante', 'Petit volume', 'Moyenne', 'Deux inscrites', 'Débutante', 'Chère', 'Sans résultat']);
   // Le tunnel n'a rien vu : aucun repère, donc rien ne se juge.
-  assert.deepEqual(Object.values(classerPubs(lignes, 'tunnel').verdicts).map((v) => v.verdict), Array(6).fill('trop-tot'));
+  assert.deepEqual(Object.values(classerPubs(lignes, 'tunnel').verdicts).map((v) => v.verdict), Array(7).fill('trop-tot'));
 });
 
 test('verdicts : avec assez de rendez-vous puis de ventes, le jugement descend dans le tunnel', () => {
