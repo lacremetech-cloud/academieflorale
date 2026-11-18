@@ -172,6 +172,8 @@ async function assemblerAutreTunnel({ mois, tunnel, env, fetchImpl, maintenant }
     // D'où viennent les « inscrits » du webinaire : le résultat visé par ses campagnes, ou à défaut les prospects selon Meta.
     mesureInscrits: meta?.mesure ?? null,
     resultat: tunnel === 'webinaire' ? TUNNELS.webinaire.resultat : '',
+    // Ce que Meta a rendu pour ces campagnes, type d'action par type d'action : pour vérifier ce qui est compté.
+    typesMeta: meta?.typesVus ?? {},
     // Les appels du mois, source par source (setting, YouTube…).
     parSource: iclosed.etat === 'ok' ? (iclosed.parEvent ?? []) : [],
     sources: Object.fromEntries(Object.entries(sources).map(([cle, source]) => [cle, etatDeSource(source, lues[cle]?.etat ?? 'a-brancher', lues[cle]?.detail)])),

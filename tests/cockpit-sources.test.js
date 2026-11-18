@@ -435,11 +435,40 @@ test('Meta, webinaire : ses campagnes, et ses inscriptions comptées comme dans 
   assert.equal(conversions.url.pathname, '/v27.0/act_123456789/customconversions');
   assert.equal(conversions.options.headers.Authorization, 'Bearer jeton-meta-de-test');
   assert.deepEqual(JSON.parse(insights.url.searchParams.get('filtering')), [{ field: 'campaign.name', operator: 'CONTAIN', value: 'nuit des fleuristes' }]);
-  assert.equal(insights.url.searchParams.get('fields'), 'spend,impressions,inline_link_clicks,actions');
+  assert.equal(insights.url.searchParams.get('fields'), 'spend,impressions,inline_link_clicks,actions,conversions');
   assert.equal(demandes.some((d) => d.url.href.includes('jeton-meta-de-test')), false);
+  // Pour vérifier ce qui est compté : le total du mois de chaque type d'action rendu par Meta.
+  assert.deepEqual(lu.typesVus, { lead: 64, 'offsite_conversion.custom.112233445566': 54 });
   // La conversion est retenue : la lecture suivante ne la redemande pas.
   await lireMeta({ ...lecture, fetchImpl });
   assert.equal(demandes.filter((d) => d.url.pathname.endsWith('/customconversions')).length, 1);
+
+  // Le résultat est un événement personnalisé du pixel (et non une conversion personnalisée) : Meta le détaille
+  // dans « conversions », sous son nom ; « actions » ne donne que le total de tous les événements personnalisés.
+  oublierConversions();
+  const evenement = fauxReseau((url) =>
+    url.pathname.endsWith('/customconversions')
+      ? { data: [] }
+      : {
+          data: [
+            {
+              date_start: '2026-11-01',
+              spend: '440',
+              impressions: '33266',
+              inline_link_clicks: '647',
+              actions: [{ action_type: 'offsite_conversion.fb_pixel_custom', value: '90' }, { action_type: 'lead', value: '2' }],
+              conversions: [{ action_type: 'offsite_conversion.fb_pixel_custom.Lead_NuitFleuristes', value: '54' }, { action_type: 'offsite_conversion.fb_pixel_custom.Qualified', value: '9' }],
+            },
+            { date_start: '2026-11-02', spend: '434', impressions: '43494', inline_link_clicks: '775', conversions: [{ action_type: 'offsite_conversion.fb_pixel_custom.Lead_NuitFleuristes', value: '60' }] },
+            { date_start: '2026-11-03', spend: '100', impressions: '9000', inline_link_clicks: '90', actions: [{ action_type: 'lead', value: '1' }] },
+          ],
+        },
+  );
+  const parNom = await lireMeta({ ...lecture, fetchImpl: evenement.fetchImpl });
+  assert.deepEqual([parNom.mesure, parNom.jours['2026-11-01'].inscrits, parNom.jours['2026-11-02'].inscrits], ['resultat', 54, 60]);
+  // La même mesure pour tout le mois : un jour sans ce résultat vaut zéro, il ne se rabat pas sur les prospects.
+  assert.equal(parNom.jours['2026-11-03'].inscrits, 0);
+  assert.equal(parNom.typesVus['offsite_conversion.fb_pixel_custom.Lead_NuitFleuristes'], 114);
 
   // Conversion introuvable, ou que Meta ne veut pas donner : les prospects attribués aux campagnes, et l'onglet le dit.
   oublierConversions();

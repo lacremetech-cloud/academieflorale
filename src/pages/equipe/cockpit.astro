@@ -2097,7 +2097,7 @@ import { FORMULES } from '../../../partage/ventes.js';
       introAcquisition.textContent +=
         d.mesureInscrits === 'resultat'
           ? ` Inscrits : le résultat « ${d.resultat} » de ces campagnes, comme dans le gestionnaire de publicités.`
-          : ' Inscrits : les prospects que Meta attribue à ces campagnes.';
+          : ` Inscrits : les prospects que Meta attribue à ces campagnes (leur résultat « ${d.resultat} » n’a pas été trouvé chez Meta).`;
     }
     const titreVentes = $('[data-titre-ventes]');
     if (titreVentes) titreVentes.textContent = tunnel === 'vsl' ? 'Ventes du mois' : `Ventes du mois · ${TUNNELS[tunnel].nom}`;

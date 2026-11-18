@@ -61,8 +61,9 @@ export function valeurAction(actions, types) {
 const conversionsConnues = new Map();
 
 /**
- * L'identifiant d'une conversion personnalisée du compte, retrouvée par son nom
- * (celui qui s'affiche dans la colonne « Résultats » du gestionnaire de publicités).
+ * L'identifiant d'une conversion personnalisée du compte, retrouvée par son nom.
+ * (Le résultat d'une campagne peut aussi être un événement personnalisé du pixel,
+ * qui n'a pas d'identifiant : lireMeta le reconnaît alors à son nom.)
  * @param {object} options
  * @param {string} options.nom
  * @param {string} options.compte
@@ -103,9 +104,12 @@ export function oublierConversions() {
  * @param {typeof fetch} [options.fetchImpl]
  * @param {Date} [options.maintenant]
  * @param {string} [options.filtre] texte que doit contenir le nom des campagnes (sans lui : celui du tunnel VSL)
- * @param {string} [options.resultat] avec lui, chaque jour porte aussi `inscrits` : le résultat de ce nom
- *   (une conversion personnalisée du compte) ou, s'il est introuvable, les prospects que Meta attribue aux campagnes
- * @returns {Promise<{ etat: 'ok' | 'a-brancher' | 'erreur', detail?: string, mesure?: 'resultat' | 'prospects', jours: Record<string, Record<string, number>> }>}
+ * @param {string} [options.resultat] avec lui, chaque jour porte aussi `inscrits` : le résultat de ce nom, tel que
+ *   la colonne « Résultats » du gestionnaire de publicités le compte (un événement personnalisé du pixel, ou une
+ *   conversion personnalisée du compte) ou, s'il est introuvable, les prospects que Meta attribue aux campagnes
+ * @returns {Promise<{ etat: 'ok' | 'a-brancher' | 'erreur', detail?: string, mesure?: 'resultat' | 'prospects',
+ *   typesVus?: Record<string, number>, jours: Record<string, Record<string, number>> }>} `typesVus` : le total du mois
+ *   de chaque type d'action rendu par Meta, pour vérifier ce qui est compté
  */
 export async function lireMeta({ env, mois, fetchImpl = fetch, maintenant = new Date(), filtre: filtreVoulu, resultat: nomDuResultat }) {
   const jeton = (env.META_ACCESS_TOKEN ?? '').trim();
@@ -119,10 +123,10 @@ export async function lireMeta({ env, mois, fetchImpl = fetch, maintenant = new 
   if (jours.length === 0) return { etat: 'ok', jours: {} };
   // Les inscriptions du webinaire : le résultat visé par ses campagnes, tel que le gestionnaire de publicités le compte.
   const conversion = nomDuResultat ? await conversionPersonnalisee({ nom: nomDuResultat, compte, jeton, version, fetchImpl }) : '';
-  const typesInscrits = conversion ? [`offsite_conversion.custom.${conversion}`] : ACTIONS_PROSPECTS;
   const parametres = new URLSearchParams({
     level: 'account',
-    fields: nomDuResultat ? 'spend,impressions,inline_link_clicks,actions' : 'spend,impressions,inline_link_clicks',
+    // « conversions » détaille les événements personnalisés du pixel, un par un ; « actions » ne les donne qu'en bloc.
+    fields: nomDuResultat ? 'spend,impressions,inline_link_clicks,actions,conversions' : 'spend,impressions,inline_link_clicks',
     time_range: JSON.stringify({ since: jours[0], until: jours[jours.length - 1] }),
     time_increment: '1',
     limit: '100',
@@ -134,6 +138,8 @@ export async function lireMeta({ env, mois, fetchImpl = fetch, maintenant = new 
 
   /** @type {Record<string, Record<string, number>>} */
   const resultat = {};
+  /** Par jour, la valeur de chaque type d'action (webinaire seulement). @type {Record<string, Map<string, number>>} */
+  const actionsParJour = {};
   try {
     for (let page = 0; page < PAGES_MAX; page += 1) {
       // Le jeton part dans un en-tête, jamais dans l'adresse.
@@ -153,8 +159,8 @@ export async function lireMeta({ env, mois, fetchImpl = fetch, maintenant = new 
           depense: Number(ligne.spend) || 0,
           impressions: Number(ligne.impressions) || 0,
           clics: Number(ligne.inline_link_clicks) || 0,
-          ...(nomDuResultat ? { inscrits: valeurAction(ligne.actions, typesInscrits) } : {}),
         };
+        if (nomDuResultat) actionsParJour[ligne.date_start] = actionsDe(ligne);
       }
       const suite = corps?.paging?.next ? corps?.paging?.cursors?.after : null;
       if (!suite) break;
@@ -164,5 +170,49 @@ export async function lireMeta({ env, mois, fetchImpl = fetch, maintenant = new 
     const nom = erreur instanceof Error ? erreur.name : '';
     return { etat: 'erreur', detail: nom === 'TimeoutError' ? 'Meta ne répond pas (délai dépassé)' : 'Meta est injoignable', jours: {} };
   }
-  return { etat: 'ok', jours: resultat, ...(nomDuResultat ? { mesure: /** @type {const} */ (conversion ? 'resultat' : 'prospects') } : {}) };
+  if (!nomDuResultat) return { etat: 'ok', jours: resultat };
+
+  // Une seule mesure pour tout le mois : le résultat visé par les campagnes s'il apparaît, sinon les prospects.
+  /** @type {Record<string, number>} */
+  const totaux = {};
+  for (const actions of Object.values(actionsParJour)) {
+    for (const [type, valeur] of actions) totaux[type] = (totaux[type] ?? 0) + valeur;
+  }
+  const vus = Object.keys(totaux);
+  const voulus = [`offsite_conversion.fb_pixel_custom.${nomDuResultat}`, ...(conversion ? [`offsite_conversion.custom.${conversion}`] : [])].map((type) => type.toLowerCase());
+  const duResultat = vus.filter((type) => voulus.includes(type.toLowerCase()));
+  const retenus = duResultat.length > 0 ? duResultat : ACTIONS_PROSPECTS.filter((type) => vus.includes(type)).slice(0, 1);
+  for (const [jour, ligne] of Object.entries(resultat)) {
+    ligne.inscrits = retenus.reduce((somme, type) => somme + (actionsParJour[jour]?.get(type) ?? 0), 0);
+  }
+  return {
+    etat: 'ok',
+    jours: resultat,
+    mesure: /** @type {const} */ (duResultat.length > 0 ? 'resultat' : 'prospects'),
+    // Les types d'action les plus fréquents du mois : de quoi vérifier ce qui est compté (aucune donnée personnelle).
+    typesVus: Object.fromEntries(
+      Object.entries(totaux)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 30)
+        .map(([type, total]) => [type, Math.round(total * 100) / 100]),
+    ),
+  };
+}
+
+/**
+ * Les actions d'une ligne rendue par Meta, par type. « conversions » passe d'abord :
+ * un même type peut figurer dans les deux listes, il n'est compté qu'une fois.
+ * @param {any} ligne
+ * @returns {Map<string, number>}
+ */
+function actionsDe(ligne) {
+  /** @type {Map<string, number>} */
+  const parType = new Map();
+  for (const liste of [ligne?.conversions, ligne?.actions]) {
+    for (const action of Array.isArray(liste) ? liste : []) {
+      const type = typeof action?.action_type === 'string' ? action.action_type : '';
+      if (type && !parType.has(type)) parType.set(type, Number(action.value) || 0);
+    }
+  }
+  return parType;
 }

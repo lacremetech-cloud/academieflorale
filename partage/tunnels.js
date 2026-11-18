@@ -24,7 +24,7 @@ export const TUNNELS = Object.freeze({
     nom: 'Webinaire',
     /** Les campagnes Meta du webinaire portent toutes son nom (relevé dans le compte le 18/11/2026). */
     campagnes: 'nuit des fleuristes',
-    /** Le résultat que ces campagnes visent : une conversion personnalisée du compte. */
+    /** Le résultat que ces campagnes visent : un événement personnalisé du pixel, envoyé par les pages du webinaire. */
     resultat: 'Lead_NuitFleuristes',
     events: Object.freeze([Object.freeze({ event: 'candidature', nom: 'Webinaire' })]),
   }),
