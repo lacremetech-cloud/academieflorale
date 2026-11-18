@@ -556,7 +556,7 @@ import { FORMULES } from '../../../partage/ventes.js';
     color: var(--trait);
   }
 
-  table :global(td.vente) {
+  table :global(tbody tr td.vente) {
     background: var(--vert-trustpilot);
     color: var(--blanc);
     font-weight: 700;
@@ -631,9 +631,13 @@ import { FORMULES } from '../../../partage/ventes.js';
     gap: 8px;
   }
 
+  table :global(th.texte),
+  table :global(td.texte) {
+    text-align: left;
+  }
+
   table :global(td.texte) {
     max-width: 22rem;
-    text-align: left;
     white-space: normal;
   }
 
@@ -1021,11 +1025,11 @@ import { FORMULES } from '../../../partage/ventes.js';
       { cle: 'maintenus', titre: 'Q. Calls', aide: 'Appels maintenus : réservés moins annulés', format: 'entier', lire: calcule('maintenus') },
       { cle: 'cpaMaintenu', titre: 'Q. CPA', aide: 'Dépense ÷ appels maintenus', format: 'euros', lire: calcule('cpaMaintenu') },
       { cle: 'absentes', titre: 'Absentes', aide: 'Appels où la prospecte ne s’est pas présentée, au jour prévu', format: 'entier', lire: brut('absentes') },
-      { cle: 'ventes', titre: 'Ventes', aide: 'Ventes enregistrées ce jour-là', format: 'entier', lire: brut('ventes'), vente: true },
+      { cle: 'ventes', titre: 'Ventes', aide: 'Ventes enregistrées', format: 'entier', lire: brut('ventes'), vente: true },
       { cle: 'tauxClosing', titre: '% Close', aide: 'Ventes ÷ appels maintenus', format: 'pourcent', lire: calcule('tauxClosing') },
-      { cle: 'encaisse', titre: 'Cash', aide: 'Déjà encaissé sur les ventes de ce jour, d’après leur échéancier', format: 'euros', lire: brut('encaisse') },
-      { cle: 'reste', titre: 'Recu.', aide: 'Reste à encaisser sur les ventes de ce jour', format: 'euros', lire: calcule('reste') },
-      { cle: 'contracte', titre: 'Cum.', aide: 'Montant des ventes de ce jour (contracté)', format: 'euros', lire: brut('contracte') },
+      { cle: 'encaisse', titre: 'Cash', aide: 'Déjà encaissé sur ces ventes, d’après leur échéancier', format: 'euros', lire: brut('encaisse') },
+      { cle: 'reste', titre: 'Recu.', aide: 'Reste à encaisser sur ces ventes', format: 'euros', lire: calcule('reste') },
+      { cle: 'contracte', titre: 'Cum.', aide: 'Montant des ventes (contracté)', format: 'euros', lire: brut('contracte') },
       { cle: 'cpv', titre: 'CPV', aide: 'Coût par vente : dépense ÷ ventes', format: 'euros', lire: calcule('cpv') },
       { cle: 'roas', titre: 'ROAS', aide: 'Contracté ÷ dépense', format: 'ratio', lire: calcule('roas') },
       { cle: 'roasDirect', titre: 'D. ROAS', aide: 'Encaissé ÷ dépense', format: 'ratio', lire: calcule('roasDirect') },
@@ -1366,7 +1370,8 @@ import { FORMULES } from '../../../partage/ventes.js';
       }),
       d.ventes.length > 1 ? ['TOTAL', `${d.ventes.length} ventes`, argent(somme('montant')), '', argent(somme('commission')), '', argent(somme('encaisse')), argent(somme('reste')), ''] : undefined,
     );
-    for (const cellule of document.querySelectorAll<HTMLElement>('[data-table="ventes"] tbody td:nth-child(2), [data-table="ventes"] tbody td:nth-child(4), [data-table="ventes"] tbody td:nth-child(6)')) {
+    // Formule, closer et paiement sont du texte : alignés à gauche, titres compris.
+    for (const cellule of document.querySelectorAll<HTMLElement>('[data-table="ventes"] tr > :is(:nth-child(2), :nth-child(4), :nth-child(6))')) {
       cellule.classList.add('texte');
     }
 
