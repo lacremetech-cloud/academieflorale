@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import connexion from '../api/cockpit/connexion.js';
 import donnees from '../api/cockpit/donnees.js';
 import note from '../api/cockpit/note.js';
+import saisie from '../api/cockpit/saisie.js';
 import {
   COOKIE,
   creerSession,
@@ -13,7 +14,7 @@ import {
   traiterConnexion,
   verifierAcces,
 } from '../serveur/cockpit/acces.js';
-import { traiterDonnees, traiterNote } from '../serveur/cockpit/donnees.js';
+import { traiterDonnees, traiterNote, traiterSaisie } from '../serveur/cockpit/donnees.js';
 import { creerLimiteur } from '../serveur/lead.js';
 
 const SITE = 'https://tunnel.test';
@@ -44,7 +45,7 @@ async function seConnecter() {
 }
 
 test('les fonctions Vercel du cockpit exposent bien un gestionnaire fetch', () => {
-  for (const fonction of [connexion, donnees, note]) assert.equal(typeof fonction.fetch, 'function');
+  for (const fonction of [connexion, donnees, note, saisie]) assert.equal(typeof fonction.fetch, 'function');
 });
 
 test('mot de passe : réglé seulement s’il est assez long', () => {
@@ -150,7 +151,12 @@ test('accès aux chiffres : seulement avec une session valide', async () => {
   assert.equal(corps.demonstration, false);
   assert.equal(corps.jours.length, 30);
   assert.equal(corps.jours[0].depense, null);
-  assert.deepEqual(Object.values(corps.sources).map((s) => s.etat), ['a-brancher', 'a-brancher', 'a-brancher', 'a-brancher']);
+  assert.deepEqual(Object.keys(corps.sources), ['meta', 'compteurs', 'wistia', 'iclosed', 'ventes']);
+  assert.ok(Object.values(corps.sources).every((s) => s.etat === 'a-brancher'));
+  assert.equal(corps.sources.ventes.manuel, true);
+  assert.match(corps.sources.ventes.brancher, /Upstash/);
+  assert.equal(corps.jours[0].ventes, null); // pas de base : rien à saisir, rien d'affiché
+  assert.deepEqual(corps.saisie, ['ventes', 'encaisse', 'reste']);
   assert.equal(appels.length, 0);
 
   // Mois illisible : le mois en cours.
@@ -171,6 +177,31 @@ test('démonstration : en local seulement, jamais sur Vercel', async () => {
   const vercel = await lire({ ...ENV, COCKPIT_DEMO: '1', VERCEL: '1' });
   assert.equal(vercel.demonstration, false);
   assert.equal(vercel.jours[0].depense, null);
+
+  // Avec une base reliée (en local : la base en mémoire), les ventes et les notes de la
+  // démonstration sont celles qui ont été saisies, comme en vrai.
+  const jours = 31;
+  const base = async () =>
+    new Response(
+      JSON.stringify([
+        { result: Array(jours).fill(null) },
+        { result: Array(jours).fill(null) },
+        { result: ['note saisie', ...Array(jours - 1).fill(null)] },
+        { result: [] },
+        { result: ['2', '500', '1500', ...Array((jours - 1) * 3).fill(null)] },
+      ]),
+    );
+  const avecBase = await (
+    await traiterDonnees(demande('/api/cockpit/donnees?mois=2026-10', { methode: 'GET', enTetes: { cookie } }), {
+      env: { ...ENV, COCKPIT_DEMO: '1', KV_REST_API_URL: 'https://base.test', KV_REST_API_TOKEN: 'jeton' },
+      fetchImpl: base,
+      maintenant: new Date('2026-11-18T10:00:00Z'),
+    })
+  ).json();
+  assert.equal(avecBase.demonstration, true);
+  assert.deepEqual([avecBase.jours[0].ventes, avecBase.jours[0].encaisse, avecBase.jours[0].contracte], [2, 500, 2000]);
+  assert.deepEqual([avecBase.jours[1].ventes, avecBase.jours[1].contracte], [0, 0]);
+  assert.deepEqual(avecBase.notes, { '2026-10-01': 'note saisie' });
 });
 
 test('notes : session exigée, date vérifiée, base non reliée signalée', async () => {
@@ -202,4 +233,58 @@ test('notes : session exigée, date vérifiée, base non reliée signalée', asy
 
   await traiterNote(demande('/api/cockpit/note', { corps: { date: '2026-11-18', note: '   ' }, enTetes: { cookie } }), { env, fetchImpl });
   assert.deepEqual(commandes[1].corps[0].slice(0, 3), ['HDEL', 'af:c1:notes', '2026-11-18']);
+});
+
+test('saisie des ventes : session exigée, jour passé, champ et valeur vérifiés', async () => {
+  const cookie = await seConnecter();
+  const maintenant = new Date('2026-11-18T10:00:00Z');
+  const env = { ...ENV, KV_REST_API_URL: 'https://base.test', KV_REST_API_TOKEN: 'jeton-de-test' };
+  const commandes = [];
+  // Fausse base : elle retient ce qui est écrit et le rend à la relecture.
+  const table = new Map();
+  const fetchImpl = async (adresse, options) => {
+    const corps = JSON.parse(options.body);
+    commandes.push(corps);
+    return new Response(
+      JSON.stringify(
+        corps.map(([nom, , ...reste]) => {
+          if (nom === 'HSET') return { result: table.set(reste[0], reste[1]) && 1 };
+          if (nom === 'HDEL') return { result: table.delete(reste[0]) ? 1 : 0 };
+          return { result: reste.map((champ) => table.get(champ) ?? null) };
+        }),
+      ),
+    );
+  };
+  const envoyer = (corps, options = {}) =>
+    traiterSaisie(demande('/api/cockpit/saisie', { corps, enTetes: options.sansSession ? {} : { cookie } }), { env: options.env ?? env, fetchImpl, maintenant });
+
+  assert.equal((await envoyer({ date: '2026-11-17', champ: 'ventes', valeur: 1 }, { sansSession: true })).status, 401);
+  assert.equal((await traiterSaisie(demande('/api/cockpit/saisie', { methode: 'GET', enTetes: { cookie } }), { env })).status, 405);
+  // Jour inexistant, jour à venir, champ inconnu, valeur illisible : refusés sans rien écrire.
+  for (const [corps, erreur] of [
+    [{ date: '2026-11-31', champ: 'ventes', valeur: 1 }, 'date'],
+    [{ date: '2026-11-19', champ: 'ventes', valeur: 1 }, 'date'],
+    [{ date: '2026-11-17', champ: 'depense', valeur: 1 }, 'champ'],
+    [{ date: '2026-11-17', champ: 'ventes', valeur: 1.5 }, 'valeur'],
+    [{ date: '2026-11-17', champ: 'encaisse', valeur: '-10' }, 'valeur'],
+  ]) {
+    const reponse = await envoyer(corps);
+    assert.deepEqual([reponse.status, (await reponse.json()).erreur], [400, erreur]);
+  }
+  assert.equal(commandes.length, 0);
+  // Base non reliée : dit clairement, rien n'est perdu en silence.
+  assert.equal((await envoyer({ date: '2026-11-17', champ: 'ventes', valeur: 1 }, { env: ENV })).status, 503);
+
+  // Une vente du 17 : 1 000 € encaissés, 2 000 € à venir.
+  const lire = async (corps) => (await envoyer(corps)).json();
+  assert.deepEqual((await lire({ date: '2026-11-17', champ: 'ventes', valeur: 1 })).chiffres, { ventes: 1, encaisse: 0, contracte: 0 });
+  assert.deepEqual(commandes[0][0], ['HSET', 'af:c1:saisies', '2026-11-17:ventes', '1']);
+  assert.deepEqual(commandes[0][1], ['HMGET', 'af:c1:saisies', '2026-11-17:ventes', '2026-11-17:encaisse', '2026-11-17:reste']);
+  assert.deepEqual((await lire({ date: '2026-11-17', champ: 'encaisse', valeur: '1 000' })).chiffres, { ventes: 1, encaisse: 1000, contracte: 1000 });
+  assert.deepEqual((await lire({ date: '2026-11-17', champ: 'reste', valeur: 2000 })).chiffres, { ventes: 1, encaisse: 1000, contracte: 3000 });
+  // Aujourd'hui se saisit aussi ; une case vidée (ou remise à zéro) efface le chiffre.
+  assert.equal((await envoyer({ date: '2026-11-18', champ: 'ventes', valeur: 2 })).status, 200);
+  assert.deepEqual((await lire({ date: '2026-11-17', champ: 'reste', valeur: null })).chiffres, { ventes: 1, encaisse: 1000, contracte: 1000 });
+  assert.deepEqual(commandes.at(-1)[0], ['HDEL', 'af:c1:saisies', '2026-11-17:reste']);
+  assert.deepEqual((await lire({ date: '2026-11-17', champ: 'ventes', valeur: 0 })).chiffres, { ventes: 0, encaisse: 1000, contracte: 1000 });
 });

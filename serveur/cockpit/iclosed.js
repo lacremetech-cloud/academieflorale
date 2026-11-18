@@ -2,13 +2,13 @@
 /**
  * Cockpit, source « iClosed » : les appels de l'event du tunnel VSL et leurs suites.
  * - appels : appels réservés ce jour-là (date de réservation) ;
- * - annules, absentes : parmi les appels prévus ce jour-là ;
- * - ventes, contracte : ventes enregistrées ce jour-là, et leur montant.
- * L'encaissé n'est pas lu ici : sa source reste à choisir.
+ * - annules, absentes : parmi les appels prévus ce jour-là.
+ * Les ventes ne sont pas lues ici : elles se saisissent à la main dans le cockpit.
  *
  * Variable d'environnement (saisie dans Vercel) :
- * - ICLOSED_API_KEY : clé créée dans iClosed (Settings, Developers, API Keys),
- *   collée telle qu'iClosed la donne, avec son préfixe.
+ * - ICLOSED_API_KEY : clé créée dans iClosed (Paramètres, Développeur, Clés API),
+ *   collée telle qu'iClosed la donne, avec son préfixe. Deux droits de lecture
+ *   suffisent : « Évènements » et « Appels d'évènements ».
  */
 import { joursDuMois, jourParis } from '../../partage/cockpit.js';
 import { ICLOSED_VSL } from '../../partage/iclosed.js';
@@ -95,11 +95,11 @@ export async function lireIclosed({ env, mois, fetchImpl = fetch }) {
 
   /** @type {Record<string, Record<string, number>>} */
   const resultat = {};
-  /** @param {string} jour @param {string} chiffre @param {number} [combien] */
-  const ajouter = (jour, chiffre, combien = 1) => {
+  /** @param {string} jour @param {string} chiffre */
+  const ajouter = (jour, chiffre) => {
     if (!dansLeMois.has(jour)) return;
-    const ligne = (resultat[jour] ??= { appels: 0, annules: 0, absentes: 0, ventes: 0, contracte: 0 });
-    ligne[chiffre] = (ligne[chiffre] ?? 0) + combien;
+    const ligne = (resultat[jour] ??= { appels: 0, annules: 0, absentes: 0 });
+    ligne[chiffre] = (ligne[chiffre] ?? 0) + 1;
   };
 
   try {
@@ -129,21 +129,6 @@ export async function lireIclosed({ env, mois, fetchImpl = fetch }) {
       const motifs = (Array.isArray(appel?.task) ? appel.task : []).map((/** @type {any} */ t) => t?.noSaleReason);
       if (appel?.cancelledBy || appel?.cancelReason || motifs.some((m) => MOTIFS_ANNULATION.includes(m))) ajouter(jour, 'annules');
       else if (motifs.includes('NO_SHOW')) ajouter(jour, 'absentes');
-    }
-
-    // 4. Les ventes enregistrées dans le mois, et leur montant.
-    const ventes = await lister(
-      '/v1/deals',
-      { eventIds: event, timeFrom: debut, timeTo: fin },
-      200,
-      (corps) => ({ lignes: corps?.data?.deals, total: corps?.data?.count }),
-      cle,
-      fetchImpl,
-    );
-    for (const vente of ventes) {
-      const jour = jourDe(vente?.time ?? vente?.createdAt);
-      ajouter(jour, 'ventes');
-      ajouter(jour, 'contracte', Number(vente?.value) || 0);
     }
   } catch (erreur) {
     if (erreur instanceof ErreurIclosed) return { etat: 'erreur', detail: erreur.message, jours: {} };

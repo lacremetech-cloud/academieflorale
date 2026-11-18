@@ -2,10 +2,13 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   BRUTS,
+  CHAMPS_SAISIE,
+  chiffresDeVente,
   indicateurs,
   jourParis,
   joursDuMois,
   jourVide,
+  lireSaisie,
   moisCourant,
   moisDecale,
   moisValide,
@@ -116,4 +119,35 @@ test('totaux : somme des jours, et null quand aucun jour n’a le chiffre', () =
   assert.equal(partiel.inscrits, null);
   // Le total du mois se calcule sur les sommes, pas sur la moyenne des jours.
   proche(indicateurs(total).cpp, 322 / 58, 0.0001);
+});
+
+test('saisie à la main : montants à la française, rien pour zéro, refus de l’illisible', () => {
+  assert.deepEqual([...CHAMPS_SAISIE], ['ventes', 'encaisse', 'reste']);
+  assert.equal(lireSaisie('ventes', '2'), 2);
+  assert.equal(lireSaisie('ventes', 3), 3);
+  assert.equal(lireSaisie('encaisse', '1\u202f500,50 €'), 1500.5);
+  assert.equal(lireSaisie('encaisse', '1 500'), 1500);
+  assert.equal(lireSaisie('reste', '2000.00'), 2000);
+  // Case vidée ou zéro : rien à garder.
+  for (const rien of ['', '   ', '0', 0, null, undefined]) assert.equal(lireSaisie('encaisse', rien), null);
+  // Illisible, négatif, démesuré, ventes à virgule, champ inconnu.
+  for (const faux of ['abc', '-5', '1,234', '1.2.3', '1e3', {}, true]) assert.equal(lireSaisie('encaisse', faux), undefined);
+  assert.equal(lireSaisie('ventes', '1,5'), undefined);
+  assert.equal(lireSaisie('ventes', 1000), undefined);
+  assert.equal(lireSaisie('encaisse', 10000000), undefined);
+  assert.equal(lireSaisie('depense', '5'), undefined);
+});
+
+test('ventes saisies : le contracté est l’encaissé plus le reste à encaisser', () => {
+  assert.deepEqual(chiffresDeVente(undefined), { ventes: 0, encaisse: 0, contracte: 0 });
+  assert.deepEqual(chiffresDeVente({ ventes: 1, encaisse: 1000, reste: 2000 }), { ventes: 1, encaisse: 1000, contracte: 3000 });
+  assert.deepEqual(chiffresDeVente({ ventes: 2, reste: 3800 }), { ventes: 2, encaisse: 0, contracte: 3800 });
+  assert.deepEqual(chiffresDeVente({ encaisse: 0.1, reste: 0.2 }), { ventes: 0, encaisse: 0.1, contracte: 0.3 });
+  // Dans le cockpit : « Recu. » retrouve bien le reste saisi, « Cum. » le total.
+  const jour = { ...jourVide(), depense: 200, appels: 4, annules: 1, ...chiffresDeVente({ ventes: 1, encaisse: 1000, reste: 2000 }) };
+  const i = indicateurs(jour);
+  assert.equal(i.reste, 2000);
+  assert.equal(i.roas, 15);
+  assert.equal(i.roasDirect, 5);
+  assert.equal(i.cpv, 200);
 });

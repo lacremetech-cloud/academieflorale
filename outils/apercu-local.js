@@ -15,16 +15,32 @@ import booking from '../api/booking.js';
 import cockpitConnexion from '../api/cockpit/connexion.js';
 import cockpitDonnees from '../api/cockpit/donnees.js';
 import cockpitNote from '../api/cockpit/note.js';
+import cockpitSaisie from '../api/cockpit/saisie.js';
 import lead from '../api/lead.js';
 import pays from '../api/pays.js';
 import { choisirVariante } from '../partage/repartition.js';
+import { ADRESSE_BASE_LOCALE, creerBaseLocale } from './base-locale.js';
 
 // Réglages locaux, s'il y en a : le fichier .env.local (jamais dans le repo) peut porter
-// un mot de passe de test pour le cockpit et COCKPIT_DEMO=1 pour ses chiffres de démonstration.
+// un mot de passe de test pour le cockpit, COCKPIT_DEMO=1 pour ses chiffres de démonstration
+// et BASE_LOCALE=1 pour une base de compteurs en mémoire (notes, ventes saisies, compteurs).
+// Une variable déjà définie au lancement l'emporte sur ce fichier.
 try {
   process.loadEnvFile(fileURLToPath(new URL('../.env.local', import.meta.url)));
 } catch {
   /* pas de réglages locaux */
+}
+
+if (process.env.BASE_LOCALE === '1') {
+  // Les fonctions croient parler à Upstash : leurs demandes sont servies ici, en mémoire.
+  process.env.KV_REST_API_URL = ADRESSE_BASE_LOCALE;
+  process.env.KV_REST_API_TOKEN = 'jeton-de-la-base-locale';
+  const fetchReel = globalThis.fetch;
+  const baseLocale = creerBaseLocale();
+  globalThis.fetch = async (adresse, options) =>
+    String(adresse instanceof Request ? adresse.url : adresse).startsWith(ADRESSE_BASE_LOCALE)
+      ? baseLocale(JSON.parse(String(options?.body ?? '[]')))
+      : fetchReel(adresse, options);
 }
 
 const RACINE = resolve(fileURLToPath(new URL('../dist', import.meta.url)));
@@ -36,6 +52,7 @@ const FONCTIONS = {
   '/api/cockpit/connexion': cockpitConnexion,
   '/api/cockpit/donnees': cockpitDonnees,
   '/api/cockpit/note': cockpitNote,
+  '/api/cockpit/saisie': cockpitSaisie,
   '/api/lead': lead,
   '/api/pays': pays,
 };

@@ -125,7 +125,7 @@ const appel = (id, createdAt, dateTimeUTC, suite = {}) => ({
   ...suite,
 });
 
-test('iClosed : appels réservés, annulés, absentes et ventes de l’event du tunnel', async () => {
+test('iClosed : appels réservés, annulés et absentes de l’event du tunnel', async () => {
   const { demandes, fetchImpl } = fauxReseau((url) => {
     if (url.pathname === '/v1/events') {
       return { data: [{ id: 7, linkPrefix: 'academie-florale/webinaire' }, { id: 12, linkPrefix: 'Academie-Florale/candidature-vsl' }] };
@@ -158,9 +158,6 @@ test('iClosed : appels réservés, annulés, absentes et ventes de l’event du 
         },
       };
     }
-    if (url.pathname === '/v1/deals') {
-      return { data: { count: 2, deals: [{ id: 1, value: 3800, time: '2026-11-05 17:45:00.000', transactionType: 'WON' }, { id: 2, value: '3000', time: '2026-11-20 10:00:00.000' }] } };
-    }
     return new Response('{}', { status: 404 });
   });
 
@@ -172,8 +169,9 @@ test('iClosed : appels réservés, annulés, absentes et ventes de l’event du 
   assert.equal(lu.jours['2026-11-06'].annules, 1);
   assert.equal(lu.jours['2026-11-02'].annules, 1);
   assert.equal(lu.jours['2026-11-07'].absentes, 1);
-  assert.deepEqual([lu.jours['2026-11-05'].ventes, lu.jours['2026-11-05'].contracte], [1, 3800]);
-  assert.deepEqual([lu.jours['2026-11-20'].ventes, lu.jours['2026-11-20'].contracte], [1, 3000]);
+  // Les ventes ne se lisent pas dans iClosed : elles se saisissent à la main.
+  assert.deepEqual(lu.jours['2026-11-03'], { appels: 2, annules: 0, absentes: 0 });
+  assert.equal(demandes.some((d) => d.url.pathname === '/v1/deals'), false);
   // Aucune donnée personnelle ne sort de la lecture.
   assert.equal(JSON.stringify(lu).includes('camille'), false);
 
@@ -183,7 +181,6 @@ test('iClosed : appels réservés, annulés, absentes et ventes de l’event du 
   assert.equal(appels[0].url.searchParams.get('createdAtEnd'), '2026-12-01T23:59:59.999Z');
   assert.equal(appels[1].url.searchParams.get('dateFrom'), '2026-10-31T00:00:00.000Z');
   assert.equal(demandes[0].options.headers.Authorization, 'Bearer iclosed_cle-de-test');
-  assert.equal(demandes.find((d) => d.url.pathname === '/v1/deals').url.searchParams.get('eventIds'), '12');
 });
 
 test('iClosed : non branché sans clé, erreurs lisibles', async () => {
@@ -223,7 +220,7 @@ test('compteurs : une vue ou une inscription se compte par jour et par formulati
   for (const douteux of ['inscription', '', null, '../secret', 'mariages', 'A B', 'x'.repeat(60)]) assert.equal(nomDeVariante(douteux), 'autre');
 });
 
-test('compteurs : lecture d’un mois, par jour et par formulation, avec les notes', async () => {
+test('compteurs : lecture d’un mois, par jour et par formulation, avec les notes et les ventes saisies', async () => {
   const { demandes, fetchImpl } = fauxReseau((url, options, rang) => {
     if (rang === 1) {
       const jours = 30;
@@ -232,6 +229,8 @@ test('compteurs : lecture d’un mois, par jour et par formulation, avec les not
         { result: ['12', null, ...Array(jours - 2).fill(null)] },
         { result: [null, 'scaling cbo', ...Array(jours - 2).fill(null)] },
         { result: ['90-jours-plan', '90-jours', 'ancienne'] },
+        // Ventes saisies : trois valeurs par jour (ventes, encaissé, reste). Le 1er : rien ; le 2 : une vente.
+        { result: [null, null, null, '1', '1000', '2000.5', ...Array((jours - 2) * 3).fill(null)] },
       ];
     }
     return [{ result: ['110', '105', null] }, { result: ['7', '5', null] }];
@@ -242,6 +241,9 @@ test('compteurs : lecture d’un mois, par jour et par formulation, avec les not
   assert.deepEqual(lu.jours['2026-11-02'], { vues: 95, inscrits: 0 });
   assert.deepEqual(lu.jours['2026-11-30'], { vues: 0, inscrits: 0 });
   assert.deepEqual(lu.notes, { '2026-11-02': 'scaling cbo' });
+  assert.deepEqual(lu.saisies, { '2026-11-02': { ventes: 1, encaisse: 1000, reste: 2000.5 } });
+  assert.deepEqual(demandes[0].corps[4].slice(0, 5), ['HMGET', 'af:c1:saisies', '2026-11-01:ventes', '2026-11-01:encaisse', '2026-11-01:reste']);
+  assert.equal(demandes[0].corps[4].length, 2 + 30 * 3);
   // Formulations triées ; celle qui n'a rien ce mois-ci n'est pas listée.
   assert.deepEqual(lu.variantes, [
     { nom: '90-jours', vues: 110, inscrits: 7 },
@@ -279,8 +281,38 @@ test('assemblage : zéro les jours passés d’une source branchée, vide pour l
   assert.equal(donnees.sources.wistia.etat, 'erreur');
   assert.equal(donnees.sources.iclosed.etat, 'a-brancher');
   assert.deepEqual(donnees.sources.compteurs.variables, ['KV_REST_API_URL', 'KV_REST_API_TOKEN']);
+  // Sans base, les ventes ne peuvent pas se saisir : elles restent vides, et la source le dit.
+  assert.deepEqual([deuxieme.ventes, deuxieme.encaisse, deuxieme.contracte], [null, null, null]);
+  assert.deepEqual([donnees.sources.ventes.etat, donnees.sources.ventes.manuel], ['a-brancher', true]);
   // Aucun secret dans ce qui part vers la page.
   assert.equal(/"x"|"y"/.test(JSON.stringify(donnees)), false);
+});
+
+test('assemblage : les ventes saisies à la main, zéro les jours sans saisie', async () => {
+  const jours = 30;
+  const { fetchImpl } = fauxReseau((url) =>
+    url.hostname === 'base.test'
+      ? [
+          { result: Array(jours).fill(null) },
+          { result: Array(jours).fill(null) },
+          { result: Array(jours).fill(null) },
+          { result: [] },
+          { result: [null, null, null, '1', '1000', '2000', ...Array((jours - 2) * 3).fill(null)] },
+        ]
+      : new Response('{}', { status: 500 }),
+  );
+  const donnees = await assemblerMois({
+    mois: MOIS,
+    env: { KV_REST_API_URL: 'https://base.test', KV_REST_API_TOKEN: 'jeton' },
+    fetchImpl,
+    maintenant: new Date('2026-11-03T12:00:00Z'),
+  });
+  const [premier, deuxieme, , quatrieme] = donnees.jours;
+  assert.deepEqual([premier.ventes, premier.encaisse, premier.contracte], [0, 0, 0]);
+  assert.deepEqual([deuxieme.ventes, deuxieme.encaisse, deuxieme.contracte], [1, 1000, 3000]);
+  assert.equal(quatrieme.ventes, null); // demain
+  assert.equal(deuxieme.appels, null); // iClosed non branché : les ventes se saisissent quand même
+  assert.deepEqual([donnees.sources.ventes.etat, donnees.sources.compteurs.etat, donnees.sources.iclosed.etat], ['ok', 'ok', 'a-brancher']);
 });
 
 test('landing : seules les vraies visites sont comptées', () => {

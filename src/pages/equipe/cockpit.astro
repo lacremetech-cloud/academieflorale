@@ -2,7 +2,8 @@
 /**
  * Cockpit : les chiffres du tunnel, mois par mois, avec le détail jour par jour,
  * en trois parties (Acquisition, VSL, Closing). Modèle : le tableau publicitaire
- * d'origine, sans second appel (R1 closing).
+ * d'origine, sans second appel (R1 closing). Les ventes (nombre, encaissé, reste
+ * à encaisser) se saisissent à la main, dans le tableau du Closing.
  *
  * Accès privé : cette page ne contient aucun chiffre. Elle demande le mot de
  * passe, puis lit les chiffres auprès de /api/cockpit/donnees, qui exige une
@@ -94,7 +95,10 @@ import { CHEMINS } from '../../reglages';
       <section class="partie" id="closing" aria-labelledby="titre-closing">
         <div class="tete-partie">
           <h2 id="titre-closing"><span class="numero" aria-hidden="true">3</span>Closing</h2>
-          <p class="texte-secondaire">De l’appel à la vente, en un seul appel (R1). Annulations et absences au jour prévu de l’appel, ventes au jour de la vente : iClosed.</p>
+          <p class="texte-secondaire">
+            De l’appel à la vente, en un seul appel (R1). Annulations et absences au jour prévu de l’appel : iClosed.
+            <span data-aide-saisie hidden>Ventes, Cash et Recu. se saisissent à la main : clique sur une case du tableau.</span>
+          </p>
         </div>
         <ul class="cartes" data-cartes="closing" role="list"></ul>
         <div class="defilement" tabindex="0" role="region" aria-label="Closing, jour par jour">
@@ -497,14 +501,65 @@ import { CHEMINS } from '../../reglages';
     border-radius: 6px;
     font: inherit;
   }
+
+  /* Les cases saisies à la main (ventes, encaissé, reste à encaisser) */
+  table :global(td.saisie) {
+    padding: 2px 4px;
+  }
+
+  table :global(td.saisie button) {
+    width: 100%;
+    min-width: 3.4rem;
+    min-height: 30px;
+    padding: 3px 6px;
+    border: 1px dashed var(--trait);
+    border-radius: 6px;
+    background: none;
+    color: inherit;
+    font: inherit;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    cursor: text;
+  }
+
+  table :global(td.saisie button:hover),
+  table :global(td.saisie button:focus-visible) {
+    border-color: var(--encre);
+  }
+
+  table :global(td.saisie.vente button) {
+    border-color: transparent;
+  }
+
+  table :global(td.saisie input) {
+    width: 100%;
+    min-width: 5.5rem;
+    min-height: 30px;
+    padding: 3px 6px;
+    border: 1.5px solid var(--encre);
+    border-radius: 6px;
+    background: var(--blanc);
+    color: var(--encre);
+    font: inherit;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
 </style>
 
 <script>
-  import { indicateurs, moisCourant, moisDecale, moisValide, totaliser } from '../../../partage/cockpit.js';
+  import { indicateurs, lireSaisie, moisCourant, moisDecale, moisValide, totaliser } from '../../../partage/cockpit.js';
 
   type Chiffres = Record<string, number | null>;
   type Jour = Chiffres & { date: string };
-  type Source = { nom: string; etat: 'ok' | 'a-brancher' | 'erreur'; detail: string; variables: string[] };
+  type Source = {
+    nom: string;
+    etat: 'ok' | 'a-brancher' | 'erreur';
+    detail: string;
+    variables: string[];
+    brancher?: string;
+    precision?: string;
+    manuel?: boolean;
+  };
   type Donnees = {
     mois: string;
     aujourdHui: string;
@@ -524,6 +579,8 @@ import { CHEMINS } from '../../reglages';
     /** Lit la valeur dans les chiffres bruts et les indicateurs d'une ligne. */
     lire?: (bruts: Chiffres, calcules: ReturnType<typeof indicateurs>) => number | null;
     vente?: boolean;
+    /** Chiffre saisi à la main : le nom sous lequel le serveur l'enregistre. */
+    saisie?: 'ventes' | 'encaisse' | 'reste';
   };
 
   const API = '/api/cockpit';
@@ -565,11 +622,11 @@ import { CHEMINS } from '../../reglages';
       { cle: 'maintenus', titre: 'Q. Calls', aide: 'Appels maintenus : réservés moins annulés', format: 'entier', lire: calcule('maintenus') },
       { cle: 'cpaMaintenu', titre: 'Q. CPA', aide: 'Dépense ÷ appels maintenus', format: 'euros', lire: calcule('cpaMaintenu') },
       { cle: 'absentes', titre: 'Absentes', aide: 'Appels où la prospecte ne s’est pas présentée, au jour prévu', format: 'entier', lire: brut('absentes') },
-      { cle: 'ventes', titre: 'Ventes', aide: 'Ventes enregistrées, à la date de la vente', format: 'entier', lire: brut('ventes'), vente: true },
+      { cle: 'ventes', titre: 'Ventes', aide: 'Ventes du jour, saisies à la main', format: 'entier', lire: brut('ventes'), vente: true, saisie: 'ventes' },
       { cle: 'tauxClosing', titre: '% Close', aide: 'Ventes ÷ appels maintenus', format: 'pourcent', lire: calcule('tauxClosing') },
-      { cle: 'encaisse', titre: 'Cash', aide: 'Encaissé', format: 'euros', lire: brut('encaisse') },
-      { cle: 'reste', titre: 'Recu.', aide: 'Reste à encaisser : contracté moins encaissé', format: 'euros', lire: calcule('reste') },
-      { cle: 'contracte', titre: 'Cum.', aide: 'Montant des ventes (contracté)', format: 'euros', lire: brut('contracte') },
+      { cle: 'encaisse', titre: 'Cash', aide: 'Encaissé le jour de la vente, saisi à la main', format: 'euros', lire: brut('encaisse'), saisie: 'encaisse' },
+      { cle: 'reste', titre: 'Recu.', aide: 'Reste à encaisser (échéances à venir), saisi à la main', format: 'euros', lire: calcule('reste'), saisie: 'reste' },
+      { cle: 'contracte', titre: 'Cum.', aide: 'Montant des ventes (contracté) : Cash + Recu.', format: 'euros', lire: brut('contracte') },
       { cle: 'cpv', titre: 'CPV', aide: 'Coût par vente : dépense ÷ ventes', format: 'euros', lire: calcule('cpv') },
       { cle: 'roas', titre: 'ROAS', aide: 'Contracté ÷ dépense', format: 'ratio', lire: calcule('roas') },
       { cle: 'roasDirect', titre: 'D. ROAS', aide: 'Encaissé ÷ dépense', format: 'ratio', lire: calcule('roasDirect') },
@@ -641,11 +698,14 @@ import { CHEMINS } from '../../reglages';
       ...Object.entries(sources).map(([cle, source]) => {
         const ligne = creer('li', '', source.etat === 'ok' ? 'ok' : source.etat === 'erreur' ? 'erreur-source' : 'a-brancher');
         ligne.append(creer('strong', source.nom));
-        ligne.append(
-          creer('span', source.etat === 'ok' ? '✓ Branché' : source.etat === 'erreur' ? '✕ En erreur' : '○ À brancher', 'etat'),
-        );
+        const pret = source.manuel ? '✓ Saisie à la main' : '✓ Branché';
+        ligne.append(creer('span', source.etat === 'ok' ? pret : source.etat === 'erreur' ? '✕ En erreur' : '○ À brancher', 'etat'));
         if (source.etat === 'erreur' && source.detail) ligne.append(creer('span', source.detail, 'detail'));
-        if (source.etat === 'a-brancher') {
+        if (source.etat === 'ok' && source.manuel) ligne.append(creer('span', 'Dans le tableau du Closing, jour par jour', 'detail'));
+        if (source.etat === 'ok' && source.precision) ligne.append(creer('span', source.precision, 'detail'));
+        if (source.etat === 'a-brancher' && source.brancher) {
+          ligne.append(creer('span', source.brancher, 'detail'));
+        } else if (source.etat === 'a-brancher') {
           const detail = creer('span', 'Variables à saisir dans Vercel : ', 'detail');
           source.variables.forEach((variable, rang) => {
             if (rang > 0) detail.append(', ');
@@ -685,6 +745,8 @@ import { CHEMINS } from '../../reglages';
     const colonnes = COLONNES[partie];
     if (!table || !colonnes) return;
     const avecNotes = partie === 'acquisition';
+    // Les ventes se saisissent ici dès que leur base est reliée.
+    const saisieOuverte = d.sources.ventes?.etat === 'ok';
 
     const enTete = creer('tr');
     enTete.append(creer('th', 'Jour'));
@@ -710,7 +772,10 @@ import { CHEMINS } from '../../reglages';
       const calcules = indicateurs(jour);
       for (const colonne of colonnes) {
         const valeur = colonne.lire?.(jour, calcules) ?? null;
-        const cellule = creer('td', ecrire(valeur, colonne.format), valeur == null ? 'vide' : '');
+        const cellule =
+          colonne.saisie && saisieOuverte
+            ? celluleSaisie(jour, colonne, d)
+            : creer('td', ecrire(valeur, colonne.format), valeur == null ? 'vide' : '');
         if (colonne.vente && valeur != null && valeur > 0) cellule.classList.add('vente');
         ligne.append(cellule);
       }
@@ -727,6 +792,86 @@ import { CHEMINS } from '../../reglages';
     pied.append(ligneTotal);
 
     table.replaceChildren(tete, corps, pied);
+  }
+
+  /** Vrai quand une vente a été enregistrée sans que les totaux aient encore été recalculés. */
+  let recalculEnAttente = false;
+
+  /**
+   * Une case saisie à la main (ventes, encaissé, reste à encaisser) : un clic
+   * l'ouvre, Entrée ou un clic ailleurs l'enregistre, Échap annule.
+   */
+  function celluleSaisie(jour: Jour, colonne: Colonne, d: Donnees) {
+    const champ = colonne.saisie ?? 'ventes';
+    const valeur = colonne.lire?.(jour, indicateurs(jour)) ?? 0;
+    const cellule = creer('td', '', 'saisie');
+    if (colonne.vente && valeur > 0) cellule.classList.add('vente');
+    const bouton = creer('button', ecrire(valeur, colonne.format));
+    bouton.type = 'button';
+    bouton.dataset.saisie = `${jour.date}:${champ}`;
+    bouton.setAttribute('aria-label', `${colonne.titre} du ${libelleJour(jour.date)} : ${ecrire(valeur, colonne.format)}. Modifier`);
+    bouton.addEventListener('click', () => {
+      const saisie = creer('input');
+      saisie.type = 'text';
+      saisie.inputMode = colonne.format === 'entier' ? 'numeric' : 'decimal';
+      saisie.maxLength = 12;
+      saisie.value = valeur ? String(valeur).replace('.', ',') : '';
+      saisie.setAttribute('aria-label', `${colonne.titre} du ${libelleJour(jour.date)}`);
+      let termine = false;
+      const terminer = async (enregistrer: boolean, reprendre: boolean) => {
+        if (termine) return;
+        termine = true;
+        const nouvelle = lireSaisie(champ, saisie.value);
+        if (enregistrer && nouvelle === undefined) {
+          signaler(colonne.format === 'entier' ? 'Saisis un nombre entier de ventes.' : 'Saisis un montant en euros, par exemple 1500 ou 1500,50.');
+        } else if (enregistrer && (nouvelle ?? 0) !== valeur) {
+          const resultat = await appeler('/saisie', { method: 'POST', body: JSON.stringify({ date: jour.date, champ, valeur: nouvelle }) });
+          if (resultat.statut === 200 && resultat.corps?.chiffres) {
+            signaler('');
+            Object.assign(jour, resultat.corps.chiffres);
+            recalculEnAttente = true;
+          } else {
+            signaler(
+              resultat.corps?.erreur === 'a-brancher'
+                ? 'La saisie n’est pas enregistrée : la base des compteurs n’est pas encore reliée.'
+                : resultat.statut === 401
+                  ? 'La session est terminée : recharge la page et reconnecte-toi.'
+                  : 'La saisie n’a pas pu être enregistrée. Réessaie dans un instant.',
+            );
+          }
+        }
+        // Le mois affiché a changé pendant l'enregistrement : il n'y a plus rien à refermer ici.
+        if (d !== donnees) return;
+        const actif = document.activeElement;
+        const autreSaisie = actif instanceof HTMLInputElement && actif !== saisie && actif.closest('td.saisie, td.note') !== null;
+        if (!recalculEnAttente || autreSaisie) {
+          // Rien à recalculer, ou une autre case est en cours de saisie : seule cette case se referme.
+          const refermee = celluleSaisie(jour, colonne, d);
+          cellule.replaceWith(refermee);
+          if (reprendre) refermee.querySelector('button')?.focus();
+          return;
+        }
+        // Tout se recalcule : la ligne, le total et les cartes du mois.
+        const cible = reprendre ? `${jour.date}:${champ}` : actif instanceof HTMLElement ? actif.dataset.saisie : undefined;
+        recalculEnAttente = false;
+        afficher(d);
+        if (cible) $<HTMLButtonElement>(`[data-saisie="${cible}"]`)?.focus();
+      };
+      saisie.addEventListener('keydown', (evenement) => {
+        if (evenement.key === 'Enter') {
+          // Sans cela, la même frappe « cliquerait » aussitôt sur la case refermée et la rouvrirait.
+          evenement.preventDefault();
+          void terminer(true, true);
+        }
+        if (evenement.key === 'Escape') void terminer(false, true);
+      });
+      saisie.addEventListener('blur', () => void terminer(true, false));
+      cellule.replaceChildren(saisie);
+      saisie.focus();
+      saisie.select();
+    });
+    cellule.append(bouton);
+    return cellule;
   }
 
   /** Une note par jour (« scaling cbo », « nouvelles pubs »…), modifiable d'un clic. */
@@ -760,6 +905,10 @@ import { CHEMINS } from '../../reglages';
           }
         }
         cellule.replaceWith(celluleNote(date, d));
+        if (recalculEnAttente) {
+          recalculEnAttente = false;
+          afficher(d);
+        }
       };
       champ.addEventListener('keydown', (evenement) => {
         if (evenement.key === 'Enter') void terminer(true);
@@ -809,6 +958,8 @@ import { CHEMINS } from '../../reglages';
     const total = totaliser(d.jours);
     const demonstration = $('[data-demonstration]');
     if (demonstration) demonstration.hidden = !d.demonstration;
+    const aideSaisie = $('[data-aide-saisie]');
+    if (aideSaisie) aideSaisie.hidden = d.sources.ventes?.etat !== 'ok';
     afficherSources(d.sources, d.campagnes);
     for (const partie of Object.keys(COLONNES)) {
       afficherCartes(partie, total);
