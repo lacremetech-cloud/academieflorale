@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { compter, lireCompteurs, nomDeVariante } from '../partage/compteurs.js';
 import { visiteACompter } from '../partage/visites.js';
 import { assemblerMois } from '../serveur/cockpit/donnees.js';
-import { TUNNELS } from '../partage/tunnels.js';
+import { pauseDe, TUNNELS } from '../partage/tunnels.js';
 import { lireIclosed } from '../serveur/cockpit/iclosed.js';
 import { filtreCampagnes, filtreWebinaire, lireMeta, oublierConversions } from '../serveur/cockpit/meta.js';
 import { lireWistia } from '../serveur/cockpit/wistia.js';
@@ -583,8 +583,9 @@ test('assemblage, onglets Webinaire et Organique : leurs sources seulement, et l
   const env = { META_ACCESS_TOKEN: 'x', META_AD_ACCOUNT_ID: '123456789', ICLOSED_API_KEY: 'y', KV_REST_API_URL: 'https://base.test', KV_REST_API_TOKEN: 'z', VERCEL_ENV: 'production' };
   const maintenant = new Date('2026-11-03T12:00:00Z');
 
-  const webinaire = await assemblerMois({ mois: MOIS, tunnel: 'webinaire', env, fetchImpl, maintenant });
-  assert.deepEqual([webinaire.tunnel, webinaire.enLigne], ['webinaire', true]);
+  // Le webinaire sans sa pause : c'est sa reprise qui se vérifie ici (la pause a son test, plus bas).
+  const webinaire = await assemblerMois({ mois: MOIS, tunnel: 'webinaire', env, fetchImpl, maintenant, pause: null });
+  assert.deepEqual([webinaire.tunnel, webinaire.enLigne, webinaire.pause], ['webinaire', true, null]);
   assert.deepEqual(Object.keys(webinaire.sources), ['meta', 'iclosed', 'ventes']);
   assert.deepEqual(Object.values(webinaire.sources).map((source) => source.etat), ['ok', 'ok', 'ok']);
   const [, leDeux, leTrois, leQuatre] = webinaire.jours;
@@ -604,7 +605,7 @@ test('assemblage, onglets Webinaire et Organique : leurs sources seulement, et l
 
   const avant = demandes.length;
   const organique = await assemblerMois({ mois: MOIS, tunnel: 'organique', env, fetchImpl, maintenant });
-  assert.deepEqual(Object.keys(organique.sources), ['iclosed', 'ventes']);
+  assert.deepEqual([Object.keys(organique.sources), organique.pause], [['iclosed', 'ventes'], null]);
   const [premier, second] = organique.jours;
   // Le 1er : un appel réservé sur le site ; le 2 : un appel par messages privés, et l'annulation de celui du site.
   assert.deepEqual([premier.appels, second.appels, second.annules, second.ventes, second.contracte], [1, 1, 1, 1, 4000]);
@@ -627,6 +628,68 @@ test('assemblage, onglets Webinaire et Organique : leurs sources seulement, et l
   assert.equal(defaut.jours[1].appels, 1);
   // Aucun secret dans ce qui part vers la page.
   assert.equal(/"x"|"y"|"z"/.test(JSON.stringify([webinaire, organique, defaut])), false);
+  oublierEvents();
+  oublierConversions();
+});
+
+test('webinaire en pause : ses chiffres à zéro, ni Meta ni iClosed interrogés, ses ventes gardées', async () => {
+  oublierEvents();
+  oublierConversions();
+  // La pause se règle à un seul endroit ; les autres tunnels n'en ont pas.
+  assert.deepEqual([pauseDe('webinaire'), pauseDe('vsl'), pauseDe('organique')], [{ reprise: 'janvier 2027' }, null, null]);
+  const vente = (montant, tunnel) => ({
+    date: '2026-11-02',
+    formule: 'independant',
+    montant,
+    commission: montant / 10,
+    closer: 'c-1',
+    closerNom: 'Camille',
+    tunnel,
+    paiements: [{ methode: 'virement', montant, mensualites: 1, debut: '2026-11-02' }],
+  });
+  const { demandes, fetchImpl } = fauxReseau((url, options) => {
+    if (url.hostname === 'base.test') {
+      const commandes = JSON.parse(options.body);
+      return commandes[0][0] === 'HGETALL'
+        ? [{ result: ['v-00000001', JSON.stringify(vente(3000, 'vsl')), 'v-00000002', JSON.stringify(vente(1800, 'webinaire'))] }, { result: ['c-1', JSON.stringify({ nom: 'Camille' })] }]
+        : commandes.map(() => ({ result: null }));
+    }
+    // Meta et iClosed répondraient de vrais chiffres : en pause, personne ne leur demande rien.
+    if (url.hostname === 'graph.facebook.com') return { data: [{ date_start: '2026-11-02', spend: '500', impressions: '40000', inline_link_clicks: '700', actions: [{ action_type: 'lead', value: '60' }] }] };
+    if (url.hostname === 'public.api.iclosed.io') return iclosedParEvent({ 71: [appel(1, '2026-11-02T09:00:00.000Z', '2026-11-04T17:00:00.000Z')] })(url);
+    return new Response('{}', { status: 500 });
+  });
+  const env = { META_ACCESS_TOKEN: 'x', META_AD_ACCOUNT_ID: '123456789', ICLOSED_API_KEY: 'y', KV_REST_API_URL: 'https://base.test', KV_REST_API_TOKEN: 'z', VERCEL_ENV: 'production' };
+  const maintenant = new Date('2026-11-03T12:00:00Z');
+
+  const webinaire = await assemblerMois({ mois: MOIS, tunnel: 'webinaire', env, fetchImpl, maintenant });
+  assert.deepEqual([webinaire.tunnel, webinaire.pause], ['webinaire', { reprise: 'janvier 2027' }]);
+  assert.deepEqual(demandes.map((d) => d.url.hostname), ['base.test']);
+  assert.deepEqual(Object.fromEntries(Object.entries(webinaire.sources).map(([cle, source]) => [cle, source.etat])), { meta: 'pause', iclosed: 'pause', ventes: 'ok' });
+  const [premier, leDeux, leTrois, leQuatre] = webinaire.jours;
+  // Zéro chaque jour passé, pas un tiret : l'onglet est « à 0 ». Les jours à venir restent vides.
+  for (const jour of [premier, leDeux, leTrois]) {
+    assert.deepEqual([jour.depense, jour.impressions, jour.clics, jour.inscrits, jour.appels, jour.annules, jour.absentes], [0, 0, 0, 0, 0, 0, 0]);
+  }
+  assert.deepEqual([leQuatre.depense, leQuatre.appels, leQuatre.ventes], [null, null, null]);
+  // Ni landing ni vidéo pour le webinaire, en pause ou non.
+  assert.deepEqual([leDeux.vues, leDeux.lectures], [null, null]);
+  // Les ventes s'enregistrent à la main : celle du webinaire reste à sa place, celle du tunnel VSL n'y vient pas.
+  assert.deepEqual([leDeux.ventes, leDeux.contracte, premier.ventes], [1, 1800, 0]);
+  assert.deepEqual(webinaire.ventes.map((v) => [v.id, v.tunnel]), [['v-00000002', 'webinaire']]);
+  assert.deepEqual(webinaire.commissions, [{ closer: 'c-1', nom: 'Camille', ventes: 2, contracte: 4800, commission: 480 }]);
+  assert.deepEqual([webinaire.mesureInscrits, webinaire.typesMeta, webinaire.parSource], [null, {}, []]);
+
+  // Un mois passé reste à zéro lui aussi : la pause vaut pour tout l'onglet.
+  const octobre = await assemblerMois({ mois: '2026-10', tunnel: 'webinaire', env, fetchImpl, maintenant });
+  assert.equal(octobre.jours.length, 31);
+  assert.equal(octobre.jours.every((jour) => jour.depense === 0 && jour.inscrits === 0 && jour.appels === 0 && jour.ventes === 0), true);
+  assert.equal(demandes.some((d) => d.url.hostname !== 'base.test'), false);
+
+  // La pause ne touche ni l'onglet du tunnel VSL ni l'organique : leurs sources sont lues.
+  const organique = await assemblerMois({ mois: MOIS, tunnel: 'organique', env, fetchImpl, maintenant });
+  assert.deepEqual([organique.pause, organique.sources.iclosed.etat], [null, 'ok']);
+  assert.equal(demandes.some((d) => d.url.hostname === 'public.api.iclosed.io'), true);
   oublierEvents();
   oublierConversions();
 });

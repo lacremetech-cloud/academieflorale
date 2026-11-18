@@ -12,7 +12,8 @@
  * (ActiveCampaign, rendez-vous, liste Client, API de conversion Meta).
  * Un onglet par tunnel : le VSL (tout ce qui précède), le webinaire (ses
  * publicités Meta, ses appels, ses ventes) et l'organique (les appels pris sans
- * publicité, source par source, et leurs ventes).
+ * publicité, source par source, et leurs ventes). Un onglet mis en pause
+ * (partage/tunnels.js) garde sa place : ses chiffres sont à zéro, un bandeau le dit.
  *
  * Accès privé : cette page ne contient aucun chiffre. Elle demande le mot de
  * passe, puis lit les chiffres auprès de /api/cockpit/donnees, qui exige une
@@ -64,6 +65,7 @@ import { FORMULES } from '../../../partage/ventes.js';
         ))}
       </nav>
       <p class="texte-secondaire presentation-onglet" data-presentation-onglet hidden></p>
+      <p class="bandeau pause" data-pause hidden></p>
 
       <p class="bandeau demonstration" data-demonstration hidden>
         <strong>Données de démonstration.</strong> Ces chiffres sont inventés : ils servent à mettre au point l’affichage,
@@ -467,6 +469,12 @@ import { FORMULES } from '../../../partage/ventes.js';
 
   .demonstration {
     background: var(--jaune);
+  }
+
+  /* Un onglet en pause : ses chiffres sont à zéro, on dit pourquoi */
+  .pause {
+    max-width: var(--largeur-texte);
+    background: var(--rose);
   }
 
   .erreur {
@@ -1325,7 +1333,8 @@ import { FORMULES } from '../../../partage/ventes.js';
   type Jour = Chiffres & { date: string };
   type Source = {
     nom: string;
-    etat: 'ok' | 'a-brancher' | 'erreur';
+    /** « pause » : la source n'est pas interrogée tant que l'onglet est en pause. */
+    etat: 'ok' | 'a-brancher' | 'erreur' | 'pause';
     detail: string;
     variables: string[];
     brancher?: string;
@@ -1419,6 +1428,8 @@ import { FORMULES } from '../../../partage/ventes.js';
     /** D'où viennent les inscrits du webinaire : le résultat visé par ses campagnes, ou les prospects selon Meta. */
     mesureInscrits?: 'resultat' | 'prospects' | null;
     resultat?: string;
+    /** L'onglet est en pause : ses chiffres sont à zéro jusqu'à la reprise (un mois, « janvier 2027 »). */
+    pause?: { reprise: string } | null;
   };
   type Tunnel = keyof typeof TUNNELS;
   type Format = 'euros' | 'centimes' | 'entier' | 'pourcent' | 'ratio' | 'minutes';
@@ -1615,10 +1626,13 @@ import { FORMULES } from '../../../partage/ventes.js';
     if (!liste) return;
     liste.replaceChildren(
       ...Object.entries(sources).map(([cle, source]) => {
-        const ligne = creer('li', '', source.etat === 'ok' ? 'ok' : source.etat === 'erreur' ? 'erreur-source' : 'a-brancher');
+        const classes = { ok: 'ok', erreur: 'erreur-source', pause: 'attente', 'a-brancher': 'a-brancher' };
+        const ligne = creer('li', '', classes[source.etat] ?? 'a-brancher');
         ligne.append(creer('strong', source.nom));
         const pret = source.manuel ? '✓ Enregistrées ici' : '✓ Branché';
-        ligne.append(creer('span', source.etat === 'ok' ? pret : source.etat === 'erreur' ? '✕ En erreur' : '○ À brancher', 'etat'));
+        const libelles = { ok: pret, erreur: '✕ En erreur', pause: '○ En pause', 'a-brancher': '○ À brancher' };
+        ligne.append(creer('span', libelles[source.etat] ?? '○ À brancher', 'etat'));
+        if (source.etat === 'pause') ligne.append(creer('span', 'Pas interrogé pendant la pause', 'detail'));
         if (source.etat === 'erreur' && source.detail) ligne.append(creer('span', source.detail, 'detail'));
         if (source.etat === 'ok' && source.manuel) ligne.append(creer('span', 'Bouton « Ajouter une vente », dans le Closing', 'detail'));
         if (source.etat === 'ok' && source.precision) ligne.append(creer('span', source.precision, 'detail'));
@@ -2098,6 +2112,14 @@ import { FORMULES } from '../../../partage/ventes.js';
         d.mesureInscrits === 'resultat'
           ? ` Inscrits : le résultat « ${d.resultat} » de ces campagnes, comme dans le gestionnaire de publicités.`
           : ` Inscrits : les prospects que Meta attribue à ces campagnes (leur résultat « ${d.resultat} » n’a pas été trouvé chez Meta).`;
+    }
+    // Un onglet en pause : on dit pourquoi ses chiffres sont à zéro, et jusqu'à quand.
+    const pause = $('[data-pause]');
+    if (pause) {
+      pause.hidden = !d.pause;
+      pause.textContent = d.pause
+        ? `Onglet en pause : ses chiffres sont à zéro. Reprise prévue en ${d.pause.reprise}. Les ventes enregistrées avec le tunnel « ${TUNNELS[tunnel].nom} » restent comptées.`
+        : '';
     }
     const titreVentes = $('[data-titre-ventes]');
     if (titreVentes) titreVentes.textContent = tunnel === 'vsl' ? 'Ventes du mois' : `Ventes du mois · ${TUNNELS[tunnel].nom}`;

@@ -22,6 +22,15 @@ export const TUNNELS = Object.freeze({
   }),
   webinaire: Object.freeze({
     nom: 'Webinaire',
+    /**
+     * Suivi en pause depuis le 18/11/2026 : l'onglet reste, ses chiffres sont à zéro,
+     * et ni Meta ni iClosed ne sont interrogés pour lui. Seules les ventes rangées dans
+     * ce tunnel, enregistrées à la main, restent comptées. Rien n'est effacé : les
+     * chiffres se lisent chez Meta et dans iClosed à chaque affichage.
+     * Pour reprendre : retirer cette ligne, puis comparer les inscrits de l'onglet à
+     * ceux du gestionnaire de publicités (jamais vérifiés sur de vrais chiffres).
+     */
+    pause: Object.freeze({ reprise: 'janvier 2027' }),
     /** Les campagnes Meta du webinaire portent toutes son nom (relevé dans le compte le 18/11/2026). */
     campagnes: 'nuit des fleuristes',
     /** Le résultat que ces campagnes visent : un événement personnalisé du pixel, envoyé par les pages du webinaire. */
@@ -56,4 +65,14 @@ export function estTunnel(texte) {
  */
 export function tunnelValide(texte) {
   return estTunnel(texte) ? texte : TUNNEL_PAR_DEFAUT;
+}
+
+/**
+ * La pause d'un tunnel, s'il en a une : son onglet reste, ses chiffres sont à zéro.
+ * @param {Tunnel} tunnel
+ * @returns {{ reprise: string } | null} « reprise » : le mois où le suivi doit reprendre
+ */
+export function pauseDe(tunnel) {
+  const reglages = TUNNELS[tunnel];
+  return 'pause' in reglages ? reglages.pause : null;
 }

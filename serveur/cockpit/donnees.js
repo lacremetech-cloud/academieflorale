@@ -8,10 +8,11 @@
  * Un onglet par tunnel (partage/tunnels.js) : le tunnel VSL a toutes les sources ;
  * le webinaire a ses campagnes Meta, ses appels et ses ventes ; l'organique n'a
  * pas de publicité : ses appels, par source, et ses ventes.
+ * Un onglet peut être en pause : ses sources ne sont plus interrogées et valent zéro.
  */
 import { BRUTS, joursDuMois, jourParis, jourVide, moisCourant, moisValide } from '../../partage/cockpit.js';
 import { ecrireNote, lireCompteurs, NOTE_MAX } from '../../partage/compteurs.js';
-import { TUNNELS, tunnelValide } from '../../partage/tunnels.js';
+import { pauseDe, TUNNELS, tunnelValide } from '../../partage/tunnels.js';
 import { repondre } from '../reponse.js';
 import { memeOrigine } from '../requete.js';
 import { verifierAcces } from './acces.js';
@@ -60,6 +61,9 @@ export const SOURCES = Object.freeze({
     manuel: true,
   },
 });
+
+/** Ce que rend une source d'un onglet en pause : elle n'est pas interrogée, et vaut zéro chaque jour passé. */
+const EN_PAUSE = Object.freeze({ etat: 'pause', jours: Object.freeze({}) });
 
 /**
  * Les sources d'un onglet. Le webinaire lit chez Meta ses inscriptions en plus
@@ -128,8 +132,8 @@ function joursAssembles(mois, aujourdHui, sources, lues) {
     const jour = { date, ...jourVide() };
     for (const [cle, source] of Object.entries(sources)) {
       const lue = lues[cle];
-      // Une source branchée vaut zéro les jours sans activité ; les jours à venir restent vides.
-      if (!lue || lue.etat !== 'ok' || date > aujourdHui) continue;
+      // Une source branchée vaut zéro les jours sans activité, une source en pause tous les jours ; les jours à venir restent vides.
+      if (!lue || (lue.etat !== 'ok' && lue.etat !== 'pause') || date > aujourdHui) continue;
       for (const chiffre of source.chiffres) jour[chiffre] = lue.jours[date]?.[chiffre] ?? 0;
     }
     return jour;
@@ -139,24 +143,31 @@ function joursAssembles(mois, aujourdHui, sources, lues) {
 /**
  * Un onglet sans landing ni vidéo sur ce site : le webinaire (ses campagnes Meta,
  * ses appels, ses ventes) ou l'organique (ses appels, par source, et ses ventes).
+ * En pause, ni Meta ni iClosed ne sont interrogés : leurs chiffres valent zéro, et
+ * seules les ventes rangées dans ce tunnel, enregistrées à la main, restent comptées.
  * @param {object} options
  * @param {string} options.mois
  * @param {'webinaire' | 'organique'} options.tunnel
  * @param {Record<string, string | undefined>} options.env
  * @param {typeof fetch} options.fetchImpl
  * @param {Date} options.maintenant
+ * @param {{ reprise: string } | null} options.pause
  */
-async function assemblerAutreTunnel({ mois, tunnel, env, fetchImpl, maintenant }) {
+async function assemblerAutreTunnel({ mois, tunnel, env, fetchImpl, maintenant, pause }) {
   const campagnes = tunnel === 'webinaire' ? filtreWebinaire(env) : '';
   const [meta, iclosed, registre] = await Promise.all([
-    tunnel === 'webinaire' ? lireMeta({ env, mois, fetchImpl, maintenant, filtre: campagnes, resultat: TUNNELS.webinaire.resultat }) : null,
-    lireIclosed({ env, mois, fetchImpl, maintenant, events: TUNNELS[tunnel].events }),
+    pause || tunnel !== 'webinaire' ? null : lireMeta({ env, mois, fetchImpl, maintenant, filtre: campagnes, resultat: TUNNELS.webinaire.resultat }),
+    pause ? null : lireIclosed({ env, mois, fetchImpl, maintenant, events: TUNNELS[tunnel].events }),
     lireRegistre(env, { fetchImpl }),
   ]);
   const bloc = blocVentes(registre, mois, maintenant, tunnel);
   const sources = sourcesDe(tunnel);
   /** @type {Record<string, { etat: string, detail?: string, jours: Record<string, Record<string, number>> }>} */
-  const lues = { ...(meta ? { meta } : {}), iclosed, ventes: sourceVentes(registre, bloc, mois) };
+  const lues = {
+    ...(pause ? { meta: EN_PAUSE, iclosed: EN_PAUSE } : { ...(meta ? { meta } : {}), ...(iclosed ? { iclosed } : {}) }),
+    // Les ventes s'enregistrent à la main : elles ne sont jamais en pause.
+    ventes: sourceVentes(registre, bloc, mois),
+  };
   const aujourdHui = jourParis(maintenant);
   return {
     mois,
@@ -168,6 +179,8 @@ async function assemblerAutreTunnel({ mois, tunnel, env, fetchImpl, maintenant }
     notes: {},
     variantes: [],
     ...detailDesVentes(bloc),
+    // L'onglet est-il en pause, et jusqu'à quand : la page le dit au-dessus de ses zéros.
+    pause,
     campagnes,
     // D'où viennent les « inscrits » du webinaire : le résultat visé par ses campagnes, ou à défaut les prospects selon Meta.
     mesureInscrits: meta?.mesure ?? null,
@@ -175,7 +188,7 @@ async function assemblerAutreTunnel({ mois, tunnel, env, fetchImpl, maintenant }
     // Ce que Meta a rendu pour ces campagnes, type d'action par type d'action : pour vérifier ce qui est compté.
     typesMeta: meta?.typesVus ?? {},
     // Les appels du mois, source par source (setting, YouTube…).
-    parSource: iclosed.etat === 'ok' ? (iclosed.parEvent ?? []) : [],
+    parSource: iclosed?.etat === 'ok' ? (iclosed.parEvent ?? []) : [],
     sources: Object.fromEntries(Object.entries(sources).map(([cle, source]) => [cle, etatDeSource(source, lues[cle]?.etat ?? 'a-brancher', lues[cle]?.detail)])),
   };
 }
@@ -187,10 +200,12 @@ async function assemblerAutreTunnel({ mois, tunnel, env, fetchImpl, maintenant }
  * @param {Record<string, string | undefined>} options.env
  * @param {typeof fetch} [options.fetchImpl]
  * @param {Date} [options.maintenant]
+ * @param {{ reprise: string } | null} [options.pause] la pause de l'onglet : celle de partage/tunnels.js sans précision ;
+ *   null pour lire ses sources quand même (les tests de la reprise). Le tunnel de ce site ne se met pas en pause.
  */
-export async function assemblerMois({ mois, tunnel: demande, env, fetchImpl = fetch, maintenant = new Date() }) {
+export async function assemblerMois({ mois, tunnel: demande, env, fetchImpl = fetch, maintenant = new Date(), pause }) {
   const tunnel = tunnelValide(demande);
-  if (tunnel !== 'vsl') return assemblerAutreTunnel({ mois, tunnel, env, fetchImpl, maintenant });
+  if (tunnel !== 'vsl') return assemblerAutreTunnel({ mois, tunnel, env, fetchImpl, maintenant, pause: pause === undefined ? pauseDe(tunnel) : pause });
   const [meta, compteurs, wistia, iclosed, registre, suivi] = await Promise.all([
     lireMeta({ env, mois, fetchImpl, maintenant }),
     lireCompteurs(env, mois, { fetchImpl }),
@@ -319,6 +334,7 @@ export function donneesDeDemonstration(mois, maintenant = new Date(), base = nul
 
 /**
  * Démonstration des onglets Webinaire et Organique : mêmes règles que ci-dessus.
+ * Un onglet en pause n'invente rien : des zéros, comme en vrai.
  * @param {string} mois
  * @param {'webinaire' | 'organique'} tunnel
  * @param {string} aujourdHui
@@ -326,12 +342,17 @@ export function donneesDeDemonstration(mois, maintenant = new Date(), base = nul
  */
 function demonstrationAutreTunnel(mois, tunnel, aujourdHui, bloc) {
   const events = TUNNELS[tunnel].events;
-  const parSource = events.map(({ event, nom }) => ({ event, nom, appels: 0, annules: 0, absentes: 0 }));
+  const pause = pauseDe(tunnel);
+  const parSource = pause ? [] : events.map(({ event, nom }) => ({ event, nom, appels: 0, annules: 0, absentes: 0 }));
   const sources = sourcesDe(tunnel);
   const jours = joursDuMois(mois).map((date) => {
     /** @type {Record<string, number | null | string>} */
     const jour = { date, ...jourVide() };
     if (date > aujourdHui) return jour;
+    if (pause) {
+      for (const source of Object.values(sources)) for (const chiffre of source.chiffres) jour[chiffre] = 0;
+      return Object.assign(jour, bloc.jours[date] ?? { ventes: 0, contracte: 0, encaisse: 0 });
+    }
     let appels = 0;
     let annules = 0;
     let absentes = 0;
@@ -369,11 +390,13 @@ function demonstrationAutreTunnel(mois, tunnel, aujourdHui, bloc) {
     notes: {},
     variantes: [],
     ...detailDesVentes(bloc),
+    pause,
     campagnes: tunnel === 'webinaire' ? TUNNELS.webinaire.campagnes : '',
-    mesureInscrits: tunnel === 'webinaire' ? 'resultat' : null,
+    mesureInscrits: tunnel === 'webinaire' && !pause ? 'resultat' : null,
     resultat: tunnel === 'webinaire' ? TUNNELS.webinaire.resultat : '',
     parSource,
-    sources: Object.fromEntries(Object.entries(sources).map(([cle, source]) => [cle, etatDeSource(source, 'ok')])),
+    // Les ventes s'enregistrent à la main : elles ne sont jamais en pause.
+    sources: Object.fromEntries(Object.entries(sources).map(([cle, source]) => [cle, etatDeSource(source, pause && cle !== 'ventes' ? 'pause' : 'ok')])),
   };
 }
 
